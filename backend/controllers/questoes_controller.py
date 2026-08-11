@@ -300,29 +300,50 @@ def tela_envio():
     opcoes_abertas = [{"materia": c.materia, "edicao_id": c.edicao_id, "edicao_nome": c.edicao.nome if c.edicao else 'Geral'} for c in configs_ativas]
 
     instrutor = Instrutor.query.filter_by(user_id=current_user.id).first()
+    
+    if not instrutor:
+        flash("Você não possui vínculo de instrutor.", "warning")
+        return redirect(url_for('main.dashboard'))
 
-    # 2. Descobre o que este instrutor já enviou nesta escola
-    ja_enviados = []
-    if instrutor:
-        enviadas_db = db.session.query(Disciplina.materia, QuestaoBanco.edicao_id)\
-            .join(QuestaoBanco)\
-            .filter(
-                QuestaoBanco.instrutor_id == instrutor.id,
-                QuestaoBanco.escola_id == escola_id
-            ).distinct().all()
-        ja_enviados = [{"materia": m[0], "edicao_id": m[1]} for m in enviadas_db]
+    # 1.5. NOVO FILTRO: O instrutor só pode enviar para as disciplinas em que foi EXPLICITAMENTE AUTORIZADO (Delegado)
+    delegacoes = DelegacaoProva.query.filter_by(escola_gestora_id=escola_id, instrutor_id=instrutor.id).all()
+    delegacoes_permitidas = set()
+    for d in delegacoes:
+        delegacoes_permitidas.add((d.disciplina.materia, d.edicao_id))
 
-    # 3. A Mágica do Filtro Quádruplo:
-    # Só libera se a combinação (Matéria + Edição) estiver Aberta e NÃO estiver nos Já Enviados
-    lista_final_para_dropdown = []
+    opcoes_autorizadas = []
     for opcao in opcoes_abertas:
-        chave = {"materia": opcao["materia"], "edicao_id": opcao["edicao_id"]}
-        if chave not in ja_enviados:
-            lista_final_para_dropdown.append(f"{opcao['materia']} | {opcao['edicao_nome']}")
+        if (opcao["materia"], opcao["edicao_id"]) in delegacoes_permitidas:
+            opcoes_autorizadas.append(opcao)
+
+    # 3. Retorna apenas as opções (Matéria + Edição) que estão Abertas e Autorizadas
+    lista_final_para_dropdown = []
+    for opcao in opcoes_autorizadas:
+        lista_final_para_dropdown.append(f"{opcao['materia']} | {opcao['edicao_nome']}")
 
     lista_final_para_dropdown.sort()
 
     return render_template('instrutor/enviar_questoes.html', materias=lista_final_para_dropdown)
+
+@questoes_bp.route('/minhas-questoes', methods=['GET'])
+@login_required
+def minhas_questoes_enviadas():
+    """Permite ao instrutor visualizar as questões que ele já enviou."""
+    escola_id = session.get('active_school_id')
+    if not escola_id and current_user.user_schools:
+        escola_id = current_user.user_schools[0].school_id
+
+    instrutor = Instrutor.query.filter_by(user_id=current_user.id).first()
+    if not instrutor or not escola_id:
+        flash("Acesso não autorizado.", "warning")
+        return redirect(url_for('main.dashboard'))
+
+    questoes = QuestaoBanco.query.filter_by(
+        instrutor_id=instrutor.id,
+        escola_id=escola_id
+    ).order_by(QuestaoBanco.criado_em.desc()).all()
+
+    return render_template('instrutor/minhas_questoes.html', questoes=questoes)
 
 
 @questoes_bp.route('/processar', methods=['POST'])
