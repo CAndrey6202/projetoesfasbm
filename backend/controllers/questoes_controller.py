@@ -44,6 +44,16 @@ def api_get_disciplinas(school_id):
     return jsonify(sorted(lista_materias))
 
 
+@questoes_bp.route('/api/edicoes/<int:school_id>', methods=['GET'])
+@login_required
+@super_admin_required
+def api_get_edicoes(school_id):
+    """Retorna as edições que possuem turmas na escola selecionada."""
+    from backend.models import Edicao
+    query = db.session.query(Edicao.id, Edicao.nome).join(Turma).filter(Turma.school_id == school_id).distinct()
+    edicoes = [{"id": e.id, "nome": e.nome} for e in query.all()]
+    return jsonify(edicoes)
+
 @questoes_bp.route('/api/configuracao', methods=['GET', 'POST'])
 @login_required
 def api_configuracao_envio():
@@ -139,13 +149,16 @@ def api_listar_delegacoes():
     """Retorna a lista de instrutores autorizados a gerar provas para a matéria e edição."""
     school_id = request.args.get('school_id', type=int)
     materia = request.args.get('materia', type=str)
-    edicao_id = g.active_edicao.id if g.get('active_edicao') else None
+    edicao_id = request.args.get('edicao')
+    
+    if not edicao_id and g.get('active_edicao'):
+        edicao_id = g.active_edicao.id
 
     query = DelegacaoProva.query.join(Disciplina).filter(
         DelegacaoProva.escola_gestora_id == school_id,
         Disciplina.materia == materia
     )
-    if edicao_id:
+    if edicao_id and str(edicao_id) != 'Geral':
         query = query.filter(DelegacaoProva.edicao_id == edicao_id)
     delegacoes = query.all()
 
@@ -191,17 +204,21 @@ def delegar_prova():
     if not instrutores_ids:
         return jsonify({'success': False, 'message': 'Nenhum instrutor selecionado.'})
 
-    edicao_id = g.active_edicao.id if g.get('active_edicao') else None
+    # Agora recebe edicao_id diretamente do form, caso contrário usa fallback geral
+    edicao_id = dados.get('edicao_id')
+    if not edicao_id and g.get('active_edicao'):
+        edicao_id = g.active_edicao.id
+    
     query = Disciplina.query.join(Turma).filter(
         Turma.school_id == school_id,
         Disciplina.materia == materia
     )
-    if edicao_id:
+    if edicao_id and str(edicao_id) != 'Geral':
         query = query.filter(Turma.edicao_id == edicao_id)
     disciplina_ref = query.first()
 
     if not disciplina_ref:
-        return jsonify({'success': False, 'message': 'Disciplina não encontrada.'})
+        return jsonify({'success': False, 'message': 'Disciplina não encontrada na edição selecionada para esta escola.'})
 
     adicionados = 0
     for instrutor_id in instrutores_ids:

@@ -48,7 +48,9 @@
                                 
                                 <div class="input-group mb-4 w-75 shadow-sm">
                                     <span class="input-group-text bg-dark text-white fw-bold"><i class="fas fa-bookmark"></i> Edição:</span>
-                                    <input type="text" id="input-edicao" class="form-control border-dark text-center fw-bold" value="Geral" placeholder="Ex: CTSP - 6ª Edição">
+                                    <select id="select-edicao" class="form-select border-dark text-center fw-bold">
+                                        <option value="Geral" selected>Geral (Sem edição)</option>
+                                    </select>
                                 </div>
 
                                 <div class="form-check form-switch fs-4 mb-4">
@@ -118,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
         disciplina: document.getElementById('select-disciplina'),
         painel: document.getElementById('painel-acoes'),
         toggle: document.getElementById('toggle-envio'),
-        edicao: document.getElementById('input-edicao'),
+        edicao: document.getElementById('select-edicao'),
         label: document.getElementById('label-toggle'),
         btnBanco: document.getElementById('btn-acessar-banco'),
         btnDelegar: document.getElementById('btn-delegar'),
@@ -150,12 +152,24 @@ document.addEventListener('DOMContentLoaded', function() {
         els.disciplina.disabled = true;
         els.disciplina.innerHTML = '<option disabled selected>Carregando...</option>';
 
+        // Busca as matérias (histórico completo) da escola
         fetch(`/questoes/api/disciplinas/${sid}`)
             .then(res => res.json())
             .then(data => {
                 els.disciplina.innerHTML = '<option value="" selected disabled>Selecione a Disciplina...</option>';
                 data.forEach(m => { els.disciplina.innerHTML += `<option value="${m}">${m}</option>`; });
                 els.disciplina.disabled = false;
+            });
+            
+        // Busca as edições que esta escola possui
+        els.edicao.disabled = true;
+        els.edicao.innerHTML = '<option disabled selected>Carregando...</option>';
+        fetch(`/questoes/api/edicoes/${sid}`)
+            .then(res => res.json())
+            .then(data => {
+                els.edicao.innerHTML = '<option value="Geral">Geral (Sem edição específica)</option>';
+                data.forEach(e => { els.edicao.innerHTML += `<option value="${e.id}">${e.nome}</option>`; });
+                els.edicao.disabled = false;
             });
     });
 
@@ -232,8 +246,8 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 escola_id: sid,
                 materia: mat,
-                edicao: ed,
-                instrutor_ids: selecionados // Manda todos de uma vez
+                edicao_id: ed,
+                instrutor_ids: selecionados
             })
         })
         .then(res => res.json())
