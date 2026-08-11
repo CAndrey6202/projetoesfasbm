@@ -321,7 +321,15 @@ def tela_envio():
 
     opcoes_autorizadas = []
     for opcao in opcoes_abertas:
-        if (opcao["materia"], opcao["edicao_id"]) in materias_vinculadas:
+        tem_vinculo = False
+        for v_materia, v_edicao in materias_vinculadas:
+            if v_materia == opcao["materia"]:
+                # Se o envio aberto for 'Geral' (None), ou se for a mesma edição da turma do instrutor
+                if opcao["edicao_id"] is None or opcao["edicao_id"] == v_edicao:
+                    tem_vinculo = True
+                    break
+        
+        if tem_vinculo:
             opcoes_autorizadas.append(opcao)
 
     # 3. Retorna apenas as opções (Matéria + Edição) que estão Abertas e Autorizadas
