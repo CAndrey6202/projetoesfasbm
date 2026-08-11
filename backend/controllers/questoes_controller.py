@@ -63,8 +63,20 @@ def api_configuracao_envio():
     """
     school_id = request.args.get('school_id', type=int)
     materia = request.args.get('materia', type=str)
-    # Usa o edicao_id da edição ativa no contexto
-    edicao_id = g.active_edicao.id if g.get('active_edicao') else None
+    
+    # Lê a edição enviada pelo frontend
+    if request.method == 'POST':
+        ed_str = request.json.get('edicao')
+    else:
+        ed_str = request.args.get('edicao')
+        
+    if ed_str == 'Geral' or not ed_str:
+        edicao_id = None
+    else:
+        try:
+            edicao_id = int(ed_str)
+        except ValueError:
+            edicao_id = None
 
     if not school_id or not materia:
         return jsonify({'success': False, 'message': 'Escola ou matéria não fornecidas.'}), 400
@@ -79,16 +91,15 @@ def api_configuracao_envio():
                 return jsonify({'success': False, 'message': 'Acesso negado.'}), 403
 
             status = request.json.get('envio_ativo')
-            edicao_id_post = request.json.get('edicao_id', edicao_id)
 
-            config = ConfiguracaoEnvio.query.filter_by(escola_id=school_id, materia=materia, edicao_id=edicao_id_post).first()
+            config = ConfiguracaoEnvio.query.filter_by(escola_id=school_id, materia=materia, edicao_id=edicao_id).first()
 
             if not config:
-                config = ConfiguracaoEnvio(escola_id=school_id, materia=materia, edicao_id=edicao_id_post, envio_ativo=status)
+                config = ConfiguracaoEnvio(escola_id=school_id, materia=materia, edicao_id=edicao_id, envio_ativo=status)
                 db.session.add(config)
             else:
                 config.envio_ativo = status
-
+                
             db.session.commit()
             return jsonify({'success': True})
 

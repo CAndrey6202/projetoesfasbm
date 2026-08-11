@@ -12,9 +12,26 @@
     </div>
 
     {% if questoes %}
+        <!-- Filtro por disciplina -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="filtro-disciplina" class="form-label fw-bold">Filtrar por Disciplina:</label>
+                <select id="filtro-disciplina" class="form-select">
+                    <option value="todas">Todas as Disciplinas</option>
+                    {% set disciplinas_vistas = [] %}
+                    {% for q in questoes %}
+                        {% if q.disciplina.materia not in disciplinas_vistas %}
+                            {% set _ = disciplinas_vistas.append(q.disciplina.materia) %}
+                            <option value="{{ q.disciplina.materia }}">{{ q.disciplina.materia }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
         <div class="accordion" id="accordionQuestoes">
             {% for q in questoes %}
-            <div class="accordion-item mb-3 border shadow-sm">
+            <div class="accordion-item mb-3 border shadow-sm item-questao" data-disciplina="{{ q.disciplina.materia }}">
                 <h2 class="accordion-header" id="heading{{ q.id }}">
                     <button class="accordion-button collapsed bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ q.id }}" aria-expanded="false" aria-controls="collapse{{ q.id }}">
                         <span class="badge bg-secondary me-2">ID: {{ q.id }}</span>
@@ -50,4 +67,24 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filtro = document.getElementById('filtro-disciplina');
+    if(filtro) {
+        filtro.addEventListener('change', function() {
+            const selecionada = this.value;
+            const itens = document.querySelectorAll('.item-questao');
+            
+            itens.forEach(item => {
+                if(selecionada === 'todas' || item.getAttribute('data-disciplina') === selecionada) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

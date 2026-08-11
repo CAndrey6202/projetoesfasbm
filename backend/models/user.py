@@ -214,11 +214,38 @@ class User(UserMixin, db.Model):
         if not sid: return False
 
         from .banco_questoes import ConfiguracaoEnvio
+        from .disciplina_turma import DisciplinaTurma
+        from .disciplina import Disciplina
+        from .turma import Turma
         from .database import db
 
         try:
-            abertas = db.session.query(ConfiguracaoEnvio).filter_by(escola_id=sid, envio_ativo=True).first()
-            return abertas is not None
+            configs = db.session.query(ConfiguracaoEnvio).filter_by(escola_id=sid, envio_ativo=True).all()
+            if not configs:
+                return False
+                
+            if not self.instrutor_profile:
+                return False
+                
+            vinculos_db = db.session.query(Disciplina.materia, Turma.edicao_id)\
+                .join(DisciplinaTurma, DisciplinaTurma.disciplina_id == Disciplina.id)\
+                .join(Turma, Disciplina.turma_id == Turma.id)\
+                .filter(
+                    Turma.school_id == sid,
+                    db.or_(
+                        DisciplinaTurma.instrutor_id_1 == self.instrutor_profile.id,
+                        DisciplinaTurma.instrutor_id_2 == self.instrutor_profile.id
+                    )
+                ).distinct().all()
+                
+            materias_vinculadas = set(vinculos_db)
+            
+            for c in configs:
+                for v_materia, v_edicao in materias_vinculadas:
+                    if v_materia == c.materia:
+                        if c.edicao_id is None or c.edicao_id == v_edicao:
+                            return True
+            return False
         except Exception:
             return False
 
