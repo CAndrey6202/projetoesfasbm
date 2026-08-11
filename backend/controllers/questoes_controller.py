@@ -305,15 +305,23 @@ def tela_envio():
         flash("Você não possui vínculo de instrutor.", "warning")
         return redirect(url_for('main.dashboard'))
 
-    # 1.5. NOVO FILTRO: O instrutor só pode enviar para as disciplinas em que foi EXPLICITAMENTE AUTORIZADO (Delegado)
-    delegacoes = DelegacaoProva.query.filter_by(escola_gestora_id=escola_id, instrutor_id=instrutor.id).all()
-    delegacoes_permitidas = set()
-    for d in delegacoes:
-        delegacoes_permitidas.add((d.disciplina.materia, d.edicao_id))
+    # 1.5. NOVO FILTRO: O instrutor só pode enviar para as disciplinas que ele efetivamente leciona (Vínculo)
+    vinculos_db = db.session.query(Disciplina.materia, Turma.edicao_id)\
+        .join(DisciplinaTurma, DisciplinaTurma.disciplina_id == Disciplina.id)\
+        .join(Turma, Disciplina.turma_id == Turma.id)\
+        .filter(
+            Turma.school_id == escola_id,
+            db.or_(
+                DisciplinaTurma.instrutor_id_1 == instrutor.id,
+                DisciplinaTurma.instrutor_id_2 == instrutor.id
+            )
+        ).distinct().all()
+        
+    materias_vinculadas = set(vinculos_db)
 
     opcoes_autorizadas = []
     for opcao in opcoes_abertas:
-        if (opcao["materia"], opcao["edicao_id"]) in delegacoes_permitidas:
+        if (opcao["materia"], opcao["edicao_id"]) in materias_vinculadas:
             opcoes_autorizadas.append(opcao)
 
     # 3. Retorna apenas as opções (Matéria + Edição) que estão Abertas e Autorizadas
