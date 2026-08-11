@@ -34,14 +34,13 @@ def painel_gestao():
 @super_admin_required
 def api_get_disciplinas(school_id):
     """
-    Retorna as disciplinas unificadas (materia) exclusivas da escola selecionada.
+    Retorna as disciplinas unificadas (materia) exclusivas da escola selecionada (histórico completo).
     """
-    active_edicao_id = g.active_edicao.id if g.get('active_edicao') else None
+    # Retorna TODAS as matérias vinculadas àquela escola, independentemente da edição,
+    # garantindo o isolamento dos dados por escola (sem vazar matérias de outras escolas)
     query = db.session.query(Disciplina.materia).join(Turma).filter(Turma.school_id == school_id)
-    if active_edicao_id:
-        query = query.filter(Turma.edicao_id == active_edicao_id)
     materias = query.distinct().all()
-    lista_materias = [m[0] for m in materias]
+    lista_materias = [m[0] for m in materias if m[0]]
     return jsonify(sorted(lista_materias))
 
 
@@ -105,13 +104,10 @@ def api_get_instrutores():
     if not school_id or not materia:
         return jsonify([])
 
-    active_edicao_id = g.active_edicao.id if g.get('active_edicao') else None
     query = db.session.query(DisciplinaTurma).join(Disciplina).join(Turma).filter(
         Turma.school_id == school_id,
         Disciplina.materia == materia
     )
-    if active_edicao_id:
-        query = query.filter(Turma.edicao_id == active_edicao_id)
     vinculos = query.all()
 
     instrutores_ids = set()
