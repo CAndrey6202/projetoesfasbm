@@ -7,6 +7,24 @@ from backend.models.site_config import SiteConfig
 import re
 
 
+class CachedConfig:
+    def __init__(self, db_obj_or_key, config_value=None, config_type='text', description=None, category='general', id=None):
+        if hasattr(db_obj_or_key, 'config_key'):
+            self.id = db_obj_or_key.id
+            self.config_key = db_obj_or_key.config_key
+            self.config_value = db_obj_or_key.config_value
+            self.config_type = db_obj_or_key.config_type
+            self.description = db_obj_or_key.description
+            self.category = db_obj_or_key.category
+        else:
+            self.id = id
+            self.config_key = db_obj_or_key
+            self.config_value = config_value
+            self.config_type = config_type
+            self.description = description
+            self.category = category
+
+
 class SiteConfigService:
     """
     Serviço para leitura/escrita de configurações do site.
@@ -158,13 +176,12 @@ class SiteConfigService:
         final_configs = []
         for key, value, config_type, description, category in SiteConfigService._DEFAULT_CONFIGS:
             if key in db_configs_map:
-                final_configs.append(db_configs_map[key])
+                final_configs.append(CachedConfig(db_configs_map[key]))
             else:
-                temp_config = SiteConfig(
-                    config_key=key, config_value=value, config_type=config_type,
+                final_configs.append(CachedConfig(
+                    db_obj_or_key=key, config_value=value, config_type=config_type,
                     description=description, category=category
-                )
-                final_configs.append(temp_config)
+                ))
                 
         # Atualiza o cache
         SiteConfigService._cache = final_configs

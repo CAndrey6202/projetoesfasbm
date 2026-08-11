@@ -80,6 +80,8 @@ def gerar_relatorio_horas_aula():
         data_inicio_str = request.form.get('data_inicio')
         data_fim_str = request.form.get('data_fim')
         action = request.form.get('action')
+        ciclo_id_str = request.form.get('ciclo_id')
+        ciclo_id = int(ciclo_id_str) if (ciclo_id_str and ciclo_id_str.isdigit()) else None
 
         try:
             data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
@@ -100,7 +102,7 @@ def gerar_relatorio_horas_aula():
             instrutor_ids_filter = [int(_id) for _id in instrutor_ids_raw if _id.isdigit()]
 
         dados_relatorio = RelatorioService.get_horas_aula_por_instrutor(
-            data_inicio, data_fim, mode_rr, instrutor_ids_filter
+            data_inicio, data_fim, mode_rr, instrutor_ids_filter, ciclo_id
         )
 
         meses = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -122,7 +124,8 @@ def gerar_relatorio_horas_aula():
             "auxiliar_funcao": (request.form.get('auxiliar_funcao') or report_defaults["auxiliar_funcao"]),
             "telefone": (request.form.get('telefone') or report_defaults["telefone"]),
             "valor_hora_aula": SiteConfigService.get_valor_hora_aula(),
-            "report_type": report_type
+            "report_type": report_type,
+            "ciclo_id": ciclo_id_str or ""
         }
 
         # Preview gera direto com o HTML do PDF
@@ -132,11 +135,24 @@ def gerar_relatorio_horas_aula():
         # Download (XLSX ou PDF) vai para a tela de EDIÇÃO
         return render_template('relatorios/editar_mapa_horas.html', **contexto)
 
+    from flask import session
+    from ..models.ciclo import Ciclo
+    from sqlalchemy import select, or_
+
+    active_edicao = session.get('active_edicao_id')
+    ciclos = db.session.scalars(
+        select(Ciclo).where(
+            Ciclo.school_id == school_id,
+            or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
+        ).order_by(Ciclo.nome)
+    ).all()
+
     return render_template(
         'relatorios/horas_aula_form.html',
         tipo_relatorio=tipo_relatorio_titulo,
         todos_instrutores=todos_instrutores,
         form_defaults=report_defaults,
+        ciclos=ciclos,
     )
 
 

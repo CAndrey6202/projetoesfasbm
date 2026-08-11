@@ -21,6 +21,16 @@
             <input type="date" name="data_fim" id="data_fim" class="form-control" required>
         </div>
 
+        <div class="form-group">
+            <label for="ciclo_id"><strong>Filtrar por Ciclo (Opcional):</strong></label>
+            <select name="ciclo_id" id="ciclo_id" class="form-select form-control">
+                <option value="">Todos os Ciclos</option>
+                {% for ciclo in ciclos %}
+                    <option value="{{ ciclo.id }}">{{ ciclo.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         {% if tipo_relatorio == 'Por Instrutor' %}
         <div class="form-group">
             <label for="instrutor_ids"><strong>Selecione os Instrutores:</strong></label>

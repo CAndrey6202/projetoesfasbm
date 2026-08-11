@@ -63,7 +63,8 @@ class RelatorioService:
         data_inicio: date,
         data_fim: date,
         mode_rr: str | None, 
-        instrutor_ids_filter: List[int] | None
+        instrutor_ids_filter: List[int] | None,
+        ciclo_id: int | None = None
     ) -> List[Dict[str, Any]]:
         
         from ..models import db, Horario, User, Instrutor, Disciplina, Semana, Ciclo, DiarioClasse, Turma
@@ -93,6 +94,9 @@ class RelatorioService:
         if active_edicao:
             diarios_query = diarios_query.filter(Turma.edicao_id == active_edicao)
             
+        if ciclo_id:
+            diarios_query = diarios_query.join(Disciplina, DiarioClasse.disciplina_id == Disciplina.id).filter(Disciplina.ciclo_id == ciclo_id)
+            
         diarios_validos = db.session.scalars(diarios_query).all()
         diario_assinante_map = {}
         for d in diarios_validos:
@@ -117,6 +121,9 @@ class RelatorioService:
         )
         if active_edicao:
             query_ant = query_ant.filter(Ciclo.edicao_id == active_edicao)
+            
+        if ciclo_id:
+            query_ant = query_ant.filter(Ciclo.id == ciclo_id)
             
         rows_ant = db.session.execute(query_ant).all()
         
@@ -170,6 +177,9 @@ class RelatorioService:
         )
         if active_edicao:
             query = query.filter(Ciclo.edicao_id == active_edicao)
+            
+        if ciclo_id:
+            query = query.filter(Ciclo.id == ciclo_id)
 
         rows = db.session.execute(query).all()
 
