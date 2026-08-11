@@ -566,7 +566,7 @@
                         <div class="nav-separator">ACADÊMICO</div>
                         <a href="{{ url_for('horario.index') }}" class="nav-link {% if request.endpoint and ('horario.' in request.endpoint or 'semana.' in request.endpoint) and request.endpoint != 'horario.proximas_aulas_admin' %}active{% endif %}"><div class="nav-icon">📅</div> Quadro Horário</a>
                         
-                        {% if current_user.role == 'super_admin' or current_user.pode_enviar_questoes() %}
+                        {% if current_user.role == 'super_admin' or current_user.pode_enviar_questoes %}
                             <a href="{{ url_for('questoes.tela_envio') }}" class="nav-link {% if request.endpoint == 'questoes.tela_envio' %}active{% endif %}"><div class="nav-icon">📤</div> Enviar Questões</a>
                         {% endif %}
                         {% if current_user.role == 'super_admin' %}
