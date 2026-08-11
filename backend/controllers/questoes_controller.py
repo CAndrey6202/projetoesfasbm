@@ -49,7 +49,7 @@ def api_get_disciplinas(school_id):
 @super_admin_required
 def api_get_edicoes(school_id):
     """Retorna as edições que possuem turmas na escola selecionada."""
-    from backend.models import Edicao
+    from backend.models.edicao import Edicao
     query = db.session.query(Edicao.id, Edicao.nome).join(Turma).filter(Turma.school_id == school_id).distinct()
     edicoes = [{"id": e.id, "nome": e.nome} for e in query.all()]
     return jsonify(edicoes)
@@ -151,15 +151,19 @@ def api_listar_delegacoes():
     materia = request.args.get('materia', type=str)
     edicao_id = request.args.get('edicao')
     
-    if not edicao_id and g.get('active_edicao'):
+    if edicao_id == 'Geral':
+        edicao_id = None
+    elif not edicao_id and g.get('active_edicao'):
         edicao_id = g.active_edicao.id
 
     query = DelegacaoProva.query.join(Disciplina).filter(
         DelegacaoProva.escola_gestora_id == school_id,
         Disciplina.materia == materia
     )
-    if edicao_id and str(edicao_id) != 'Geral':
+    if edicao_id:
         query = query.filter(DelegacaoProva.edicao_id == edicao_id)
+    else:
+        query = query.filter(DelegacaoProva.edicao_id == None)
     delegacoes = query.all()
 
     return jsonify([{
@@ -204,16 +208,19 @@ def delegar_prova():
     if not instrutores_ids:
         return jsonify({'success': False, 'message': 'Nenhum instrutor selecionado.'})
 
-    # Agora recebe edicao_id diretamente do form, caso contrário usa fallback geral
+    # Agora recebe edicao_id diretamente do form
     edicao_id = dados.get('edicao_id')
-    if not edicao_id and g.get('active_edicao'):
+    
+    if edicao_id == 'Geral':
+        edicao_id = None
+    elif not edicao_id and g.get('active_edicao'):
         edicao_id = g.active_edicao.id
     
     query = Disciplina.query.join(Turma).filter(
         Turma.school_id == school_id,
         Disciplina.materia == materia
     )
-    if edicao_id and str(edicao_id) != 'Geral':
+    if edicao_id:
         query = query.filter(Turma.edicao_id == edicao_id)
     disciplina_ref = query.first()
 
