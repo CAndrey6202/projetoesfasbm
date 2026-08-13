@@ -270,6 +270,7 @@ def excluir_aluno(aluno_id):
              return redirect(url_for('aluno.listar_alunos'))
 
         try:
+            # Busca o aluno garantindo que pertence à escola ativa
             aluno = db.session.query(Aluno).select_from(Aluno).join(
                 UserSchool, Aluno.user_id == UserSchool.user_id
             ).filter(
@@ -279,25 +280,27 @@ def excluir_aluno(aluno_id):
 
             if aluno:
                 current_user_id = aluno.user_id
-                nome_aluno = aluno.user.nome_completo or "Sem Nome"
-                matricula = aluno.user.matricula or "Sem Matrícula"
+                user_obj = aluno.user
+                nome_aluno = user_obj.nome_completo or "Sem Nome"
+                matricula = user_obj.matricula or "Sem Matrícula"
 
-                # 1. SOFT DELETE: Desativa o perfil e remove da turma ativa (preserva o histórico)
+                # 1. SOFT DELETE DO ALUNO: Desativa o perfil e limpa a turma desta unidade
                 aluno.is_active = False 
                 aluno.turma_id = None
 
-                # 2. Remove o vínculo UserSchool SOMENTE desta escola específica
+                # 2. SEGURO CONTRA CONFLITO GLOBAL: 
+                # Em vez de apagar o usuário da tabela 'users' (o que causa o erro de foreign key nos elogios),
+                # nós apenas removemos o vínculo UserSchool SOMENTE desta escola específica.
                 db.session.query(UserSchool).filter_by(user_id=current_user_id, school_id=school_id).delete()
                 
                 db.session.commit()
                 
-                # --- ESPIÃO: SOFT DELETE DE ALUNO ---
+                # --- LOG DE SEGURANÇA ---
                 LogService.log(
                     action="Removeu (Soft Delete) Aluno da Escola",
                     details=f"O aluno {nome_aluno} (Matrícula: {matricula}) foi desativado e desvinculado desta escola.",
                     school_id=school_id
                 )
-                # -------------------------------------
                 
                 flash('Aluno removido da escola com sucesso (histórico preservado).', 'success')
             else:
@@ -305,6 +308,7 @@ def excluir_aluno(aluno_id):
 
         except Exception as e:
             db.session.rollback()
+            current_app.logger.error(f"Erro ao excluir aluno: {str(e)}")
             flash(f'Erro ao excluir: {str(e)}', 'danger')
     else:
         flash('Falha CSRF.', 'danger')
