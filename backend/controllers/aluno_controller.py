@@ -264,7 +264,6 @@ def editar_funcao_aluno(aluno_id):
 def excluir_aluno(aluno_id):
     form = DeleteForm()
     if form.validate_on_submit():
-        # Remove apenas o vínculo da escola atual para segurança
         school_id = session.get('active_school_id') or UserService.get_current_school_id()
         if not school_id:
              flash('Erro de escola.', 'danger')
@@ -280,30 +279,34 @@ def excluir_aluno(aluno_id):
 
             if aluno:
                 current_user_id = aluno.user_id
-                
-                # Salva os dados antes de apagar do banco
-                nome_aluno_removido = aluno.user.nome_completo or "Sem Nome"
-                matricula_aluno_removida = aluno.user.matricula or "Sem Matrícula"
-                
-                db.session.delete(aluno)
+                nome_aluno = aluno.user.nome_completo or "Sem Nome"
+                matricula = aluno.user.matricula or "Sem Matrícula"
+
+                # 1. SOFT DELETE: Desativa o perfil e remove da turma ativa (preserva o histórico)
+                aluno.is_active = False 
+                aluno.turma_id = None
+
+                # 2. Remove o vínculo UserSchool SOMENTE desta escola específica
                 db.session.query(UserSchool).filter_by(user_id=current_user_id, school_id=school_id).delete()
+                
                 db.session.commit()
                 
-                # --- ESPIÃO: EXCLUSÃO DE ALUNO ---
+                # --- ESPIÃO: SOFT DELETE DE ALUNO ---
                 LogService.log(
-                    action="Removeu Aluno da Escola",
-                    details=f"O aluno {nome_aluno_removido} (Matrícula: {matricula_aluno_removida}) foi removido e desvinculado.",
+                    action="Removeu (Soft Delete) Aluno da Escola",
+                    details=f"O aluno {nome_aluno} (Matrícula: {matricula}) foi desativado e desvinculado desta escola.",
                     school_id=school_id
                 )
-                # ---------------------------------
+                # -------------------------------------
                 
-                flash('Aluno removido da escola.', 'success')
+                flash('Aluno removido da escola com sucesso (histórico preservado).', 'success')
             else:
-                flash('Aluno não encontrado.', 'danger')
+                flash('Aluno não encontrado nesta escola.', 'danger')
 
         except Exception as e:
             db.session.rollback()
             flash(f'Erro ao excluir: {str(e)}', 'danger')
     else:
         flash('Falha CSRF.', 'danger')
+        
     return redirect(url_for('aluno.listar_alunos'))
