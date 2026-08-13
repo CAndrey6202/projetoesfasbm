@@ -69,7 +69,10 @@ def espelho_diarios():
         DiarioClasse.disciplina_id,
         func.count(FrequenciaAluno.id).label('contagem')
     ).join(DiarioClasse, FrequenciaAluno.diario_id == DiarioClasse.id)\
-     .filter(FrequenciaAluno.presente == False)\
+     .filter(
+         FrequenciaAluno.presente == False,
+         DiarioClasse.is_deleted == False
+     )\
      .group_by(FrequenciaAluno.aluno_id, DiarioClasse.disciplina_id).subquery()
 
     # Query principal unindo Alunos com a contagem exata da subquery
@@ -273,6 +276,7 @@ def detalhe_faltas_aluno(aluno_id):
         .where(
             FrequenciaAluno.aluno_id == aluno_id, 
             FrequenciaAluno.presente == False,
+            DiarioClasse.is_deleted == False,
             Turma.school_id == school_id 
         )
         .order_by(Disciplina.materia, DiarioClasse.data_aula.desc())
@@ -489,3 +493,4 @@ def imprimir_relatorio():
         total_aulas=total_aulas,
         data_emissao=datetime.now()
     )
+
