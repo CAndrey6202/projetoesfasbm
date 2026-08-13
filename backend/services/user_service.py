@@ -300,14 +300,9 @@ class UserService:
     def create_user(data, school_id=None, edicao_id=None):
         """
         Criação completa de usuário (geralmente via Admin Tools ou Cadastro Manual).
+        AGORA INTELIGENTE: Se a matrícula/email existir, reaproveita a conta e cria apenas o vínculo!
         """
         try:
-            # Verifica duplicidade global
-            existing = db.session.scalar(
-                select(User).where(or_(User.email == data['email'], User.matricula == data['matricula']))
-            )
-            if existing: return False, "E-mail ou matrícula já cadastrados no sistema."
-
             # Define a escola do contexto se não passada
             if not school_id:
                 school_id = UserService.get_current_school_id()
@@ -315,26 +310,40 @@ class UserService:
             role = data.get('role', 'aluno')
             password = data.get('password') or 'mudar123'
 
-            user = User(
-                email=data['email'], 
-                matricula=data['matricula'], 
-                nome_completo=data['nome_completo'],
-                nome_de_guerra=data.get('nome_de_guerra'), 
-                role=role,
-                posto_graduacao=data.get('posto_graduacao'),
-                is_active=True,
-                must_change_password=True
+            # 1. Busca se o usuário já existe no sistema globalmente
+            user = db.session.scalar(
+                select(User).where(or_(User.email == data['email'], User.matricula == data['matricula']))
             )
-            user.set_password(password)
-            
-            db.session.add(user)
-            db.session.flush()
-            
-            # CORREÇÃO DO ERRO 'opm required'
-            if role == 'aluno':
-                db.session.add(Aluno(user_id=user.id, opm='-', edicao_id=edicao_id))
 
-            # VINCULAÇÃO
+            if not user:
+                # 2. Se NÃO existe, cria do zero normalmente
+                user = User(
+                    email=data['email'], 
+                    matricula=data['matricula'], 
+                    nome_completo=data['nome_completo'],
+                    nome_de_guerra=data.get('nome_de_guerra'), 
+                    role='membro', # A permissão real fica no vínculo agora
+                    posto_graduacao=data.get('posto_graduacao'),
+                    is_active=True,
+                    must_change_password=True
+                )
+                user.set_password(password)
+                db.session.add(user)
+                db.session.flush()
+            else:
+                # 3. Se JÁ EXISTE, atualiza apenas dados vazios caso a secretaria tenha preenchido
+                if not user.email and data.get('email'): 
+                    user.email = data['email']
+                if not user.nome_completo and data.get('nome_completo'):
+                    user.nome_completo = data['nome_completo']
+
+            # 4. Garante a Ficha de Aluno (se o cargo for aluno)
+            if role == 'aluno':
+                aluno_existente = db.session.scalar(select(Aluno).filter_by(user_id=user.id))
+                if not aluno_existente:
+                    db.session.add(Aluno(user_id=user.id, opm='-', edicao_id=edicao_id))
+
+            # 5. VINCULAÇÃO NA ESCOLA ATUAL
             if school_id and role != 'super_admin':
                 UserService._ensure_user_school(user.id, school_id, role)
                 if role == 'instrutor':
@@ -342,6 +351,7 @@ class UserService:
 
             db.session.commit()
             return True, user
+            
         except Exception as e:
             db.session.rollback()
             return False, str(e)

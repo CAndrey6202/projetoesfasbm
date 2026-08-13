@@ -71,10 +71,12 @@ class AlunoService:
         stmt = (
             select(Aluno)
             .join(User, Aluno.user_id == User.id)
-            .join(Turma, Aluno.turma_id == Turma.id) 
+            .join(Turma, Aluno.turma_id == Turma.id)
+            .join(UserSchool, User.id == UserSchool.user_id)
             .where(
                 User.is_active.is_(True),
-                User.role == 'aluno',
+                UserSchool.role == 'aluno',
+                UserSchool.school_id == active_school_id,
                 Turma.school_id == active_school_id
             )
             .options(
