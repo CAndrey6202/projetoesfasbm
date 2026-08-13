@@ -264,13 +264,13 @@ def editar_funcao_aluno(aluno_id):
 def excluir_aluno(aluno_id):
     form = DeleteForm()
     if form.validate_on_submit():
-        # Remove apenas o vínculo da escola atual para segurança
         school_id = session.get('active_school_id') or UserService.get_current_school_id()
         if not school_id:
              flash('Erro de escola.', 'danger')
              return redirect(url_for('aluno.listar_alunos'))
 
         try:
+            # Busca o aluno garantindo que pertence à escola ativa
             aluno = db.session.query(Aluno).select_from(Aluno).join(
                 UserSchool, Aluno.user_id == UserSchool.user_id
             ).filter(
@@ -280,7 +280,6 @@ def excluir_aluno(aluno_id):
 
             if aluno:
                 current_user_id = aluno.user_id
-                
                 # Salva os dados antes de apagar do banco
                 nome_aluno_removido = aluno.user.nome_completo or "Sem Nome"
                 matricula_aluno_removida = aluno.user.matricula or "Sem Matrícula"
@@ -297,21 +296,22 @@ def excluir_aluno(aluno_id):
                 db.session.commit()
                 # --- FIM DO SOFT DELETE ---
                 
-                # --- ESPIÃO: EXCLUSÃO DE ALUNO ---
+                # --- LOG DE SEGURANÇA ---
                 LogService.log(
                     action="Removeu Aluno da Escola (Soft Delete)",
                     details=f"O aluno {nome_aluno_removido} (Matrícula: {matricula_aluno_removida}) teve seu status alterado para Desligado.",
                     school_id=school_id
                 )
-                # ---------------------------------
                 
-                flash('Aluno removido da escola.', 'success')
+                flash('Aluno removido da escola com sucesso (histórico preservado).', 'success')
             else:
-                flash('Aluno não encontrado.', 'danger')
+                flash('Aluno não encontrado nesta escola.', 'danger')
 
         except Exception as e:
             db.session.rollback()
+            current_app.logger.error(f"Erro ao excluir aluno: {str(e)}")
             flash(f'Erro ao excluir: {str(e)}', 'danger')
     else:
         flash('Falha CSRF.', 'danger')
+        
     return redirect(url_for('aluno.listar_alunos'))
