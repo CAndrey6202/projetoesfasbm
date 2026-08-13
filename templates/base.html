@@ -551,7 +551,7 @@
                     <div class="nav-separator">GERAL</div>
                     <a href="{{ url_for('main.safebrowser') }}" class="nav-link {% if request.endpoint == 'main.safebrowser' %}active{% endif %}"><div class="nav-icon">🛡️</div> SafeBrowser</a>
 
-                    {% if current_user.is_staff_in_school(active_sid) or current_user.is_instrutor_in_school(active_sid) or current_user.role|lower == 'aluno' %}
+                    {% if current_user.is_staff_in_school(active_sid) or current_user.is_instrutor_in_school(active_sid) or (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') %}
                         <a href="{{ url_for('aluno.listar_alunos') }}" class="nav-link {% if request.endpoint and 'aluno.' in request.endpoint and 'historico' not in request.endpoint %}active{% endif %}"><div class="nav-icon">👥</div> Alunos</a>
                         <a href="{{ url_for('instrutor.listar_instrutores') }}" class="nav-link {% if request.endpoint and 'instrutor.' in request.endpoint %}active{% endif %}"><div class="nav-icon">🎓</div> Instrutores</a>
                         <a href="{{ url_for('turma.listar_turmas') }}" class="nav-link {% if request.endpoint and 'turma.' in request.endpoint %}active{% endif %}"><div class="nav-icon">🏫</div> Turmas</a>
@@ -562,7 +562,7 @@
                         <a href="{{ url_for('vinculo.gerenciar_vinculos') }}" class="nav-link {% if request.endpoint and 'vinculo.' in request.endpoint %}active{% endif %}"><div class="nav-icon">🔗</div> Vínculos</a>
                     {% endif %}
 
-                    {% if current_user.is_staff_in_school(active_sid) or current_user.is_instrutor_in_school(active_sid) or current_user.role|lower == 'aluno' %}
+                    {% if current_user.is_staff_in_school(active_sid) or current_user.is_instrutor_in_school(active_sid) or (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') %}
                         <div class="nav-separator">ACADÊMICO</div>
                         <a href="{{ url_for('horario.index') }}" class="nav-link {% if request.endpoint and ('horario.' in request.endpoint or 'semana.' in request.endpoint) and request.endpoint != 'horario.proximas_aulas_admin' %}active{% endif %}"><div class="nav-icon">📅</div> Quadro Horário</a>
                         
@@ -594,7 +594,7 @@
                         <a href="{{ url_for('admin_escola.espelho_diarios') }}" class="nav-link {% if request.endpoint == 'admin_escola.espelho_diarios' %}active{% endif %}"><div class="nav-icon">📖</div> Diários de Classe (Adm)</a>
                     {% endif %}
 
-                    {% if current_user.is_cal_in_school(active_sid) or current_user.role|lower == 'aluno' or dec_mode_active %}
+                    {% if current_user.is_cal_in_school(active_sid) or (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') or dec_mode_active %}
                         <div class="nav-separator">JUSTIÇA E DISCIPLINA</div>
                         <a href="{{ url_for('justica.index') }}" class="nav-link {% if request.endpoint and 'justica.' in request.endpoint %}active{% endif %}"><div class="nav-icon">⚖️</div> Justiça e Disciplina</a>
                         <a href="{{ url_for('questionario.index') }}" class="nav-link {% if request.endpoint and 'questionario.' in request.endpoint %}active{% endif %}"><div class="nav-icon">📝</div> Questionários</a>
@@ -608,7 +608,7 @@
                         <a href="{{ url_for('relatorios.index') }}" class="nav-link {% if request.endpoint and 'relatorios.' in request.endpoint %}active{% endif %}"><div class="nav-icon">📊</div> Relatórios</a>
                     {% endif %}
 
-                    {% if current_user.role|lower == 'aluno' and current_user.aluno_profile %}
+                    {% if (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') and current_user.aluno_profile %}
                         <div class="nav-separator">PORTAL DO ALUNO</div>
                         <a href="{{ url_for('historico.index') }}" class="nav-link {% if request.endpoint and 'historico.' in request.endpoint %}active{% endif %}"><div class="nav-icon">📊</div> Meu {{ g.active_edicao.npccal_type|upper if g.active_edicao and g.active_edicao.npccal_type else 'CTSP' }}</a>
                         {% if current_user.is_chefe_turma %}

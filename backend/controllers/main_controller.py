@@ -66,7 +66,7 @@ def inject_active_school():
                         if s: escolas_dict[s.id] = {'id': s.id, 'nome': s.nome}
 
             # 3. Alunos
-            if current_user.role == 'aluno' and getattr(current_user, 'aluno_profile', None) and current_user.aluno_profile.turma:
+            if getattr(current_user, 'aluno_profile', None) and current_user.aluno_profile.turma:
                 t = current_user.aluno_profile.turma
                 if t.school_id and t.school_id not in escolas_dict:
                     s = db.session.get(School, t.school_id)
@@ -165,7 +165,7 @@ def selecionar_escola():
     # ========================================================
     # 3. BUSCA PROFUNDA DE ALUNO
     # ========================================================
-    if current_user.role == 'aluno' and getattr(current_user, 'aluno_profile', None) and current_user.aluno_profile.turma:
+    if getattr(current_user, 'aluno_profile', None) and current_user.aluno_profile.turma:
         t = current_user.aluno_profile.turma
         if t.school_id and t.school_id not in escolas_dict:
             s = db.session.get(School, t.school_id)

@@ -285,14 +285,22 @@ def excluir_aluno(aluno_id):
                 nome_aluno_removido = aluno.user.nome_completo or "Sem Nome"
                 matricula_aluno_removida = aluno.user.matricula or "Sem Matrícula"
                 
-                db.session.delete(aluno)
-                db.session.query(UserSchool).filter_by(user_id=current_user_id, school_id=school_id).delete()
+                # --- INÍCIO DO SOFT DELETE ---
+                # Em vez de apagar o aluno e o UserSchool, apenas alteramos o status
+                aluno.status_matricula = 'Desligado'
+                
+                # Desvincula a role de 'aluno' mudando para 'aluno_desligado' para que não apareça nas listas da escola
+                user_school = db.session.query(UserSchool).filter_by(user_id=current_user_id, school_id=school_id).first()
+                if user_school:
+                    user_school.role = 'aluno_desligado'
+                
                 db.session.commit()
+                # --- FIM DO SOFT DELETE ---
                 
                 # --- ESPIÃO: EXCLUSÃO DE ALUNO ---
                 LogService.log(
-                    action="Removeu Aluno da Escola",
-                    details=f"O aluno {nome_aluno_removido} (Matrícula: {matricula_aluno_removida}) foi removido e desvinculado.",
+                    action="Removeu Aluno da Escola (Soft Delete)",
+                    details=f"O aluno {nome_aluno_removido} (Matrícula: {matricula_aluno_removida}) teve seu status alterado para Desligado.",
                     school_id=school_id
                 )
                 # ---------------------------------
