@@ -186,6 +186,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <form action="{{ url_for('questionario.nova_avaliacao_instrutores') }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="modal-header">
             <h5 class="modal-title">Nova Avaliação de Instrutores</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
