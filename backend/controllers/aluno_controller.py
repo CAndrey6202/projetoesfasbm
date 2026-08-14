@@ -428,3 +428,70 @@ def responder_avaliacao(id):
     return render_template('questionario/responder_avaliacao_instrutores.html', 
                            campanha=campanha, 
                            instrutores=instrutores_pendentes)
+
+@aluno_bp.route('/debug-trava', methods=['GET'])
+@login_required
+def debug_trava():
+    from flask import jsonify, session
+    from backend.models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+    from backend.models.horario import Horario
+    from backend.models.instrutor import Instrutor
+    from backend.models.disciplina_turma import DisciplinaTurma
+    
+    if str(getattr(current_user, 'role', '')).lower().strip() != 'aluno':
+        return jsonify({'error': 'Não é aluno'})
+
+    aluno = getattr(current_user, 'aluno_profile', None)
+    if not aluno or not aluno.turma:
+        return jsonify({'error': 'Sem perfil ou sem turma'})
+
+    active_edicao_id = session.get('active_edicao_id')
+    
+    campanhas = db.session.query(CampanhaAvaliacao).filter_by(
+        school_id=aluno.turma.school_id,
+        is_ativa=True,
+        is_obrigatoria=True
+    ).filter(
+        (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+    ).all()
+
+    instrutores_ids = set()
+    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
+    for v in vinculos:
+        if v.instrutor_id_1: instrutores_ids.add(v.instrutor_id_1)
+        if v.instrutor_id_2: instrutores_ids.add(v.instrutor_id_2)
+
+    horarios = db.session.query(Horario).join(DisciplinaTurma).filter(DisciplinaTurma.pelotao == aluno.turma.nome).all()
+    for h in horarios:
+        if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
+
+    instrutores_banco = db.session.query(Instrutor).filter(
+        Instrutor.id.in_(instrutores_ids) if instrutores_ids else False,
+        Instrutor.school_id == aluno.turma.school_id
+    ).all() if instrutores_ids else []
+
+    valid_instrutores_count = 0
+    for inst in instrutores_banco:
+        u = inst.user
+        nome_guerra = (u.nome_de_guerra or "").lower()
+        nome_completo = (u.nome_completo or "").lower()
+        if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
+            continue
+        valid_instrutores_count += 1
+
+    respostas = []
+    for c in campanhas:
+        rd = db.session.query(RespostaAvaliacao).filter_by(campanha_id=c.id, aluno_id=aluno.id).count()
+        respostas.append({'campanha_id': c.id, 'respostas_dadas': rd})
+
+    return jsonify({
+        'aluno_id': aluno.id,
+        'turma': aluno.turma.nome,
+        'school_id': aluno.turma.school_id,
+        'active_edicao_id': active_edicao_id,
+        'campanhas_ativas_obrigatorias_encontradas': len(campanhas),
+        'campanhas': [{'id': c.id, 'titulo': c.titulo} for c in campanhas],
+        'instrutores_encontrados_ids': list(instrutores_ids),
+        'valid_instrutores_count': valid_instrutores_count,
+        'respostas': respostas
+    })
