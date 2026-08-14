@@ -357,6 +357,11 @@ def resultado_avaliacao(id):
     instrutores_data = {}
     for r in respostas:
         u = r.instrutor.user
+        nome_guerra = (u.nome_de_guerra or "").lower()
+        nome_completo = (u.nome_completo or "").lower()
+        if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
+            continue
+            
         nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
         
         if nome_exibicao not in instrutores_data:

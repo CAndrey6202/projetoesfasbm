@@ -363,10 +363,18 @@ def responder_avaliacao(id):
         return redirect(url_for('dashboard.index'))
         
     # Obter os objetos Instrutor que o aluno deve avaliar, e que pertencem à escola do aluno
-    instrutores_para_avaliar = db.session.query(Instrutor).filter(
+    instrutores_banco = db.session.query(Instrutor).filter(
         Instrutor.id.in_(instrutores_ids),
         Instrutor.school_id == aluno.turma.school_id
     ).all()
+    
+    # Filtrar instrutores padrão (C Al / S Ens) que não devem ser avaliados
+    instrutores_para_avaliar = []
+    for inst in instrutores_banco:
+        nome_guerra = (inst.user.nome_de_guerra or "").lower()
+        nome_completo = (inst.user.nome_completo or "").lower()
+        if "c al" not in nome_guerra and "s ens" not in nome_guerra and "sens" not in nome_guerra and "c al" not in nome_completo and "s ens" not in nome_completo:
+            instrutores_para_avaliar.append(inst)
     
     # Filtrar os instrutores que o aluno já avaliou nesta campanha
     respostas_existentes = db.session.query(RespostaAvaliacao.instrutor_id).filter_by(

@@ -170,44 +170,55 @@
         if (btnExport) {
             btnExport.addEventListener('click', function() {
                 try {
-                    // Oculta botões temporariamente para não saírem no PDF
                     this.style.display = 'none';
                     const btnVoltar = document.querySelector('.btn-secondary');
                     if (btnVoltar) btnVoltar.style.display = 'none';
                     const formFiltro = document.querySelector('form');
                     if (formFiltro) formFiltro.style.display = 'none';
                     
-                    const element = document.getElementById('report-content');
-                    const titulo = "{{ campanha.titulo|default('Avaliacao') }}".replace(/[^a-zA-Z0-9]/g, '_');
-                    const opt = {
-                        margin:       10,
-                        filename:     `Resultados_${titulo}.pdf`,
-                        image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: true },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-                    };
-                    
-                    // Corrige scrolls de comentários
                     const comments = document.querySelectorAll('.comentarios-list');
                     comments.forEach(el => { el.style.maxHeight = 'none'; });
-                    
-                    html2pdf().set(opt).from(element).save().then(() => {
-                        // Restaura
+
+                    if (typeof html2pdf === 'function') {
+                        const element = document.getElementById('report-content');
+                        const titulo = "{{ campanha.titulo|default('Avaliacao') }}".replace(/[^a-zA-Z0-9]/g, '_');
+                        const opt = {
+                            margin:       10,
+                            filename:     `Resultados_${titulo}.pdf`,
+                            image:        { type: 'jpeg', quality: 0.98 },
+                            html2canvas:  { scale: 2, useCORS: true },
+                            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                        };
+                        
+                        html2pdf().set(opt).from(element).save().then(() => {
+                            this.style.display = 'inline-block';
+                            if (btnVoltar) btnVoltar.style.display = 'inline-block';
+                            if (formFiltro) formFiltro.style.display = 'flex';
+                            comments.forEach(el => { el.style.maxHeight = '250px'; });
+                        }).catch(err => {
+                            console.error('Erro no html2pdf, usando impressão nativa:', err);
+                            window.print();
+                            this.style.display = 'inline-block';
+                            if (btnVoltar) btnVoltar.style.display = 'inline-block';
+                            if (formFiltro) formFiltro.style.display = 'flex';
+                            comments.forEach(el => { el.style.maxHeight = '250px'; });
+                        });
+                    } else {
+                        window.print();
                         this.style.display = 'inline-block';
                         if (btnVoltar) btnVoltar.style.display = 'inline-block';
                         if (formFiltro) formFiltro.style.display = 'flex';
                         comments.forEach(el => { el.style.maxHeight = '250px'; });
-                    }).catch(err => {
-                        console.error('Erro ao gerar PDF:', err);
-                        alert('Erro ao gerar o PDF. Verifique o console.');
-                        this.style.display = 'inline-block';
-                        if (btnVoltar) btnVoltar.style.display = 'inline-block';
-                        if (formFiltro) formFiltro.style.display = 'flex';
-                        comments.forEach(el => { el.style.maxHeight = '250px'; });
-                    });
+                    }
                 } catch(e) {
-                    console.error('Erro na preparação do PDF:', e);
-                    alert('Erro na preparação do PDF.');
+                    console.error('Erro crítico na preparação do PDF, usando impressão nativa:', e);
+                    window.print();
+                    this.style.display = 'inline-block';
+                    const btnVoltar = document.querySelector('.btn-secondary');
+                    if (btnVoltar) btnVoltar.style.display = 'inline-block';
+                    const formFiltro = document.querySelector('form');
+                    if (formFiltro) formFiltro.style.display = 'flex';
+                    document.querySelectorAll('.comentarios-list').forEach(el => { el.style.maxHeight = '250px'; });
                 }
             });
         }
