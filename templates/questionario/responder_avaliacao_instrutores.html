@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Avaliação de Instrutores{% endblock %}
+
+{% block content %}
+<div class="content-header text-center py-4 mb-4" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+    <h1 class="display-5 fw-bold"><i class="fas fa-star text-warning"></i> Avaliação de Instrutores</h1>
+    <p class="lead mb-0 mt-2">{{ campanha.titulo }}</p>
+</div>
+
+<div class="container pb-5" style="max-width: 800px;">
+    
+    <div class="card border-0 shadow-sm mb-4" style="border-top: 8px solid #4a90e2 !important; border-radius: 12px;">
+        <div class="card-body p-4">
+            <h4 class="card-title fw-bold">Instruções</h4>
+            <p class="card-text text-muted">
+                Prezado(a) aluno(a), avalie abaixo os instrutores que ministraram aulas para a sua turma.
+                Sua avaliação é <strong>100% anônima</strong>. Seja sincero para nos ajudar a melhorar continuamente a qualidade do ensino.
+            </p>
+        </div>
+    </div>
+
+    <form method="POST">
+        <!-- Token CSRF -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% for instrutor in instrutores %}
+        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1)'">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 50px; height: 50px;">
+                        <i class="fas fa-chalkboard-teacher fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">{{ instrutor.user.nome }}</h5>
+                        <small class="text-muted">{{ instrutor.user.posto_graduacao }}</small>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <p class="fw-semibold mb-3">Qual a sua nota para o instrutor?</p>
+                    <div class="d-flex justify-content-between align-items-center px-1" style="max-width: 100%; overflow-x: auto;">
+                        <div class="text-center mx-1">
+                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_1_{{ instrutor.id }}" value="1" autocomplete="off" required>
+                            <label class="btn btn-outline-danger px-4 py-2" for="nota_1_{{ instrutor.id }}">1<br><small>Péssimo</small></label>
+                        </div>
+                        <div class="text-center mx-1">
+                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_2_{{ instrutor.id }}" value="2" autocomplete="off">
+                            <label class="btn btn-outline-warning px-4 py-2" for="nota_2_{{ instrutor.id }}">2<br><small>Ruim</small></label>
+                        </div>
+                        <div class="text-center mx-1">
+                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_3_{{ instrutor.id }}" value="3" autocomplete="off">
+                            <label class="btn btn-outline-secondary px-4 py-2" for="nota_3_{{ instrutor.id }}">3<br><small>Médio</small></label>
+                        </div>
+                        <div class="text-center mx-1">
+                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_4_{{ instrutor.id }}" value="4" autocomplete="off">
+                            <label class="btn btn-outline-info px-4 py-2" for="nota_4_{{ instrutor.id }}">4<br><small>Bom</small></label>
+                        </div>
+                        <div class="text-center mx-1">
+                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_5_{{ instrutor.id }}" value="5" autocomplete="off">
+                            <label class="btn btn-outline-success px-4 py-2" for="nota_5_{{ instrutor.id }}">5<br><small>Excelente</small></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="fw-semibold mb-2">Comentário Adicional <span class="text-muted fw-normal">(Opcional)</span></p>
+                    <textarea class="form-control" name="comentario_{{ instrutor.id }}" rows="3" placeholder="Sua opinião é muito importante..." style="border-radius: 8px; border: 1px solid #dee2e6; resize: none;"></textarea>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="d-flex justify-content-end mt-4 mb-5">
+            <a href="{{ url_for('questionario.index') }}" class="btn btn-light me-3 px-4 shadow-sm">Cancelar</a>
+            <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm" style="border-radius: 8px;">
+                Enviar Avaliações <i class="fas fa-paper-plane ms-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

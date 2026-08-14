@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user
 from sqlalchemy import select, func, distinct
+import json
 
 from ..models.database import db
 from ..models.questionario import Questionario
@@ -8,6 +9,8 @@ from ..models.pergunta import Pergunta
 from ..models.opcao_resposta import OpcaoResposta
 from ..models.resposta import Resposta
 from ..models.user import User
+from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+from ..services.user_service import UserService
 
 questionario_bp = Blueprint('questionario', __name__, url_prefix='/questionario')
 
@@ -21,8 +24,17 @@ def cal_or_admin_required():
 @questionario_bp.route('/')
 @login_required
 def index():
+    school_id = UserService.get_current_school_id()
+    
     questionarios = db.session.scalars(select(Questionario).order_by(Questionario.id.desc())).all()
-    return render_template('questionario/index.html', questionarios=questionarios)
+    
+    # Busca campanhas apenas da escola atual
+    stmt_campanhas = select(CampanhaAvaliacao)
+    if school_id:
+        stmt_campanhas = stmt_campanhas.where(CampanhaAvaliacao.school_id == school_id)
+    campanhas = db.session.scalars(stmt_campanhas.order_by(CampanhaAvaliacao.id.desc())).all()
+    
+    return render_template('questionario/index.html', questionarios=questionarios, campanhas=campanhas)
 
 @questionario_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
@@ -204,5 +216,156 @@ def excluir(id):
         db.session.query(Resposta).filter_by(questionario_id=id).delete()
         db.session.delete(q)
         db.session.commit()
-        flash('Questionário excluído.', 'success')
+        flash('Questionário excluído com sucesso.', 'success')
     return redirect(url_for('questionario.index'))
+
+# --- AVALIAÇÃO DE INSTRUTORES ---
+
+@questionario_bp.route('/avaliacao-instrutores/nova', methods=['POST'])
+@login_required
+def nova_avaliacao_instrutores():
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    school_id = UserService.get_current_school_id()
+    if not school_id:
+        flash('Escola não selecionada.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    titulo = request.form.get('titulo')
+    is_obrigatoria = request.form.get('is_obrigatoria') == 'on'
+    
+    if not titulo:
+        flash('O título da avaliação é obrigatório.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    nova_campanha = CampanhaAvaliacao(
+        titulo=titulo,
+        is_ativa=True,
+        is_obrigatoria=is_obrigatoria,
+        school_id=school_id
+    )
+    db.session.add(nova_campanha)
+    db.session.commit()
+    
+    flash(f'Campanha "{titulo}" iniciada com sucesso!', 'success')
+    return redirect(url_for('questionario.index'))
+
+@questionario_bp.route('/avaliacao-instrutores/alternar/<int:id>')
+@login_required
+def alternar_status_avaliacao(id):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        flash('Campanha não encontrada.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha.is_ativa = not campanha.is_ativa
+    db.session.commit()
+    
+    acao = 'ativada' if campanha.is_ativa else 'encerrada'
+    flash(f'Campanha {acao} com sucesso.', 'success')
+    return redirect(url_for('questionario.index'))
+
+@questionario_bp.route('/avaliacao-instrutores/alternar-obrigatoriedade/<int:id>')
+@login_required
+def alternar_obrigatoriedade_avaliacao(id):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        flash('Campanha não encontrada.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha.is_obrigatoria = not campanha.is_obrigatoria
+    db.session.commit()
+    
+    status = 'agora é OBRIGATÓRIA (a tela dos alunos será travada)' if campanha.is_obrigatoria else 'agora é OPCIONAL'
+    flash(f'Campanha "{campanha.titulo}" {status}.', 'success')
+    return redirect(url_for('questionario.index'))
+
+@questionario_bp.route('/avaliacao-instrutores/excluir/<int:id>')
+@login_required
+def excluir_avaliacao(id):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        flash('Campanha não encontrada.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    db.session.delete(campanha)
+    db.session.commit()
+    
+    flash('Campanha excluída com sucesso.', 'success')
+    return redirect(url_for('questionario.index'))
+
+@questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>')
+@login_required
+def resultado_avaliacao(id):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        flash('Campanha não encontrada.', 'danger')
+        return redirect(url_for('questionario.index'))
+        
+    # Busca os resultados de fato.
+    respostas = db.session.scalars(
+        select(RespostaAvaliacao)
+        .where(RespostaAvaliacao.campanha_id == id)
+    ).all()
+    
+    # Prepara os dados para o Chart.js e para a tabela de comentários
+    instrutores_data = {}
+    for r in respostas:
+        instrutor_nome = r.instrutor.user.nome
+        turma_nome = r.turma.nome
+        
+        if instrutor_nome not in instrutores_data:
+            instrutores_data[instrutor_nome] = {
+                'notas': [],
+                'comentarios': [],
+                'turmas': set()
+            }
+        
+        instrutores_data[instrutor_nome]['notas'].append(r.nota)
+        instrutores_data[instrutor_nome]['turmas'].add(turma_nome)
+        
+        if r.comentario and r.comentario.strip():
+            instrutores_data[instrutor_nome]['comentarios'].append({
+                'turma': turma_nome,
+                'texto': r.comentario.strip(),
+                'data': r.data_resposta.strftime('%d/%m/%Y %H:%M')
+            })
+            
+    # Calcular médias
+    labels = []
+    medias = []
+    for nome, data in instrutores_data.items():
+        media = sum(data['notas']) / len(data['notas'])
+        data['media'] = round(media, 2)
+        data['turmas'] = list(data['turmas'])
+        
+        labels.append(nome)
+        medias.append(data['media'])
+        
+    chart_data = {
+        'labels': labels,
+        'medias': medias
+    }
+    
+    return render_template('questionario/resultados_avaliacao.html', 
+                           campanha=campanha, 
+                           instrutores_data=instrutores_data,
+                           chart_data=json.dumps(chart_data))

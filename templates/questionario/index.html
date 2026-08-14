@@ -18,6 +18,13 @@
                 <i class="fas fa-plus"></i> Novo Questionário
             </a>
         {% endif %}
+        
+        {# SENS e ADMINS podem criar Avaliação de Instrutores #}
+        {% if current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin %}
+            <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#modalNovaAvaliacao">
+                <i class="fas fa-star"></i> Nova Avaliação de Instrutores
+            </button>
+        {% endif %}
     </div>
 
     <div class="table-responsive">
@@ -92,5 +99,112 @@
             </tbody>
         </table>
     </div>
+</div>
+
+{# --- SEÇÃO: CAMPANHAS DE AVALIAÇÃO DE INSTRUTORES --- #}
+<div class="table-container mt-4">
+    <div class="table-header">
+        <h3>Campanhas de Avaliação de Instrutores</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Título</th>
+                    <th>Status</th>
+                    <th>Obrigatória?</th>
+                    <th>Respostas</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if campanhas is defined %}
+                    {% for c in campanhas %}
+                    <tr>
+                        <td><strong>{{ c.titulo }}</strong></td>
+                        <td>
+                            {% if c.is_ativa %}
+                                <span class="badge bg-success">Ativa</span>
+                            {% else %}
+                                <span class="badge bg-danger">Encerrada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.is_obrigatoria %}
+                                <span class="badge bg-warning text-dark">Sim</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Não</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ c.respostas|length }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                {# Botão REALIZAR (Para Alunos) #}
+                                {% if c.is_ativa and current_user.role|string|lower|trim == 'aluno' %}
+                                    <a href="{{ url_for('aluno.responder_avaliacao', id=c.id) }}" class="btn btn-sm btn-success" title="Avaliar Instrutores">
+                                        <i class="fas fa-pen"></i> Avaliar
+                                    </a>
+                                {% endif %}
+                                
+                                {# Ações para SENS/Admin #}
+                                {% if current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin %}
+                                    <a href="{{ url_for('questionario.resultado_avaliacao', id=c.id) }}" class="btn btn-sm btn-info" title="Ver Resultados">
+                                        <i class="fas fa-chart-bar"></i> Resultados
+                                    </a>
+                                    <a href="{{ url_for('questionario.alternar_status_avaliacao', id=c.id) }}" class="btn btn-sm btn-{{ 'warning' if c.is_ativa else 'success' }}" title="{{ 'Encerrar' if c.is_ativa else 'Ativar' }}">
+                                        <i class="fas fa-{{ 'pause' if c.is_ativa else 'play' }}"></i>
+                                    </a>
+                                    <a href="{{ url_for('questionario.alternar_obrigatoriedade_avaliacao', id=c.id) }}" class="btn btn-sm btn-{{ 'secondary' if c.is_obrigatoria else 'warning' }}" title="{{ 'Tornar Opcional' if c.is_obrigatoria else 'Tornar Obrigatório' }}">
+                                        <i class="fas fa-lock{{ '-open' if c.is_obrigatoria else '' }}"></i>
+                                    </a>
+                                    <a href="{{ url_for('questionario.excluir_avaliacao', id=c.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza? Isso apagará todas as notas dos alunos.')" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Nenhuma campanha de avaliação de instrutores.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nova Avaliação de Instrutores -->
+<div class="modal fade" id="modalNovaAvaliacao" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('questionario.nova_avaliacao_instrutores') }}" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title">Nova Avaliação de Instrutores</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label">Título da Avaliação</label>
+                <input type="text" class="form-control" name="titulo" required placeholder="Ex: Avaliação Final 2026">
+                <small class="text-muted">Isso criará uma campanha de avaliação para todos os alunos da escola atual avaliarem os instrutores da turma deles.</small>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="checkObrigatoria" name="is_obrigatoria">
+                <label class="form-check-label" for="checkObrigatoria">Avaliação Obrigatória (Trava a tela do aluno)</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Iniciar Avaliação</button>
+          </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -39,6 +39,9 @@ from .recurso import ProvaRecurso, Recurso, DisciplinaHabilitada
 # --- SUPORTE ---
 from .chamado_suporte import ChamadoSuporte
 
+# --- AVALIAÇÃO DE INSTRUTORES ---
+from .avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+
 __all__ = [
     "db", "User", "School", "UserSchool", "Turma", "Aluno", "Disciplina",
     "HistoricoAluno", "HistoricoDisciplina", "TurmaCargo", "Semana", "Horario",
@@ -51,5 +54,7 @@ __all__ = [
     "QuestaoBanco", "DelegacaoProva", "RascunhoProva", "ConfiguracaoEnvio",
     # MÓDULO DE RECURSOS
     "ProvaRecurso", "Recurso", "DisciplinaHabilitada",
-    "ChamadoSuporte"
+    "ChamadoSuporte",
+    # AVALIAÇÃO DE INSTRUTORES
+    "CampanhaAvaliacao", "RespostaAvaliacao"
 ]

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Resultados - {{ campanha.titulo }}{% endblock %}
+
+{% block content %}
+<div class="content-header text-center py-4 mb-4" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+    <h1 class="display-5 fw-bold"><i class="fas fa-chart-pie text-info"></i> Resultados: Avaliação de Instrutores</h1>
+    <p class="lead mb-0 mt-2">{{ campanha.titulo }}</p>
+</div>
+
+<div class="container-fluid pb-5" id="report-content">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('questionario.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        <button id="btnExportPDF" class="btn btn-success fw-bold px-4">
+            <i class="fas fa-file-pdf"></i> Exportar para PDF
+        </button>
+    </div>
+
+    <!-- Seção de Gráficos -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 12px;">
+                <div class="card-body p-4">
+                    <h4 class="card-title fw-bold mb-4 text-center">Média Geral de Avaliação por Instrutor</h4>
+                    
+                    <div style="height: 400px; width: 100%;">
+                        <canvas id="mediaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção de Comentários por Instrutor -->
+    <h4 class="fw-bold mb-4"><i class="fas fa-comments text-primary"></i> Detalhamento e Comentários</h4>
+    
+    <div class="row">
+        {% for nome, data in instrutores_data.items() %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm border-0" style="border-top: 5px solid {% if data.media >= 4 %}#28a745{% elif data.media >= 3 %}#ffc107{% else %}#dc3545{% endif %}; border-radius: 12px;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title fw-bold mb-0 text-truncate" title="{{ nome }}">{{ nome }}</h5>
+                        <span class="badge fs-6 {% if data.media >= 4 %}bg-success{% elif data.media >= 3 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                            {{ data.media }} <i class="fas fa-star"></i>
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1"><strong>Turmas avaliadas:</strong></small>
+                        {% for turma in data.turmas %}
+                            <span class="badge bg-light text-dark border me-1">{{ turma }}</span>
+                        {% endfor %}
+                        <small class="text-muted d-block mt-2">Total de votos: {{ data.notas|length }}</small>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="fw-semibold">Comentários ({{ data.comentarios|length }})</h6>
+                    <div class="comentarios-list" style="max-height: 250px; overflow-y: auto;">
+                        {% if data.comentarios %}
+                            {% for com in data.comentarios %}
+                                <div class="bg-light p-3 rounded mb-2" style="font-size: 0.9rem;">
+                                    <p class="mb-1">"{{ com.texto }}"</p>
+                                    <div class="d-flex justify-content-between text-muted" style="font-size: 0.8rem;">
+                                        <span><i class="fas fa-users"></i> {{ com.turma }}</span>
+                                        <span><i class="fas fa-clock"></i> {{ com.data }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted text-center my-3"><small>Nenhum comentário registrado.</small></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <h5 class="text-muted">Nenhuma avaliação respondida ainda.</h5>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- Inclusão do Chart.js e HTML2PDF (Via CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Dados recebidos do backend
+        const chartData = {{ chart_data|safe }};
+        
+        // Cores baseadas nas notas (Verde p/ >4, Amarelo p/ >3, Vermelho p/ <3)
+        const bgColors = chartData.medias.map(media => {
+            if(media >= 4) return 'rgba(40, 167, 69, 0.7)';
+            if(media >= 3) return 'rgba(255, 193, 7, 0.7)';
+            return 'rgba(220, 53, 69, 0.7)';
+        });
+        
+        const borderColors = chartData.medias.map(media => {
+            if(media >= 4) return 'rgba(40, 167, 69, 1)';
+            if(media >= 3) return 'rgba(255, 193, 7, 1)';
+            return 'rgba(220, 53, 69, 1)';
+        });
+
+        // Configuração do Gráfico
+        const ctx = document.getElementById('mediaChart').getContext('2d');
+        const mediaChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Média (1 a 5)',
+                    data: chartData.medias,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 5,
+                        title: { display: true, text: 'Nota Média' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` Média: ${context.parsed.y} Estrelas`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Lógica para exportar para PDF
+        document.getElementById('btnExportPDF').addEventListener('click', function() {
+            // Oculta botões temporariamente para não saírem no PDF
+            this.style.display = 'none';
+            document.querySelector('.btn-secondary').style.display = 'none';
+            
+            const element = document.getElementById('report-content');
+            const opt = {
+                margin:       10,
+                filename:     `Resultados_Avaliacao_${'{{ campanha.titulo }}'.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            
+            // Corrige scrolls de comentários para que saiam inteiros no PDF
+            document.querySelectorAll('.comentarios-list').forEach(el => {
+                el.style.maxHeight = 'none';
+            });
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Restaura estado após download
+                this.style.display = 'inline-block';
+                document.querySelector('.btn-secondary').style.display = 'inline-block';
+                document.querySelectorAll('.comentarios-list').forEach(el => {
+                    el.style.maxHeight = '250px';
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

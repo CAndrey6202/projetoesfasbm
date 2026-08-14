@@ -15,6 +15,9 @@ from ..models.aluno import Aluno
 from ..models.turma import Turma
 from ..models.school import School
 from ..models.user_school import UserSchool
+from ..models.disciplina_turma import DisciplinaTurma
+from ..models.instrutor import Instrutor
+from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
 from ..services.user_service import UserService # Importante para resolver escola
 from ..services.log_service import LogService # <--- ESPIÃO IMPORTADO AQUI
 from utils.decorators import admin_or_programmer_required, school_admin_or_programmer_required, can_view_management_pages_required
@@ -315,3 +318,87 @@ def excluir_aluno(aluno_id):
         flash('Falha CSRF.', 'danger')
         
     return redirect(url_for('aluno.listar_alunos'))
+
+# --- AVALIAÇÃO DE INSTRUTORES ---
+
+@aluno_bp.route('/responder-avaliacao/<int:id>', methods=['GET', 'POST'])
+@login_required
+def responder_avaliacao(id):
+    if str(current_user.role).lower().strip() != 'aluno':
+        flash('Acesso negado. Apenas alunos podem responder à avaliação.', 'danger')
+        return redirect(url_for('dashboard.index'))
+        
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha or not campanha.is_ativa:
+        flash('Campanha inativa ou não encontrada.', 'danger')
+        return redirect(url_for('dashboard.index'))
+        
+    aluno = db.session.query(Aluno).filter_by(user_id=current_user.id).first()
+    if not aluno or not aluno.turma:
+        flash('Turma não encontrada para o aluno.', 'danger')
+        return redirect(url_for('dashboard.index'))
+        
+    # Buscar os instrutores da turma do aluno via DisciplinaTurma
+    # Aqui procuramos instrutor_id_1 e instrutor_id_2 associados ao pelotao
+    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
+    
+    instrutores_ids = set()
+    for v in vinculos:
+        if v.instrutor_id_1:
+            instrutores_ids.add(v.instrutor_id_1)
+        if v.instrutor_id_2:
+            instrutores_ids.add(v.instrutor_id_2)
+            
+    if not instrutores_ids:
+        flash('Nenhum instrutor alocado para a sua turma no momento.', 'warning')
+        return redirect(url_for('dashboard.index'))
+        
+    # Obter os objetos Instrutor que o aluno deve avaliar
+    instrutores_para_avaliar = db.session.query(Instrutor).filter(Instrutor.id.in_(instrutores_ids)).all()
+    
+    # Filtrar os instrutores que o aluno já avaliou nesta campanha
+    respostas_existentes = db.session.query(RespostaAvaliacao.instrutor_id).filter_by(
+        campanha_id=campanha.id, 
+        aluno_id=aluno.id
+    ).all()
+    instrutores_ja_avaliados = {r[0] for r in respostas_existentes}
+    
+    instrutores_pendentes = [i for i in instrutores_para_avaliar if i.id not in instrutores_ja_avaliados]
+    
+    if not instrutores_pendentes:
+        flash('Você já avaliou todos os instrutores da sua turma nesta campanha. Obrigado!', 'success')
+        return redirect(url_for('questionario.index'))
+        
+    if request.method == 'POST':
+        # O formulário pode enviar avaliação para múltiplos instrutores de uma vez
+        todas_sucesso = True
+        for instrutor in instrutores_pendentes:
+            nota_str = request.form.get(f'nota_{instrutor.id}')
+            comentario = request.form.get(f'comentario_{instrutor.id}')
+            
+            if nota_str:
+                try:
+                    nota = int(nota_str)
+                    if 1 <= nota <= 5:
+                        resposta = RespostaAvaliacao(
+                            campanha_id=campanha.id,
+                            aluno_id=aluno.id,
+                            instrutor_id=instrutor.id,
+                            turma_id=aluno.turma.id,
+                            nota=nota,
+                            comentario=comentario
+                        )
+                        db.session.add(resposta)
+                except ValueError:
+                    todas_sucesso = False
+                    
+        db.session.commit()
+        if todas_sucesso:
+            flash('Avaliações enviadas com sucesso!', 'success')
+        else:
+            flash('Avaliações enviadas, mas houve problemas com algumas notas.', 'warning')
+        return redirect(url_for('questionario.index'))
+        
+    return render_template('questionario/responder_avaliacao_instrutores.html', 
+                           campanha=campanha, 
+                           instrutores=instrutores_pendentes)
