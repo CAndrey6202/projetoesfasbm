@@ -20,8 +20,10 @@ class CampanhaAvaliacao(db.Model):
     is_obrigatoria: Mapped[bool] = mapped_column(db.Boolean, default=False)
     data_criacao: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow)
     school_id: Mapped[int] = mapped_column(db.ForeignKey('schools.id'), nullable=False)
+    edicao_id: Mapped[t.Optional[int]] = mapped_column(db.ForeignKey('edicoes.id'), nullable=True)
 
     school: Mapped["School"] = relationship()
+    edicao: Mapped[t.Optional["Edicao"]] = relationship()
     respostas: Mapped[list["RespostaAvaliacao"]] = relationship(back_populates="campanha", cascade="all, delete-orphan")
 
     def __repr__(self):

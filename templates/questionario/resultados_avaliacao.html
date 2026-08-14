@@ -10,13 +10,31 @@
 
 <div class="container-fluid pb-5" id="report-content">
     
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{{ url_for('questionario.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Voltar
-        </a>
-        <button id="btnExportPDF" class="btn btn-success fw-bold px-4">
-            <i class="fas fa-file-pdf"></i> Exportar para PDF
-        </button>
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <a href="{{ url_for('questionario.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+        
+        <!-- Filtro por Turma -->
+        {% if turmas_disponiveis %}
+        <form method="GET" class="d-flex align-items-center gap-2">
+            <label for="turma_id" class="fw-bold text-nowrap mb-0"><i class="fas fa-filter text-muted"></i> Filtrar Turma:</label>
+            <select name="turma_id" id="turma_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 200px;">
+                <option value="">Todas as Turmas</option>
+                {% for turma in turmas_disponiveis %}
+                    <option value="{{ turma.id }}" {% if turma_id_filter == turma.id %}selected{% endif %}>{{ turma.nome }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+
+        <div>
+            <button id="btnExportPDF" class="btn btn-success fw-bold px-4">
+                <i class="fas fa-file-pdf"></i> Exportar para PDF
+            </button>
+        </div>
     </div>
 
     <!-- Seção de Gráficos -->
@@ -148,34 +166,51 @@
         });
 
         // Lógica para exportar para PDF
-        document.getElementById('btnExportPDF').addEventListener('click', function() {
-            // Oculta botões temporariamente para não saírem no PDF
-            this.style.display = 'none';
-            document.querySelector('.btn-secondary').style.display = 'none';
-            
-            const element = document.getElementById('report-content');
-            const opt = {
-                margin:       10,
-                filename:     `Resultados_Avaliacao_${'{{ campanha.titulo }}'.replace(/\s+/g, '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-            };
-            
-            // Corrige scrolls de comentários para que saiam inteiros no PDF
-            document.querySelectorAll('.comentarios-list').forEach(el => {
-                el.style.maxHeight = 'none';
+        const btnExport = document.getElementById('btnExportPDF');
+        if (btnExport) {
+            btnExport.addEventListener('click', function() {
+                try {
+                    // Oculta botões temporariamente para não saírem no PDF
+                    this.style.display = 'none';
+                    const btnVoltar = document.querySelector('.btn-secondary');
+                    if (btnVoltar) btnVoltar.style.display = 'none';
+                    const formFiltro = document.querySelector('form');
+                    if (formFiltro) formFiltro.style.display = 'none';
+                    
+                    const element = document.getElementById('report-content');
+                    const titulo = "{{ campanha.titulo|default('Avaliacao') }}".replace(/[^a-zA-Z0-9]/g, '_');
+                    const opt = {
+                        margin:       10,
+                        filename:     `Resultados_${titulo}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true, logging: true },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                    };
+                    
+                    // Corrige scrolls de comentários
+                    const comments = document.querySelectorAll('.comentarios-list');
+                    comments.forEach(el => { el.style.maxHeight = 'none'; });
+                    
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        // Restaura
+                        this.style.display = 'inline-block';
+                        if (btnVoltar) btnVoltar.style.display = 'inline-block';
+                        if (formFiltro) formFiltro.style.display = 'flex';
+                        comments.forEach(el => { el.style.maxHeight = '250px'; });
+                    }).catch(err => {
+                        console.error('Erro ao gerar PDF:', err);
+                        alert('Erro ao gerar o PDF. Verifique o console.');
+                        this.style.display = 'inline-block';
+                        if (btnVoltar) btnVoltar.style.display = 'inline-block';
+                        if (formFiltro) formFiltro.style.display = 'flex';
+                        comments.forEach(el => { el.style.maxHeight = '250px'; });
+                    });
+                } catch(e) {
+                    console.error('Erro na preparação do PDF:', e);
+                    alert('Erro na preparação do PDF.');
+                }
             });
-            
-            html2pdf().set(opt).from(element).save().then(() => {
-                // Restaura estado após download
-                this.style.display = 'inline-block';
-                document.querySelector('.btn-secondary').style.display = 'inline-block';
-                document.querySelectorAll('.comentarios-list').forEach(el => {
-                    el.style.maxHeight = '250px';
-                });
-            });
-        });
+        }
     });
 </script>
 {% endblock %}

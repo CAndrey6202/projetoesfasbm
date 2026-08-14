@@ -34,10 +34,16 @@ def index():
             .order_by(Questionario.id.desc())
         ).all()
     
-    # Busca campanhas apenas da escola atual
+    # Busca campanhas apenas da escola atual e edição atual
     stmt_campanhas = select(CampanhaAvaliacao)
     if school_id:
         stmt_campanhas = stmt_campanhas.where(CampanhaAvaliacao.school_id == school_id)
+    
+    from flask import session
+    active_edicao_id = session.get('active_edicao_id')
+    if active_edicao_id:
+        stmt_campanhas = stmt_campanhas.where(CampanhaAvaliacao.edicao_id == active_edicao_id)
+        
     campanhas = db.session.scalars(stmt_campanhas.order_by(CampanhaAvaliacao.id.desc())).all()
     
     return render_template('questionario/index.html', questionarios=questionarios, campanhas=campanhas)
@@ -235,22 +241,27 @@ def nova_avaliacao_instrutores():
         return redirect(url_for('questionario.index'))
         
     school_id = UserService.get_current_school_id()
-    if not school_id:
-        flash('Escola não selecionada.', 'danger')
-        return redirect(url_for('questionario.index'))
-        
     titulo = request.form.get('titulo')
-    is_obrigatoria = request.form.get('is_obrigatoria') == 'on'
-    
     if not titulo:
         flash('O título da avaliação é obrigatório.', 'danger')
         return redirect(url_for('questionario.index'))
+
+    school_id = UserService.get_current_school_id()
+    if not school_id:
+        flash('Você precisa estar vinculado a uma escola para criar campanhas.', 'danger')
+        return redirect(url_for('questionario.index'))
         
+    from flask import session
+    active_edicao_id = session.get('active_edicao_id')
+
+    is_obrigatoria = request.form.get('is_obrigatoria') == 'on'
+
     nova_campanha = CampanhaAvaliacao(
         titulo=titulo,
         is_ativa=True,
         is_obrigatoria=is_obrigatoria,
-        school_id=school_id
+        school_id=school_id,
+        edicao_id=active_edicao_id
     )
     db.session.add(nova_campanha)
     db.session.commit()
@@ -326,11 +337,21 @@ def resultado_avaliacao(id):
         flash('Campanha não encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
-    # Busca os resultados de fato.
-    respostas = db.session.scalars(
-        select(RespostaAvaliacao)
-        .where(RespostaAvaliacao.campanha_id == id)
+    turma_id_filter = request.args.get('turma_id', type=int)
+        
+    # Busca os resultados de fato
+    stmt = select(RespostaAvaliacao).where(RespostaAvaliacao.campanha_id == id)
+    if turma_id_filter:
+        stmt = stmt.where(RespostaAvaliacao.turma_id == turma_id_filter)
+        
+    respostas = db.session.scalars(stmt).all()
+    
+    # Obter todas as turmas vinculadas a essa campanha para o select
+    todas_respostas = db.session.scalars(
+        select(RespostaAvaliacao).where(RespostaAvaliacao.campanha_id == id)
     ).all()
+    turmas_disponiveis = {r.turma for r in todas_respostas}
+    turmas_disponiveis = sorted(list(turmas_disponiveis), key=lambda t: t.nome)
     
     # Prepara os dados para o Chart.js e para a tabela de comentários
     instrutores_data = {}
@@ -374,4 +395,6 @@ def resultado_avaliacao(id):
     return render_template('questionario/resultados_avaliacao.html', 
                            campanha=campanha, 
                            instrutores_data=instrutores_data,
-                           chart_data=json.dumps(chart_data))
+                           chart_data=json.dumps(chart_data),
+                           turmas_disponiveis=turmas_disponiveis,
+                           turma_id_filter=turma_id_filter)

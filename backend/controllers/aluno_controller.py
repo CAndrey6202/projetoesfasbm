@@ -339,7 +339,7 @@ def responder_avaliacao(id):
         return redirect(url_for('dashboard.index'))
         
     # Ponto Crítico 3: Impedir vazamento de avaliações entre escolas
-    if campanha.school_id != aluno.school_id:
+    if campanha.school_id != aluno.turma.school_id:
         flash('Esta campanha não pertence à sua escola.', 'danger')
         return redirect(url_for('dashboard.index'))
         
@@ -365,7 +365,7 @@ def responder_avaliacao(id):
     # Obter os objetos Instrutor que o aluno deve avaliar, e que pertencem à escola do aluno
     instrutores_para_avaliar = db.session.query(Instrutor).filter(
         Instrutor.id.in_(instrutores_ids),
-        Instrutor.school_id == aluno.school_id
+        Instrutor.school_id == aluno.turma.school_id
     ).all()
     
     # Filtrar os instrutores que o aluno já avaliou nesta campanha
