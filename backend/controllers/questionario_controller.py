@@ -26,7 +26,13 @@ def cal_or_admin_required():
 def index():
     school_id = UserService.get_current_school_id()
     
-    questionarios = db.session.scalars(select(Questionario).order_by(Questionario.id.desc())).all()
+    questionarios = []
+    if school_id:
+        questionarios = db.session.scalars(
+            select(Questionario)
+            .where(Questionario.school_id == school_id)
+            .order_by(Questionario.id.desc())
+        ).all()
     
     # Busca campanhas apenas da escola atual
     stmt_campanhas = select(CampanhaAvaliacao)
@@ -50,7 +56,8 @@ def novo():
             flash('O título do questionário é obrigatório.', 'danger')
             return render_template('questionario/novo.html')
 
-        novo_q = Questionario(titulo=titulo, publico_alvo=publico_alvo, ativo=True)
+        school_id = UserService.get_current_school_id()
+        novo_q = Questionario(titulo=titulo, publico_alvo=publico_alvo, ativo=True, school_id=school_id)
         db.session.add(novo_q)
         db.session.flush()
 
@@ -115,8 +122,7 @@ def ver(id):
 @questionario_bp.route('/resultado/<int:id>')
 @login_required
 def resultado(id):
-    # Permitir SENS ver resultados também? Se sim, adicione is_sens
-    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
+    if not (current_user.is_cal() or current_user.is_sens() or current_user.is_staff()):
         flash('Permissão negada.', 'danger')
         return redirect(url_for('questionario.index'))
 
@@ -224,7 +230,7 @@ def excluir(id):
 @questionario_bp.route('/avaliacao-instrutores/nova', methods=['POST'])
 @login_required
 def nova_avaliacao_instrutores():
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -255,7 +261,7 @@ def nova_avaliacao_instrutores():
 @questionario_bp.route('/avaliacao-instrutores/alternar/<int:id>')
 @login_required
 def alternar_status_avaliacao(id):
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -274,7 +280,7 @@ def alternar_status_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/alternar-obrigatoriedade/<int:id>')
 @login_required
 def alternar_obrigatoriedade_avaliacao(id):
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -293,7 +299,7 @@ def alternar_obrigatoriedade_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/excluir/<int:id>')
 @login_required
 def excluir_avaliacao(id):
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -311,7 +317,7 @@ def excluir_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>')
 @login_required
 def resultado_avaliacao(id):
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -329,22 +335,22 @@ def resultado_avaliacao(id):
     # Prepara os dados para o Chart.js e para a tabela de comentários
     instrutores_data = {}
     for r in respostas:
-        instrutor_nome = r.instrutor.user.nome
-        turma_nome = r.turma.nome
+        u = r.instrutor.user
+        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
         
-        if instrutor_nome not in instrutores_data:
-            instrutores_data[instrutor_nome] = {
+        if nome_exibicao not in instrutores_data:
+            instrutores_data[nome_exibicao] = {
                 'notas': [],
                 'comentarios': [],
                 'turmas': set()
             }
         
-        instrutores_data[instrutor_nome]['notas'].append(r.nota)
-        instrutores_data[instrutor_nome]['turmas'].add(turma_nome)
+        instrutores_data[nome_exibicao]['notas'].append(r.nota)
+        instrutores_data[nome_exibicao]['turmas'].add(r.turma.nome)
         
         if r.comentario and r.comentario.strip():
-            instrutores_data[instrutor_nome]['comentarios'].append({
-                'turma': turma_nome,
+            instrutores_data[nome_exibicao]['comentarios'].append({
+                'turma': r.turma.nome,
                 'texto': r.comentario.strip(),
                 'data': r.data_resposta.strftime('%d/%m/%Y %H:%M')
             })

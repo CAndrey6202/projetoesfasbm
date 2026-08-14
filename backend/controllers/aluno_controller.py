@@ -338,23 +338,35 @@ def responder_avaliacao(id):
         flash('Turma não encontrada para o aluno.', 'danger')
         return redirect(url_for('dashboard.index'))
         
-    # Buscar os instrutores da turma do aluno via DisciplinaTurma
-    # Aqui procuramos instrutor_id_1 e instrutor_id_2 associados ao pelotao
-    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
-    
+    # Ponto Crítico 3: Impedir vazamento de avaliações entre escolas
+    if campanha.school_id != aluno.school_id:
+        flash('Esta campanha não pertence à sua escola.', 'danger')
+        return redirect(url_for('dashboard.index'))
+        
     instrutores_ids = set()
+    
+    # 1. Buscar via DisciplinaTurma
+    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
     for v in vinculos:
-        if v.instrutor_id_1:
-            instrutores_ids.add(v.instrutor_id_1)
-        if v.instrutor_id_2:
-            instrutores_ids.add(v.instrutor_id_2)
+        if v.instrutor_id_1: instrutores_ids.add(v.instrutor_id_1)
+        if v.instrutor_id_2: instrutores_ids.add(v.instrutor_id_2)
+            
+    # 2. Buscar via Horario (pois às vezes o vínculo direto não está preenchido)
+    from ..models.horario import Horario
+    horarios = db.session.query(Horario).filter_by(pelotao=aluno.turma.nome).all()
+    for h in horarios:
+        if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
+        if h.instrutor_id_2: instrutores_ids.add(h.instrutor_id_2)
             
     if not instrutores_ids:
         flash('Nenhum instrutor alocado para a sua turma no momento.', 'warning')
         return redirect(url_for('dashboard.index'))
         
-    # Obter os objetos Instrutor que o aluno deve avaliar
-    instrutores_para_avaliar = db.session.query(Instrutor).filter(Instrutor.id.in_(instrutores_ids)).all()
+    # Obter os objetos Instrutor que o aluno deve avaliar, e que pertencem à escola do aluno
+    instrutores_para_avaliar = db.session.query(Instrutor).filter(
+        Instrutor.id.in_(instrutores_ids),
+        Instrutor.school_id == aluno.school_id
+    ).all()
     
     # Filtrar os instrutores que o aluno já avaliou nesta campanha
     respostas_existentes = db.session.query(RespostaAvaliacao.instrutor_id).filter_by(
