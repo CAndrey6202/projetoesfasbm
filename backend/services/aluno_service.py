@@ -311,9 +311,8 @@ class AlunoService:
                 campanha_id=campanha.id,
                 aluno_id=aluno.id
             ).count()
-
             if respostas_dadas < valid_instrutores_count:
-                # HÃ¡ pendÃªncia! Bloqueia imediatamente.
+                # Há pendência! Bloqueia imediatamente.
                 return True, campanha.id
 
         return False, None
