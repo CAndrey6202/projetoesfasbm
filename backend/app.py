@@ -345,17 +345,11 @@ def register_handlers_and_processors(app):
         campanha_pendente_id = None
         
         if current_user.is_authenticated and str(getattr(current_user, 'role', '')).lower().strip() == 'aluno':
-            if 'bloqueio_avaliacao' in session:
-                bloqueio_avaliacao = session['bloqueio_avaliacao']
-                campanha_pendente_id = session.get('campanha_pendente_id')
-            else:
-                try:
-                    from backend.services.aluno_service import AlunoService
-                    bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
-                    session['bloqueio_avaliacao'] = bloqueio_avaliacao
-                    session['campanha_pendente_id'] = campanha_pendente_id
-                except Exception as e:
-                    app.logger.error(f"Erro ao checar avaliações pendentes: {e}")
+            try:
+                from backend.services.aluno_service import AlunoService
+                bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
+            except Exception as e:
+                app.logger.error(f"Erro ao checar avaliações pendentes: {e}")
         # ---------------------------------------------
 
         return {
