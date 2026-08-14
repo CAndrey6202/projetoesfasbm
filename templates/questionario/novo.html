@@ -9,7 +9,7 @@
 </div>
 
 <div class="table-container">
-    <form method="POST" action="{{ url_for('questionario.novo_questionario') }}">
+    <form method="POST" action="{{ url_for('questionario.novo') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-group">
