@@ -11,6 +11,8 @@ class Questionario(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     titulo: Mapped[str] = mapped_column(db.String(200), nullable=False)
+    publico_alvo: Mapped[str] = mapped_column(db.String(50), nullable=False, default='todos')
+    ativo: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=True)
     
     perguntas: Mapped[list[Pergunta]] = relationship(back_populates="questionario", cascade="all, delete-orphan")
 
