@@ -176,8 +176,19 @@
                 const turmaId = document.getElementById('turma_id') ? document.getElementById('turma_id').value : '';
                 const url = `{{ url_for('questionario.exportar_pdf_resultados', id=campanha.id) }}?turma_id=${turmaId}`;
 
-                fetch(url, { method: 'POST' })
-                    .then(res => res.json())
+                fetch(url, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    }
+                })
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error('Erro do servidor: ' + res.status);
+                        }
+                        return res.json();
+                    })
                     .then(data => {
                         if(data.success && data.job_id) {
                             pollJobStatus(data.job_id, this, originalHtml);
