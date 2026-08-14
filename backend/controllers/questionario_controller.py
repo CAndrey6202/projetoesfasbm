@@ -122,7 +122,7 @@ def ver(id):
 @questionario_bp.route('/resultado/<int:id>')
 @login_required
 def resultado(id):
-    if not (current_user.is_cal() or current_user.is_sens() or current_user.is_staff()):
+    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
         flash('Permissão negada.', 'danger')
         return redirect(url_for('questionario.index'))
 
@@ -230,7 +230,7 @@ def excluir(id):
 @questionario_bp.route('/avaliacao-instrutores/nova', methods=['POST'])
 @login_required
 def nova_avaliacao_instrutores():
-    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -261,7 +261,7 @@ def nova_avaliacao_instrutores():
 @questionario_bp.route('/avaliacao-instrutores/alternar/<int:id>')
 @login_required
 def alternar_status_avaliacao(id):
-    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -280,7 +280,7 @@ def alternar_status_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/alternar-obrigatoriedade/<int:id>')
 @login_required
 def alternar_obrigatoriedade_avaliacao(id):
-    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -299,7 +299,7 @@ def alternar_obrigatoriedade_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/excluir/<int:id>')
 @login_required
 def excluir_avaliacao(id):
-    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
@@ -317,7 +317,7 @@ def excluir_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>')
 @login_required
 def resultado_avaliacao(id):
-    if not (current_user.is_sens() or current_user.is_admin_escola() or current_user.is_super_admin):
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('questionario.index'))
         
