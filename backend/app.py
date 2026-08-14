@@ -340,7 +340,7 @@ def register_handlers_and_processors(app):
                 app.logger.error(f"Erro ao consultar chamados de suporte: {e}")
         # ---------------------------------------------
 
-        # --- VERIFICAÇÃO DE BLOQUEIO POR AVALIAÇÃO OBRIGATÓRIA ---
+        # --- VERIFICACAO DE BLOQUEIO POR AVALIACAO OBRIGATORIA ---
         bloqueio_avaliacao = False
         campanha_pendente_id = None
         
@@ -349,7 +349,7 @@ def register_handlers_and_processors(app):
                 from backend.services.aluno_service import AlunoService
                 bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
             except Exception as e:
-                app.logger.error(f"Erro ao checar avaliações pendentes: {e}")
+                app.logger.error(f'Erro ao checar avaliacoes pendentes: {e}')
         # ---------------------------------------------
 
         return {
