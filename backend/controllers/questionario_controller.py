@@ -403,3 +403,124 @@ def resultado_avaliacao(id):
                            chart_data=json.dumps(chart_data),
                            turmas_disponiveis=turmas_disponiveis,
                            turma_id_filter=turma_id_filter)
+
+@questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>/exportar_pdf', methods=['POST'])
+@login_required
+def exportar_pdf_resultados(id):
+    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
+        return jsonify({'success': False, 'error': 'Acesso negado.'})
+
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        return jsonify({'success': False, 'error': 'Campanha não encontrada.'})
+        
+    turma_id_filter = request.args.get('turma_id', type=int)
+    
+    stmt = select(RespostaAvaliacao).where(RespostaAvaliacao.campanha_id == id)
+    if turma_id_filter:
+        stmt = stmt.where(RespostaAvaliacao.turma_id == turma_id_filter)
+        
+    respostas = db.session.scalars(stmt).all()
+    
+    instrutores_data = {}
+    for r in respostas:
+        u = r.instrutor.user
+        nome_guerra = (u.nome_de_guerra or "").lower()
+        nome_completo = (u.nome_completo or "").lower()
+        if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
+            continue
+            
+        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        
+        if nome_exibicao not in instrutores_data:
+            instrutores_data[nome_exibicao] = {
+                'votos_count': 0,
+                'soma_notas': 0,
+                'media': 0,
+                'comentarios': [],
+                'turmas': set()
+            }
+        
+        data = instrutores_data[nome_exibicao]
+        data['votos_count'] += 1
+        data['soma_notas'] += r.nota
+        data['turmas'].add(r.turma.nome)
+        
+        if r.comentario:
+            data['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome})
+            
+    labels = []
+    medias = []
+    for nome, data in instrutores_data.items():
+        if data['votos_count'] > 0:
+            data['media'] = data['soma_notas'] / data['votos_count']
+        data['turmas'] = list(data['turmas'])
+        labels.append(nome)
+        medias.append(data['media'])
+
+    # Construir URL do QuickChart
+    import urllib.parse
+    chart_config = {
+        "type": "bar",
+        "data": {
+            "labels": labels,
+            "datasets": [{
+                "label": "Nota Média",
+                "data": medias,
+                "backgroundColor": "#2ecc71"
+            }]
+        },
+        "options": {
+            "scales": {
+                "yAxes": [{"ticks": {"beginAtZero": True, "max": 5}}]
+            }
+        }
+    }
+    
+    quickchart_url = ""
+    if labels:
+        config_json = json.dumps(chart_config)
+        encoded_config = urllib.parse.quote(config_json)
+        quickchart_url = f"https://quickchart.io/chart?c={encoded_config}&w=800&h=400&bkg=white"
+
+    turma_nome = ""
+    if turma_id_filter:
+        from backend.models.turma import Turma
+        t = db.session.get(Turma, turma_id_filter)
+        if t:
+            turma_nome = t.nome
+            
+    # Renderizar HTML final para Weasyprint
+    rendered_html = render_template('questionario/resultados_avaliacao_pdf.html',
+                                    campanha=campanha,
+                                    instrutores_data=instrutores_data,
+                                    quickchart_url=quickchart_url,
+                                    turma_nome=turma_nome)
+                                    
+    # Preparar Job na fila
+    nome_turma_arq = turma_nome.replace(' ', '_') if turma_nome else 'todas_as_turmas'
+    nome_campanha_arq = campanha.titulo.replace(' ', '_') if campanha.titulo else 'avaliacao'
+    pdf_filename = f"avaliacao_de_instrutores_{nome_campanha_arq}_turma_{nome_turma_arq}.pdf"
+    
+    # Remover caracteres especiais
+    for char in [':', '*', '?', '"', '<', '>', '|', '/']:
+        pdf_filename = pdf_filename.replace(char, '')
+        
+    try:
+        import uuid
+        from backend.models.background_job import BackgroundJob
+        job_id = str(uuid.uuid4())
+        job = BackgroundJob(
+            id=job_id,
+            task_type='generate_pdf',
+            payload=rendered_html,
+            meta_data=json.dumps({"filename": pdf_filename}),
+            user_id=current_user.id
+        )
+        db.session.add(job)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'job_id': job_id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})

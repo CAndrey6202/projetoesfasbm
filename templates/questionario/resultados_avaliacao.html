@@ -169,58 +169,68 @@
         const btnExport = document.getElementById('btnExportPDF');
         if (btnExport) {
             btnExport.addEventListener('click', function() {
-                try {
-                    this.style.display = 'none';
-                    const btnVoltar = document.querySelector('.btn-secondary');
-                    if (btnVoltar) btnVoltar.style.display = 'none';
-                    const formFiltro = document.querySelector('form');
-                    if (formFiltro) formFiltro.style.display = 'none';
-                    
-                    const comments = document.querySelectorAll('.comentarios-list');
-                    comments.forEach(el => { el.style.maxHeight = 'none'; });
+                const originalHtml = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Gerando...';
+                this.disabled = true;
+                
+                const turmaId = document.getElementById('turma_id') ? document.getElementById('turma_id').value : '';
+                const url = `{{ url_for('questionario.exportar_pdf_resultados', id=campanha.id) }}?turma_id=${turmaId}`;
 
-                    if (typeof html2pdf === 'function') {
-                        const element = document.getElementById('report-content');
-                        const titulo = "{{ campanha.titulo|default('Avaliacao') }}".replace(/[^a-zA-Z0-9]/g, '_');
-                        const opt = {
-                            margin:       10,
-                            filename:     `Resultados_${titulo}.pdf`,
-                            image:        { type: 'jpeg', quality: 0.98 },
-                            html2canvas:  { scale: 2, useCORS: true },
-                            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-                        };
-                        
-                        html2pdf().set(opt).from(element).save().then(() => {
-                            this.style.display = 'inline-block';
-                            if (btnVoltar) btnVoltar.style.display = 'inline-block';
-                            if (formFiltro) formFiltro.style.display = 'flex';
-                            comments.forEach(el => { el.style.maxHeight = '250px'; });
-                        }).catch(err => {
-                            console.error('Erro no html2pdf, usando impressão nativa:', err);
-                            window.print();
-                            this.style.display = 'inline-block';
-                            if (btnVoltar) btnVoltar.style.display = 'inline-block';
-                            if (formFiltro) formFiltro.style.display = 'flex';
-                            comments.forEach(el => { el.style.maxHeight = '250px'; });
-                        });
-                    } else {
-                        window.print();
-                        this.style.display = 'inline-block';
-                        if (btnVoltar) btnVoltar.style.display = 'inline-block';
-                        if (formFiltro) formFiltro.style.display = 'flex';
-                        comments.forEach(el => { el.style.maxHeight = '250px'; });
-                    }
-                } catch(e) {
-                    console.error('Erro crítico na preparação do PDF, usando impressão nativa:', e);
-                    window.print();
-                    this.style.display = 'inline-block';
-                    const btnVoltar = document.querySelector('.btn-secondary');
-                    if (btnVoltar) btnVoltar.style.display = 'inline-block';
-                    const formFiltro = document.querySelector('form');
-                    if (formFiltro) formFiltro.style.display = 'flex';
-                    document.querySelectorAll('.comentarios-list').forEach(el => { el.style.maxHeight = '250px'; });
-                }
+                fetch(url, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success && data.job_id) {
+                            pollJobStatus(data.job_id, this, originalHtml);
+                        } else {
+                            alert("Erro ao enviar tarefa de PDF para a Fila.");
+                            this.innerHTML = originalHtml;
+                            this.disabled = false;
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Erro de conexão ao gerar PDF.");
+                        this.innerHTML = originalHtml;
+                        this.disabled = false;
+                    });
             });
+        }
+        
+        function pollJobStatus(jobId, btnElement, originalHtml) {
+            const statusUrl = `/api/jobs/${jobId}/status`;
+            const interval = setInterval(() => {
+                fetch(statusUrl)
+                    .then(res => {
+                        if(!res.ok) { throw new Error('Network error'); }
+                        return res.json();
+                    })
+                    .then(data => {
+                        if(data.error) {
+                            clearInterval(interval);
+                            alert("Erro no Processamento: " + data.error);
+                            btnElement.innerHTML = originalHtml;
+                            btnElement.disabled = false;
+                        } else if(data.status === 'completed') {
+                            clearInterval(interval);
+                            btnElement.innerHTML = '<i class="fas fa-check me-1"></i> Concluído';
+                            // Inicia o download
+                            window.location.href = `/api/jobs/${jobId}/download`;
+                            
+                            setTimeout(() => {
+                                btnElement.innerHTML = originalHtml;
+                                btnElement.disabled = false;
+                            }, 3000);
+                        }
+                        // se pending ou processing, continua
+                    })
+                    .catch(err => {
+                        clearInterval(interval);
+                        console.error("Polling error:", err);
+                        alert("Erro ao checar status do PDF.");
+                        btnElement.innerHTML = originalHtml;
+                        btnElement.disabled = false;
+                    });
+            }, 2000);
         }
     });
 </script>
