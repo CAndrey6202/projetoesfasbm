@@ -340,13 +340,33 @@ def register_handlers_and_processors(app):
                 app.logger.error(f"Erro ao consultar chamados de suporte: {e}")
         # ---------------------------------------------
 
+        # --- VERIFICAÇÃO DE BLOQUEIO POR AVALIAÇÃO OBRIGATÓRIA ---
+        bloqueio_avaliacao = False
+        campanha_pendente_id = None
+        
+        if current_user.is_authenticated and str(getattr(current_user, 'role', '')).lower().strip() == 'aluno':
+            if 'bloqueio_avaliacao' in session:
+                bloqueio_avaliacao = session['bloqueio_avaliacao']
+                campanha_pendente_id = session.get('campanha_pendente_id')
+            else:
+                try:
+                    from backend.services.aluno_service import AlunoService
+                    bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
+                    session['bloqueio_avaliacao'] = bloqueio_avaliacao
+                    session['campanha_pendente_id'] = campanha_pendente_id
+                except Exception as e:
+                    app.logger.error(f"Erro ao checar avaliações pendentes: {e}")
+        # ---------------------------------------------
+
         return {
             'site_config': g.get('site_config'),
             'active_school': g.get('active_school'),
             'active_edicao': g.get('active_edicao'),
             'edicoes_disponiveis': edicoes_disponiveis,
             'dec_mode_active': dec_mode_active,
-            'tem_pendencia_suporte': tem_pendencia_suporte
+            'tem_pendencia_suporte': tem_pendencia_suporte,
+            'bloqueio_avaliacao': bloqueio_avaliacao,
+            'campanha_pendente_id': campanha_pendente_id
         }
 
     @app.after_request

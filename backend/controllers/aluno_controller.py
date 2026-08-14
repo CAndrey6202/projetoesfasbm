@@ -413,6 +413,12 @@ def responder_avaliacao(id):
                     todas_sucesso = False
                     
         db.session.commit()
+        
+        # Limpar cache de bloqueio da sessão, forçando reavaliação no próximo request
+        if 'bloqueio_avaliacao' in session:
+            session.pop('bloqueio_avaliacao', None)
+            session.pop('campanha_pendente_id', None)
+            
         if todas_sucesso:
             flash('Avaliações enviadas com sucesso!', 'success')
         else:

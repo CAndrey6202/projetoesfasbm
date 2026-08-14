@@ -240,3 +240,80 @@ class AlunoService:
             db.session.rollback()
             current_app.logger.error(f"Erro ao excluir aluno: {e}")
             return False, f"Erro ao excluir aluno: {str(e)}"
+
+    @staticmethod
+    def check_pending_mandatory_evaluations(user):
+        """
+        Verifica se um usuário (Aluno) tem alguma CampanhaAvaliacao obrigatória ativa e pendente.
+        Retorna (bloqueio: bool, campanha_id: int ou None)
+        """
+        if str(getattr(user, 'role', '')).lower().strip() != 'aluno':
+            return False, None
+
+        aluno = getattr(user, 'aluno_profile', None)
+        if not aluno or not aluno.turma:
+            return False, None
+
+        from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+        from ..models.horario import Horario
+        from ..models.instrutor import Instrutor
+        from ..models.disciplina_turma import DisciplinaTurma
+        from flask import session
+
+        active_edicao_id = session.get('active_edicao_id')
+
+        # Buscar campanhas obrigatórias e ativas para a escola do aluno
+        campanhas = db.session.query(CampanhaAvaliacao).filter_by(
+            school_id=aluno.turma.school_id,
+            is_ativa=True,
+            is_obrigatoria=True
+        ).filter(
+            (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+        ).all()
+
+        if not campanhas:
+            return False, None
+
+        # Identificar instrutores válidos da turma (ignorando 'C Al / S Ens')
+        instrutores_ids = set()
+        vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
+        for v in vinculos:
+            if v.instrutor_id_1: instrutores_ids.add(v.instrutor_id_1)
+            if v.instrutor_id_2: instrutores_ids.add(v.instrutor_id_2)
+
+        horarios = db.session.query(Horario).join(DisciplinaTurma).filter(DisciplinaTurma.pelotao == aluno.turma.nome).all()
+        for h in horarios:
+            if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
+
+        if not instrutores_ids:
+            return False, None
+
+        instrutores_banco = db.session.query(Instrutor).filter(
+            Instrutor.id.in_(instrutores_ids),
+            Instrutor.school_id == aluno.turma.school_id
+        ).all()
+
+        valid_instrutores_count = 0
+        for inst in instrutores_banco:
+            u = inst.user
+            nome_guerra = (u.nome_de_guerra or "").lower()
+            nome_completo = (u.nome_completo or "").lower()
+            if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
+                continue
+            valid_instrutores_count += 1
+
+        if valid_instrutores_count == 0:
+            return False, None
+
+        # Verificar se o aluno já respondeu para TODOS os instrutores válidos nestas campanhas
+        for campanha in campanhas:
+            respostas_dadas = db.session.query(RespostaAvaliacao).filter_by(
+                campanha_id=campanha.id,
+                aluno_id=aluno.id
+            ).count()
+
+            if respostas_dadas < valid_instrutores_count:
+                # Há pendência! Bloqueia imediatamente.
+                return True, campanha.id
+
+        return False, None
