@@ -161,7 +161,10 @@ def assegurar_materia_disposicao(school_id, active_edicao, ciclo_id, turma_obj):
 @horario_bp.route('/')
 @login_required
 def index():
-    if current_user.role == 'aluno' and not current_user.is_staff:
+    school_id = UserService.get_current_school_id()
+    local_role = current_user.get_role_in_school(school_id) if school_id else None
+
+    if (local_role == 'aluno') or (current_user.role == 'aluno' and not current_user.is_staff):
         if not current_user.aluno_profile or not current_user.aluno_profile.turma:
             flash("Você não está matriculado em nenhuma turma.", 'warning')
             return redirect(url_for('main.dashboard'))
