@@ -13,7 +13,7 @@
         <h3>Questionários Disponíveis</h3>
         
         {# --- TRAVA DE SEGURANÇA: CAL e ADMINS podem CRIAR --- #}
-        {% if current_user.is_cal or current_user.is_admin_escola or current_user.is_super_admin %}
+        {% if current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin %}
             <a href="{{ url_for('questionario.novo') }}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Novo Questionário
             </a>
@@ -58,7 +58,7 @@
                     <td class="text-end">
                         <div class="btn-group">
                             {# Botão REALIZAR (Para usuários comuns) #}
-                            {% if q.ativo and not (current_user.is_cal or current_user.is_admin_escola) %}
+                            {% if q.ativo and not (current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin) %}
                                 <a href="{{ url_for('questionario.realizar', id=q.id) }}" class="btn btn-sm btn-success" title="Responder">
                                     <i class="fas fa-pen"></i>
                                 </a>
@@ -72,7 +72,7 @@
                             {% endif %}
 
                             {# --- TRAVA DE GESTÃO: Apenas CAL e Admins --- #}
-                            {% if current_user.is_cal or current_user.is_admin_escola or current_user.is_super_admin %}
+                            {% if current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin %}
                                 {# Botão Ligar/Desligar #}
                                 <a href="{{ url_for('questionario.alternar_status', id=q.id) }}" class="btn btn-sm btn-{{ 'warning' if q.ativo else 'success' }}" title="{{ 'Encerrar' if q.ativo else 'Ativar' }}">
                                     <i class="fas fa-{{ 'pause' if q.ativo else 'play' }}"></i>

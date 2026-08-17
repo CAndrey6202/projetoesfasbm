@@ -594,7 +594,7 @@
                         <a href="{{ url_for('admin_escola.espelho_diarios') }}" class="nav-link {% if request.endpoint == 'admin_escola.espelho_diarios' %}active{% endif %}"><div class="nav-icon">📖</div> Diários de Classe (Adm)</a>
                     {% endif %}
 
-                    {% if current_user.is_cal_in_school(active_sid) or (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') or dec_mode_active %}
+                    {% if current_user.is_cal_in_school(active_sid) or current_user.is_sens_in_school(active_sid) or current_user.is_admin_escola_in_school(active_sid) or (current_user.role|lower == 'aluno' or current_user.get_role_in_school(active_sid) == 'aluno') or dec_mode_active %}
                         <div class="nav-separator">JUSTIÇA E DISCIPLINA</div>
                         <a href="{{ url_for('justica.index') }}" class="nav-link {% if request.endpoint and 'justica.' in request.endpoint %}active{% endif %}"><div class="nav-icon">⚖️</div> Justiça e Disciplina</a>
                         <a href="{{ url_for('questionario.index') }}" class="nav-link {% if request.endpoint and 'questionario.' in request.endpoint %}active{% endif %}"><div class="nav-icon">📝</div> Questionários</a>

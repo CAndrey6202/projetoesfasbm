@@ -16,7 +16,7 @@ questionario_bp = Blueprint('questionario', __name__, url_prefix='/questionario'
 
 # Helper para permissões
 def cal_or_admin_required():
-    if not (current_user.is_cal or current_user.is_admin_escola or current_user.is_super_admin):
+    if not (current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
         flash('Acesso não autorizado.', 'danger')
         return False
     return True
