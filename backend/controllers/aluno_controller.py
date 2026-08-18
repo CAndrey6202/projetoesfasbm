@@ -324,7 +324,9 @@ def excluir_aluno(aluno_id):
 @aluno_bp.route('/responder-avaliacao/<int:id>', methods=['GET', 'POST'])
 @login_required
 def responder_avaliacao(id):
-    if str(current_user.role).lower().strip() != 'aluno':
+    school_id = session.get('active_school_id')
+    local_role = current_user.get_role_in_school(school_id) if school_id else None
+    if str(current_user.role).lower().strip() != 'aluno' and local_role != 'aluno':
         flash('Acesso negado. Apenas alunos podem responder à avaliação.', 'danger')
         return redirect(url_for('dashboard.index'))
         

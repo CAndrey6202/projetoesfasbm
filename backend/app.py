@@ -344,12 +344,14 @@ def register_handlers_and_processors(app):
         bloqueio_avaliacao = False
         campanha_pendente_id = None
         
-        if current_user.is_authenticated and str(getattr(current_user, 'role', '')).lower().strip() == 'aluno':
-            try:
-                from backend.services.aluno_service import AlunoService
-                bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
-            except Exception as e:
-                app.logger.error(f'Erro ao checar avaliacoes pendentes: {e}')
+        if current_user.is_authenticated:
+            local_role = current_user.get_role_in_school(school_id_to_load) if school_id_to_load else None
+            if str(getattr(current_user, 'role', '')).lower().strip() == 'aluno' or local_role == 'aluno':
+                try:
+                    from backend.services.aluno_service import AlunoService
+                    bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
+                except Exception as e:
+                    app.logger.error(f'Erro ao checar avaliacoes pendentes: {e}')
         # ---------------------------------------------
 
         return {
