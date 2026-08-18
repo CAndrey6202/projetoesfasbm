@@ -142,7 +142,7 @@
                         <td class="text-end">
                             <div class="btn-group">
                                 {# Botão REALIZAR (Para Alunos) #}
-                                {% if c.is_ativa and (current_user.role|string|lower|trim == \'aluno\' or current_user.get_role_in_school(session.get(\'active_school_id\')) == \'aluno\') %}
+                                {% if c.is_ativa and (current_user.role|string|lower|trim == 'aluno' or current_user.get_role_in_school(session.get('active_school_id')) == 'aluno') %}
                                     <a href="{{ url_for('aluno.responder_avaliacao', id=c.id) }}" class="btn btn-sm btn-success" title="Avaliar Instrutores">
                                         <i class="fas fa-pen"></i> Avaliar
                                     </a>
