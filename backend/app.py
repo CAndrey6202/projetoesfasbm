@@ -345,7 +345,8 @@ def register_handlers_and_processors(app):
         campanha_pendente_id = None
         
         if current_user.is_authenticated:
-            local_role = current_user.get_role_in_school(school_id_to_load) if school_id_to_load else None
+            act_sid = g.active_school.id if g.get('active_school') else None
+            local_role = current_user.get_role_in_school(act_sid) if act_sid else None
             if str(getattr(current_user, 'role', '')).lower().strip() == 'aluno' or local_role == 'aluno':
                 try:
                     from backend.services.aluno_service import AlunoService
