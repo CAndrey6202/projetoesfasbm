@@ -367,7 +367,7 @@ def responder_avaliacao(id):
         if v.instrutor_id_1:
             inst = db.session.query(Instrutor).get(v.instrutor_id_1)
             disc = db.session.query(Disciplina).get(v.disciplina_id)
-            if inst: registros.append((inst, disc))
+                if inst: registros.append((inst, disc))
         if v.instrutor_id_2:
             inst = db.session.query(Instrutor).get(v.instrutor_id_2)
             disc = db.session.query(Disciplina).get(v.disciplina_id)
@@ -377,7 +377,18 @@ def responder_avaliacao(id):
     for inst, disc in registros:
         nome_guerra = (inst.user.nome_de_guerra or "").lower()
         nome_completo = (inst.user.nome_completo or "").lower()
-        if "c al" not in nome_guerra and "s ens" not in nome_guerra and "sens" not in nome_guerra and "c al" not in nome_completo and "s ens" not in nome_completo:
+        materia = (disc.materia or "").lower()
+        
+        # Ignorar instrutores/disciplinas padrao (A disposicao, C_AL_S_ENS, etc)
+        is_default = False
+        if "c_al_s_ens" in nome_guerra or "c_al_s_ens" in nome_completo:
+            is_default = True
+        if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra:
+            is_default = True
+        if "disposi" in materia or "c_al" in materia:
+            is_default = True
+            
+        if not is_default:
             instrutores_para_avaliar.append({
                 'id': inst.id,
                 'user': inst.user,
@@ -437,7 +448,7 @@ def responder_avaliacao(id):
             session.pop('bloqueio_avaliacao', None)
             session.pop('campanha_pendente_id', None)
             
-        flash('Avaliao de Mdulo enviada com sucesso! Muito obrigado pela sua contribuio annima.', 'success')
+        flash('Avaliação de Módulo enviada com sucesso! Muito obrigado pela sua contribuição anônima.', 'success')
         return redirect(url_for('questionario.index'))
         
     return render_template('questionario/responder_avaliacao_instrutores.html', 

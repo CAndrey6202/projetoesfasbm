@@ -8,7 +8,7 @@
                 <i class="fas fa-arrow-left"></i> Voltar
             </a>
             <h4 class="mb-0 text-primary">Resultados: {{ campanha.titulo }}</h4>
-            <small class="text-muted">Anlise de Satisfao do Mdulo e Instrutores</small>
+            <small class="text-muted">Análise de Satisfação do Módulo e Instrutores</small>
         </div>
         
         <div>
@@ -24,18 +24,18 @@
         </div>
     </div>
 
-    <!-- Bloco A: Avaliao Geral do Mdulo -->
+    <!-- Bloco A: Avaliação Geral do Módulo -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-            <h5 class="fw-bold text-dark"><i class="fas fa-university text-primary me-2"></i> Parte 1: Avaliao Geral do Mdulo</h5>
-            <p class="text-muted small mb-0">Total de {{ geral_data.total_respostas }} alunos responderam à avaliao geral desta turma/escola.</p>
+            <h5 class="fw-bold text-dark"><i class="fas fa-university text-primary me-2"></i> Parte 1: Avaliação Geral do Módulo</h5>
+            <p class="text-muted small mb-0">Total de {{ geral_data.total_respostas }} alunos responderam à avaliação geral desta turma/escola.</p>
         </div>
         <div class="card-body">
             {% if geral_data.total_respostas > 0 %}
             <div class="row text-center mb-4">
                 <div class="col-md-2 col-sm-4 mb-3">
                     <div class="p-3 border rounded bg-light">
-                        <h6 class="text-muted small mb-1">Espao Fsico</h6>
+                        <h6 class="text-muted small mb-1">Espaço Físico</h6>
                         <h3 class="mb-0 {% if geral_data.espaco_fisico >= 4 %}text-success{% elif geral_data.espaco_fisico >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.espaco_fisico|round(1) }}</h3>
                         <small><i class="fas fa-star text-warning"></i></small>
                     </div>
@@ -56,21 +56,21 @@
                 </div>
                 <div class="col-md-2 col-sm-4 mb-3">
                     <div class="p-3 border rounded bg-light">
-                        <h6 class="text-muted small mb-1">Direo/Gesto</h6>
+                        <h6 class="text-muted small mb-1">Direção/Gestão</h6>
                         <h3 class="mb-0 {% if geral_data.direcao >= 4 %}text-success{% elif geral_data.direcao >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.direcao|round(1) }}</h3>
                         <small><i class="fas fa-star text-warning"></i></small>
                     </div>
                 </div>
                 <div class="col-md-4 col-sm-8 mb-3">
                     <div class="p-3 border rounded bg-primary text-white h-100 d-flex flex-column justify-content-center">
-                        <h6 class="mb-1 text-white-50">Satisfao Geral</h6>
+                        <h6 class="mb-1 text-white-50">Satisfação Geral</h6>
                         <h2 class="mb-0 fw-bold">{{ geral_data.satisfacao|round(1) }} <small class="fs-6"><i class="fas fa-star"></i></small></h2>
                     </div>
                 </div>
             </div>
 
             {% if geral_data.comentarios %}
-            <h6 class="fw-semibold mt-4 mb-3"><i class="fas fa-comments text-muted me-2"></i> Sugestes e Crticas Gerais ({{ geral_data.comentarios|length }})</h6>
+            <h6 class="fw-semibold mt-4 mb-3"><i class="fas fa-comments text-muted me-2"></i> Sugestões e Críticas Gerais ({{ geral_data.comentarios|length }})</h6>
             <div class="bg-light p-3 rounded" style="max-height: 250px; overflow-y: auto;">
                 {% for com in geral_data.comentarios %}
                     <div class="border-bottom pb-2 mb-2">
@@ -81,7 +81,7 @@
             {% endif %}
 
             {% else %}
-            <p class="text-muted text-center py-4">Nenhuma avaliao geral registrada.</p>
+            <p class="text-muted text-center py-4">Nenhuma avaliação geral registrada.</p>
             {% endif %}
         </div>
     </div>
@@ -90,8 +90,8 @@
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white border-bottom-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
             <div>
-                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-chalkboard-teacher text-primary me-2"></i> Parte 2: Avaliao de Instrutores</h5>
-                <p class="text-muted small mb-0 mt-1">Selecione os instrutores abaixo para exportar o relatrio consolidado (PDF).</p>
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-chalkboard-teacher text-primary me-2"></i> Parte 2: Avaliação de Instrutores</h5>
+                <p class="text-muted small mb-0 mt-1">Selecione os instrutores abaixo para exportar o relatório consolidado (PDF).</p>
             </div>
             <div>
                 <button type="button" id="btnExportSelected" class="btn btn-primary" onclick="exportSelected()">
@@ -111,11 +111,11 @@
                             </th>
                             <th>Instrutor</th>
                             <th class="text-center">Relacionamento</th>
-                            <th class="text-center">Domnio</th>
-                            <th class="text-center">Relevncia</th>
-                            <th class="text-center">Mdia Geral</th>
-                            <th class="text-center">Avaliaes</th>
-                            <th class="text-end">Aes</th>
+                            <th class="text-center">Domínio</th>
+                            <th class="text-center">Relevância</th>
+                            <th class="text-center">Média Geral</th>
+                            <th class="text-center">Avaliações</th>
+                            <th class="text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
