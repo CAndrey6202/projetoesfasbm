@@ -28,6 +28,7 @@ from backend.services.asset_service import AssetService
 
 # --- Importações de TODOS os modelos para o Flask-Migrate ---
 from backend.models.aluno import Aluno
+from backend.models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao, RespostaAvaliacaoGeral, ControlePreenchimentoAvaliacao
 # from backend.models.avaliacao import AvaliacaoAtitudinal, AvaliacaoItem
 from backend.models.disciplina import Disciplina
 from backend.models.disciplina_turma import DisciplinaTurma

@@ -17,19 +17,20 @@ from ..models.school import School
 from ..models.user_school import UserSchool
 from ..models.disciplina_turma import DisciplinaTurma
 from ..models.instrutor import Instrutor
-from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao, RespostaAvaliacaoGeral, ControlePreenchimentoAvaliacao
+import uuid
 from ..services.user_service import UserService # Importante para resolver escola
-from ..services.log_service import LogService # <--- ESPIÃO IMPORTADO AQUI
+from ..services.log_service import LogService # <--- ESPIO IMPORTADO AQUI
 from utils.decorators import admin_or_programmer_required, school_admin_or_programmer_required, can_view_management_pages_required
 
 aluno_bp = Blueprint('aluno', __name__, url_prefix='/aluno')
 
-# DICIONÁRIO ESTRUTURADO PARA POSTOS E GRADUAÇÕES
+# DICIONRIO ESTRUTURADO PARA POSTOS E GRADUAES
 posto_graduacao_structured = {
-    'Praças': ['Soldado PM', '2º Sargento PM', '1º Sargento PM', 'Aluno Oficial'],
-    'Oficiais': ['1º Tenente PM', 'Capitão PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
-    'Saúde - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
-    'Saúde - Médicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'Praas': ['Soldado PM', '2º Sargento PM', '1º Sargento PM', 'Aluno Oficial'],
+    'Oficiais': ['1º Tenente PM', 'Capito PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
+    'Sade - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
+    'Sade - Mdicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
     'Outros': ['Civil', 'Outro']
 }
 
@@ -39,20 +40,20 @@ class DeleteForm(FlaskForm):
 class EditAlunoForm(FlaskForm):
     nome_completo = StringField('Nome Completo', validators=[DataRequired()])
     email = StringField('E-mail', validators=[DataRequired(), Email()])
-    matricula = StringField('Matrícula', render_kw={"readonly": True})
+    matricula = StringField('Matrcula', render_kw={"readonly": True})
 
     posto_categoria = SelectField("Categoria", choices=list(posto_graduacao_structured.keys()), validators=[DataRequired()])
-    posto_graduacao = SelectField('Posto/Graduação', validators=[DataRequired()])
+    posto_graduacao = SelectField('Posto/Graduao', validators=[DataRequired()])
     posto_graduacao_outro = StringField("Outro (especifique)", validators=[Optional()])
 
     opm = StringField('OPM', validators=[DataRequired()])
-    turma_id = SelectField('Turma / Pelotão', coerce=int, validators=[DataRequired()])
-    funcao_atual = SelectField('Função Atual', choices=[
-        ('', '-- Nenhuma função --'), ('P1', 'P1'), ('P2', 'P2'), ('P3', 'P3'), ('P4', 'P4'), ('P5', 'P5'),
+    turma_id = SelectField('Turma / Peloto', coerce=int, validators=[DataRequired()])
+    funcao_atual = SelectField('Funo Atual', choices=[
+        ('', '-- Nenhuma funo --'), ('P1', 'P1'), ('P2', 'P2'), ('P3', 'P3'), ('P4', 'P4'), ('P5', 'P5'),
         ('Aux Disc', 'Aux Disc'), ('Aux Cia', 'Aux Cia'), ('Aux Pel', 'Aux Pel'), ('C1', 'C1'), ('C2', 'C2'),
         ('C3', 'C3'), ('C4', 'C4'), ('C5', 'C5'), ('Formatura', 'Formatura'), ('Obras', 'Obras'),
-        ('Atletismo', 'Atletismo'), ('Jubileu', 'Jubileu'), ('Dia da Criança', 'Dia da Criança'),
-        ('Seminário', 'Seminário'), ('Chefe de Turma', 'Chefe de Turma'), ('Correio', 'Correio'),
+        ('Atletismo', 'Atletismo'), ('Jubileu', 'Jubileu'), ('Dia da Criana', 'Dia da Criana'),
+        ('Seminrio', 'Seminrio'), ('Chefe de Turma', 'Chefe de Turma'), ('Correio', 'Correio'),
         ('Cmt 1° GPM', 'Cmt 1° GPM'), ('Cmt 2° GPM', 'Cmt 2° GPM'), ('Cmt 3° GPM', 'Cmt 3° GPM'),
         ('Socorrista 1', 'Socorrista 1'), ('Socorrista 2', 'Socorrista 2'), ('Motorista 1', 'Motorista 1'),
         ('Motorista 2', 'Motorista 2'), ('Telefonista 1', 'Telefonista 1'), ('Telefonista 2', 'Telefonista 2')
@@ -85,7 +86,7 @@ def listar_alunos():
         UserSchool.role == 'aluno'
     )
 
-    # 3. Filtrar pela Edição Ativa + MOSTRAR OS TRANSFERIDOS (Órfãos da Escola)
+    # 3. Filtrar pela Edio Ativa + MOSTRAR OS TRANSFERIDOS (rfos da Escola)
     active_edicao_id = session.get('active_edicao_id')
     if active_edicao_id:
         query = query.filter(
@@ -115,10 +116,10 @@ def listar_alunos():
         else:
              query = query.filter(Turma.nome == turma_filtrada)
 
-    # Paginação
+    # Paginao
     alunos_paginados = query.order_by(User.nome_completo).paginate(page=page, per_page=15, error_out=False)
 
-    # Carrega turmas para o filtro (Respeitando a edição)
+    # Carrega turmas para o filtro (Respeitando a edio)
     active_edicao = session.get('active_edicao_id')
     turmas = TurmaService.get_turmas_by_school(school_id, active_edicao)
 
@@ -149,15 +150,15 @@ def editar_aluno(aluno_id):
     ).first()
 
     if not aluno:
-        flash("Aluno não encontrado nesta escola.", 'danger')
+        flash("Aluno no encontrado nesta escola.", 'danger')
         return redirect(url_for('aluno.listar_alunos'))
 
     form = EditAlunoForm(obj=aluno)
 
-    # Carrega turmas apenas da escola atual e da edição atual
+    # Carrega turmas apenas da escola atual e da edio atual
     active_edicao = session.get('active_edicao_id')
     turmas = TurmaService.get_turmas_by_school(school_id, active_edicao)
-    # Adiciona opção "Sem Turma"
+    # Adiciona opo "Sem Turma"
     turma_choices = [(0, '-- Selecione --')] + [(t.id, t.nome) for t in turmas]
     form.turma_id.choices = turma_choices
 
@@ -167,7 +168,7 @@ def editar_aluno(aluno_id):
             form.email.data = aluno.user.email
             form.matricula.data = aluno.user.matricula
 
-            # Lógica de Posto/Graduação
+            # Lgica de Posto/Graduao
             posto_atual = aluno.user.posto_graduacao
             categoria_encontrada = None
             for categoria, postos in posto_graduacao_structured.items():
@@ -188,14 +189,14 @@ def editar_aluno(aluno_id):
         form.opm.data = aluno.opm
         form.turma_id.data = aluno.turma_id if aluno.turma_id else 0
 
-    # Atualização dinâmica de choices no POST
+    # Atualizao dinmica de choices no POST
     if form.is_submitted():
          categoria_selecionada = form.posto_categoria.data
          if categoria_selecionada in posto_graduacao_structured:
              form.posto_graduacao.choices = [(p, p) for p in posto_graduacao_structured[categoria_selecionada]]
 
     if form.validate_on_submit():
-        # Lógica de Salvamento Manual para garantir controle
+        # Lgica de Salvamento Manual para garantir controle
         try:
             # User Info
             aluno.user.nome_completo = form.nome_completo.data
@@ -209,13 +210,13 @@ def editar_aluno(aluno_id):
             else:
                 aluno.user.posto_graduacao = grad
 
-            # Aluno Info (INCLUINDO VÍNCULO DA EDIÇÃO APÓS A TRANSFERÊNCIA)
+            # Aluno Info (INCLUINDO VNCULO DA EDIO APS A TRANSFERNCIA)
             aluno.opm = form.opm.data
             t_id = form.turma_id.data
             
             if t_id and t_id != 0:
                 aluno.turma_id = t_id
-                # Puxa o edicao_id da turma e atribui ao aluno para finalizar a transferência
+                # Puxa o edicao_id da turma e atribui ao aluno para finalizar a transferncia
                 turma_selecionada = db.session.get(Turma, t_id)
                 if turma_selecionada:
                     aluno.edicao_id = turma_selecionada.edicao_id
@@ -226,10 +227,10 @@ def editar_aluno(aluno_id):
 
             db.session.commit()
             
-            # --- ESPIÃO: EDIÇÃO DE ALUNO ---
+            # --- ESPIO: EDIO DE ALUNO ---
             LogService.log(
                 action="Editou Perfil do Aluno",
-                details=f"Atualizou os dados do aluno {aluno.user.nome_completo} (Matrícula: {aluno.user.matricula}).",
+                details=f"Atualizou os dados do aluno {aluno.user.nome_completo} (Matrcula: {aluno.user.matricula}).",
                 school_id=school_id
             )
             # -------------------------------
@@ -248,11 +249,11 @@ def editar_aluno(aluno_id):
 def editar_funcao_aluno(aluno_id):
     success, message = AlunoService.update_funcao_aluno(aluno_id, request.form)
     
-    # --- ESPIÃO: ALTERAÇÃO DE FUNÇÃO ---
+    # --- ESPIO: ALTERAO DE FUNO ---
     if success:
         school_id = session.get('active_school_id') or UserService.get_current_school_id()
         LogService.log(
-            action="Alterou Função do Aluno",
+            action="Alterou Funo do Aluno",
             details=f"Aluno ID {aluno_id}: {message}",
             school_id=school_id
         )
@@ -285,13 +286,13 @@ def excluir_aluno(aluno_id):
                 current_user_id = aluno.user_id
                 # Salva os dados antes de apagar do banco
                 nome_aluno_removido = aluno.user.nome_completo or "Sem Nome"
-                matricula_aluno_removida = aluno.user.matricula or "Sem Matrícula"
+                matricula_aluno_removida = aluno.user.matricula or "Sem Matrcula"
                 
-                # --- INÍCIO DO SOFT DELETE ---
+                # --- INCIO DO SOFT DELETE ---
                 # Em vez de apagar o aluno e o UserSchool, apenas alteramos o status
                 aluno.status_matricula = 'Desligado'
                 
-                # Desvincula a role de 'aluno' mudando para 'aluno_desligado' para que não apareça nas listas da escola
+                # Desvincula a role de 'aluno' mudando para 'aluno_desligado' para que no aparea nas listas da escola
                 user_school = db.session.query(UserSchool).filter_by(user_id=current_user_id, school_id=school_id).first()
                 if user_school:
                     user_school.role = 'aluno_desligado'
@@ -299,16 +300,16 @@ def excluir_aluno(aluno_id):
                 db.session.commit()
                 # --- FIM DO SOFT DELETE ---
                 
-                # --- LOG DE SEGURANÇA ---
+                # --- LOG DE SEGURANA ---
                 LogService.log(
                     action="Removeu Aluno da Escola (Soft Delete)",
-                    details=f"O aluno {nome_aluno_removido} (Matrícula: {matricula_aluno_removida}) teve seu status alterado para Desligado.",
+                    details=f"O aluno {nome_aluno_removido} (Matrcula: {matricula_aluno_removida}) teve seu status alterado para Desligado.",
                     school_id=school_id
                 )
                 
-                flash('Aluno removido da escola com sucesso (histórico preservado).', 'success')
+                flash('Aluno removido da escola com sucesso (histrico preservado).', 'success')
             else:
-                flash('Aluno não encontrado nesta escola.', 'danger')
+                flash('Aluno no encontrado nesta escola.', 'danger')
 
         except Exception as e:
             db.session.rollback()
@@ -319,7 +320,7 @@ def excluir_aluno(aluno_id):
         
     return redirect(url_for('aluno.listar_alunos'))
 
-# --- AVALIAÇÃO DE INSTRUTORES ---
+# --- AVALIAO DE INSTRUTORES ---
 
 @aluno_bp.route('/responder-avaliacao/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -327,108 +328,120 @@ def responder_avaliacao(id):
     school_id = session.get('active_school_id')
     local_role = current_user.get_role_in_school(school_id) if school_id else None
     if str(current_user.role).lower().strip() != 'aluno' and local_role != 'aluno':
-        flash('Acesso negado. Apenas alunos podem responder à avaliação.', 'danger')
+        flash('Acesso negado. Apenas alunos podem responder à avaliao.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha or not campanha.is_ativa:
-        flash('Campanha inativa ou não encontrada.', 'danger')
+        flash('Campanha inativa ou no encontrada.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     aluno = db.session.query(Aluno).filter_by(user_id=current_user.id).first()
     if not aluno or not aluno.turma:
-        flash('Turma não encontrada para o aluno.', 'danger')
+        flash('Turma no encontrada para o aluno.', 'danger')
         return redirect(url_for('dashboard.index'))
         
-    # Ponto Crítico 3: Impedir vazamento de avaliações entre escolas
     if campanha.school_id != aluno.turma.school_id:
-        flash('Esta campanha não pertence à sua escola.', 'danger')
+        flash('Esta campanha no pertence à sua escola.', 'danger')
         return redirect(url_for('dashboard.index'))
         
-    instrutores_ids = set()
+    # Verifica se já preencheu
+    controle = db.session.query(ControlePreenchimentoAvaliacao).filter_by(
+        campanha_id=campanha.id, 
+        aluno_id=aluno.id
+    ).first()
+    if controle:
+        flash('Você já respondeu a esta avaliao do mdulo. Obrigado!', 'success')
+        return redirect(url_for('questionario.index'))
+        
+    # Buscar os instrutores da turma conectando com Disciplina
+    from backend.models.disciplina import Disciplina
     
-    # 1. Buscar via DisciplinaTurma
-    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
+    disciplinas_da_turma = db.session.query(Disciplina).filter_by(turma_id=aluno.turma.id).all()
+    disciplina_ids = [d.id for d in disciplinas_da_turma]
+    
+    vinculos = db.session.query(DisciplinaTurma).filter(DisciplinaTurma.disciplina_id.in_(disciplina_ids)).all()
+    
+    registros = []
     for v in vinculos:
-        if v.instrutor_id_1: instrutores_ids.add(v.instrutor_id_1)
-        if v.instrutor_id_2: instrutores_ids.add(v.instrutor_id_2)
+        if v.instrutor_id_1:
+            inst = db.session.query(Instrutor).get(v.instrutor_id_1)
+            disc = db.session.query(Disciplina).get(v.disciplina_id)
+            if inst: registros.append((inst, disc))
+        if v.instrutor_id_2:
+            inst = db.session.query(Instrutor).get(v.instrutor_id_2)
+            disc = db.session.query(Disciplina).get(v.disciplina_id)
+            if inst: registros.append((inst, disc))
             
-    # 2. Buscar via Horario (pois às vezes o vínculo direto não está preenchido)
-    from ..models.horario import Horario
-    horarios = db.session.query(Horario).filter_by(pelotao=aluno.turma.nome).all()
-    for h in horarios:
-        if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
-        if h.instrutor_id_2: instrutores_ids.add(h.instrutor_id_2)
-            
-    if not instrutores_ids:
-        flash('Nenhum instrutor alocado para a sua turma no momento.', 'warning')
-        return redirect(url_for('dashboard.index'))
-        
-    # Obter os objetos Instrutor que o aluno deve avaliar, e que pertencem à escola do aluno
-    instrutores_banco = db.session.query(Instrutor).filter(
-        Instrutor.id.in_(instrutores_ids),
-        Instrutor.school_id == aluno.turma.school_id
-    ).all()
-    
-    # Filtrar instrutores padrão (C Al / S Ens) que não devem ser avaliados
     instrutores_para_avaliar = []
-    for inst in instrutores_banco:
+    for inst, disc in registros:
         nome_guerra = (inst.user.nome_de_guerra or "").lower()
         nome_completo = (inst.user.nome_completo or "").lower()
         if "c al" not in nome_guerra and "s ens" not in nome_guerra and "sens" not in nome_guerra and "c al" not in nome_completo and "s ens" not in nome_completo:
-            instrutores_para_avaliar.append(inst)
-    
-    # Filtrar os instrutores que o aluno já avaliou nesta campanha
-    respostas_existentes = db.session.query(RespostaAvaliacao.instrutor_id).filter_by(
-        campanha_id=campanha.id, 
-        aluno_id=aluno.id
-    ).all()
-    instrutores_ja_avaliados = {r[0] for r in respostas_existentes}
-    
-    instrutores_pendentes = [i for i in instrutores_para_avaliar if i.id not in instrutores_ja_avaliados]
-    
-    if not instrutores_pendentes:
-        flash('Você já avaliou todos os instrutores da sua turma nesta campanha. Obrigado!', 'success')
-        return redirect(url_for('questionario.index'))
-        
-    if request.method == 'POST':
-        # O formulário pode enviar avaliação para múltiplos instrutores de uma vez
-        todas_sucesso = True
-        for instrutor in instrutores_pendentes:
-            nota_str = request.form.get(f'nota_{instrutor.id}')
-            comentario = request.form.get(f'comentario_{instrutor.id}')
+            instrutores_para_avaliar.append({
+                'id': inst.id,
+                'user': inst.user,
+                'disciplina': disc
+            })
             
-            if nota_str:
-                try:
-                    nota = int(nota_str)
-                    if 1 <= nota <= 5:
-                        resposta = RespostaAvaliacao(
-                            campanha_id=campanha.id,
-                            aluno_id=aluno.id,
-                            instrutor_id=instrutor.id,
-                            turma_id=aluno.turma.id,
-                            nota=nota,
-                            comentario=comentario
-                        )
-                        db.session.add(resposta)
-                except ValueError:
-                    todas_sucesso = False
-                    
+    if request.method == 'POST':
+        import uuid
+        token = uuid.uuid4().hex[:12]
+        
+        # 1. Salvar Avaliao Geral
+        try:
+            resp_geral = RespostaAvaliacaoGeral(
+                campanha_id=campanha.id,
+                turma_id=aluno.turma.id,
+                token_sigilo=token,
+                nota_organizacao=int(request.form.get('nota_espaco_fisico', 3)),
+                nota_tecnologia=int(request.form.get('nota_tecnologia', 3)),
+                nota_corpo_alunos=int(request.form.get('nota_corpo_alunos', 3)),
+                nota_direcao=int(request.form.get('nota_direcao', 3)),
+                nota_satisfacao_geral=int(request.form.get('nota_satisfacao_geral', 3)),
+                comentarios_gerais=request.form.get('comentarios_gerais')
+            )
+            db.session.add(resp_geral)
+        except Exception as e:
+            flash('Erro ao processar as notas gerais.', 'danger')
+            return redirect(request.url)
+            
+        # 2. Salvar Avaliao dos Instrutores
+        for instrutor_dict in instrutores_para_avaliar:
+            inst_id = instrutor_dict['id']
+            try:
+                resp_inst = RespostaAvaliacao(
+                    campanha_id=campanha.id,
+                    instrutor_id=inst_id,
+                    turma_id=aluno.turma.id,
+                    token_sigilo=token,
+                    nota_relacionamento=int(request.form.get(f'nota_relacionamento_{inst_id}', 3)),
+                    nota_dominio=int(request.form.get(f'nota_dominio_{inst_id}', 3)),
+                    nota_relevancia=int(request.form.get(f'nota_relevancia_{inst_id}', 3)),
+                    comentario=request.form.get(f'comentario_{inst_id}')
+                )
+                db.session.add(resp_inst)
+            except Exception as e:
+                pass 
+
+        # 3. Registrar que o aluno preencheu
+        ctrl = ControlePreenchimentoAvaliacao(
+            campanha_id=campanha.id,
+            aluno_id=aluno.id
+        )
+        db.session.add(ctrl)
+        
         db.session.commit()
         
-        # Limpar cache de bloqueio da sessão, forçando reavaliação no próximo request
         if 'bloqueio_avaliacao' in session:
             session.pop('bloqueio_avaliacao', None)
             session.pop('campanha_pendente_id', None)
             
-        if todas_sucesso:
-            flash('Avaliações enviadas com sucesso!', 'success')
-        else:
-            flash('Avaliações enviadas, mas houve problemas com algumas notas.', 'warning')
+        flash('Avaliao de Mdulo enviada com sucesso! Muito obrigado pela sua contribuio annima.', 'success')
         return redirect(url_for('questionario.index'))
         
     return render_template('questionario/responder_avaliacao_instrutores.html', 
                            campanha=campanha, 
-                           instrutores=instrutores_pendentes)
+                           instrutores=instrutores_para_avaliar)
 
 

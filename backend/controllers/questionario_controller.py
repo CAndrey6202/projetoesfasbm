@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user
 from sqlalchemy import select, func, distinct
 import json
@@ -14,10 +14,10 @@ from ..services.user_service import UserService
 
 questionario_bp = Blueprint('questionario', __name__, url_prefix='/questionario')
 
-# Helper para permissões
+# Helper para permisses
 def cal_or_admin_required():
     if not (current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
-        flash('Acesso não autorizado.', 'danger')
+        flash('Acesso no autorizado.', 'danger')
         return False
     return True
 
@@ -34,7 +34,7 @@ def index():
             .order_by(Questionario.id.desc())
         ).all()
     
-    # Busca campanhas apenas da escola atual e edição atual
+    # Busca campanhas apenas da escola atual e edio atual
     stmt_campanhas = select(CampanhaAvaliacao)
     if school_id:
         stmt_campanhas = stmt_campanhas.where(CampanhaAvaliacao.school_id == school_id)
@@ -59,7 +59,7 @@ def novo():
         publico_alvo = request.form.get('publico_alvo', 'todos')
         
         if not titulo:
-            flash('O título do questionário é obrigatório.', 'danger')
+            flash('O ttulo do questionrio é obrigatrio.', 'danger')
             return render_template('questionario/novo.html')
 
         school_id = UserService.get_current_school_id()
@@ -107,7 +107,7 @@ def novo():
                         db.session.add(OpcaoResposta(texto='Outro', pergunta_id=pergunta.id))
 
         db.session.commit()
-        flash('Questionário criado com sucesso!', 'success')
+        flash('Questionrio criado com sucesso!', 'success')
         return redirect(url_for('questionario.index'))
         
     return render_template('questionario/novo.html')
@@ -115,13 +115,13 @@ def novo():
 @questionario_bp.route('/ver/<int:id>')
 @login_required
 def ver(id):
-    # Visualização para Admin/CAL (Preview)
+    # Visualizao para Admin/CAL (Preview)
     if not cal_or_admin_required():
         return redirect(url_for('questionario.index'))
         
     questionario = db.session.get(Questionario, id)
     if not questionario:
-        flash('Questionário não encontrado.', 'danger')
+        flash('Questionrio no encontrado.', 'danger')
         return redirect(url_for('questionario.index'))
     return render_template('questionario/realizar.html', questionario=questionario, preview=True)
 
@@ -129,18 +129,18 @@ def ver(id):
 @login_required
 def resultado(id):
     if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
-        flash('Permissão negada.', 'danger')
+        flash('Permisso negada.', 'danger')
         return redirect(url_for('questionario.index'))
 
     questionario = db.session.get(Questionario, id)
     if not questionario:
-        flash('Questionário não encontrado.', 'danger')
+        flash('Questionrio no encontrado.', 'danger')
         return redirect(url_for('questionario.index'))
         
     dados_graficos = {}
     respostas_texto = {}
     
-    # Lógica simplificada de contagem
+    # Lgica simplificada de contagem
     for pergunta in questionario.perguntas:
         if pergunta.tipo == 'texto_livre':
             respostas = db.session.scalars(select(Resposta).where(Resposta.pergunta_id == pergunta.id, Resposta.texto_livre.isnot(None))).all()
@@ -166,13 +166,13 @@ def resultado(id):
 def realizar(id):
     questionario = db.session.get(Questionario, id)
     if not questionario or not questionario.ativo:
-        flash('Questionário indisponível.', 'warning')
+        flash('Questionrio indisponvel.', 'warning')
         return redirect(url_for('questionario.index'))
 
-    # Verifica se usuário já respondeu
+    # Verifica se usurio já respondeu
     ja_respondeu = db.session.scalar(select(Resposta).where(Resposta.questionario_id == id, Resposta.user_id == current_user.id))
     if ja_respondeu:
-        flash('Você já respondeu este questionário.', 'info')
+        flash('Você já respondeu este questionrio.', 'info')
         return redirect(url_for('questionario.index'))
 
     if request.method == 'POST':
@@ -215,7 +215,7 @@ def alternar_status(id):
     if q:
         q.ativo = not q.ativo
         db.session.commit()
-        flash(f'Questionário {"ativado" if q.ativo else "desativado"}.', 'success')
+        flash(f'Questionrio {"ativado" if q.ativo else "desativado"}.', 'success')
     return redirect(url_for('questionario.index'))
 
 @questionario_bp.route('/excluir/<int:id>')
@@ -228,10 +228,10 @@ def excluir(id):
         db.session.query(Resposta).filter_by(questionario_id=id).delete()
         db.session.delete(q)
         db.session.commit()
-        flash('Questionário excluído com sucesso.', 'success')
+        flash('Questionrio excludo com sucesso.', 'success')
     return redirect(url_for('questionario.index'))
 
-# --- AVALIAÇÃO DE INSTRUTORES ---
+# --- AVALIAO DE INSTRUTORES ---
 
 @questionario_bp.route('/avaliacao-instrutores/nova', methods=['POST'])
 @login_required
@@ -243,7 +243,7 @@ def nova_avaliacao_instrutores():
     school_id = UserService.get_current_school_id()
     titulo = request.form.get('titulo')
     if not titulo:
-        flash('O título da avaliação é obrigatório.', 'danger')
+        flash('O ttulo da avaliao é obrigatrio.', 'danger')
         return redirect(url_for('questionario.index'))
 
     school_id = UserService.get_current_school_id()
@@ -278,7 +278,7 @@ def alternar_status_avaliacao(id):
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        flash('Campanha não encontrada.', 'danger')
+        flash('Campanha no encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
     campanha.is_ativa = not campanha.is_ativa
@@ -297,13 +297,13 @@ def alternar_obrigatoriedade_avaliacao(id):
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        flash('Campanha não encontrada.', 'danger')
+        flash('Campanha no encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
     campanha.is_obrigatoria = not campanha.is_obrigatoria
     db.session.commit()
     
-    status = 'agora é OBRIGATÓRIA (a tela dos alunos será travada)' if campanha.is_obrigatoria else 'agora é OPCIONAL'
+    status = 'agora é OBRIGATRIA (a tela dos alunos será travada)' if campanha.is_obrigatoria else 'agora é OPCIONAL'
     flash(f'Campanha "{campanha.titulo}" {status}.', 'success')
     return redirect(url_for('questionario.index'))
 
@@ -316,13 +316,13 @@ def excluir_avaliacao(id):
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        flash('Campanha não encontrada.', 'danger')
+        flash('Campanha no encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
     db.session.delete(campanha)
     db.session.commit()
     
-    flash('Campanha excluída com sucesso.', 'success')
+    flash('Campanha excluda com sucesso.', 'success')
     return redirect(url_for('questionario.index'))
 
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>')
@@ -334,17 +334,22 @@ def resultado_avaliacao(id):
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        flash('Campanha não encontrada.', 'danger')
+        flash('Campanha no encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
     turma_id_filter = request.args.get('turma_id', type=int)
         
-    # Busca os resultados de fato
+    # Busca os resultados de instrutores
+    from backend.models.avaliacao_instrutor import RespostaAvaliacaoGeral
     stmt = select(RespostaAvaliacao).where(RespostaAvaliacao.campanha_id == id)
+    stmt_geral = select(RespostaAvaliacaoGeral).where(RespostaAvaliacaoGeral.campanha_id == id)
+    
     if turma_id_filter:
         stmt = stmt.where(RespostaAvaliacao.turma_id == turma_id_filter)
+        stmt_geral = stmt_geral.where(RespostaAvaliacaoGeral.turma_id == turma_id_filter)
         
     respostas = db.session.scalars(stmt).all()
+    respostas_gerais = db.session.scalars(stmt_geral).all()
     
     # Obter todas as turmas vinculadas a essa campanha para o select
     todas_respostas = db.session.scalars(
@@ -353,7 +358,28 @@ def resultado_avaliacao(id):
     turmas_disponiveis = {r.turma for r in todas_respostas}
     turmas_disponiveis = sorted(list(turmas_disponiveis), key=lambda t: t.nome)
     
-    # Prepara os dados para o Chart.js e para a tabela de comentários
+    # 1. Preparar DADOS GERAIS (MDULO)
+    geral_data = {
+        'total_respostas': len(respostas_gerais),
+        'espaco_fisico': 0,
+        'tecnologia': 0,
+        'corpo_alunos': 0,
+        'direcao': 0,
+        'satisfacao': 0,
+        'comentarios': []
+    }
+    
+    if respostas_gerais:
+        geral_data['espaco_fisico'] = sum(r.nota_organizacao for r in respostas_gerais) / len(respostas_gerais)
+        geral_data['tecnologia'] = sum(r.nota_tecnologia for r in respostas_gerais) / len(respostas_gerais)
+        geral_data['corpo_alunos'] = sum(r.nota_corpo_alunos for r in respostas_gerais) / len(respostas_gerais)
+        geral_data['direcao'] = sum(r.nota_direcao for r in respostas_gerais) / len(respostas_gerais)
+        geral_data['satisfacao'] = sum(r.nota_satisfacao_geral for r in respostas_gerais) / len(respostas_gerais)
+        for r in respostas_gerais:
+            if r.comentarios_gerais and r.comentarios_gerais.strip():
+                geral_data['comentarios'].append(r.comentarios_gerais.strip())
+    
+    # 2. Preparar DADOS DOS INSTRUTORES
     instrutores_data = {}
     for r in respostas:
         u = r.instrutor.user
@@ -366,44 +392,172 @@ def resultado_avaliacao(id):
         
         if nome_exibicao not in instrutores_data:
             instrutores_data[nome_exibicao] = {
-                'notas': [],
+                'id_instrutor': r.instrutor.id,
+                'nome': nome_exibicao,
+                'notas_relacionamento': [],
+                'notas_dominio': [],
+                'notas_relevancia': [],
                 'comentarios': [],
                 'turmas': set()
             }
         
-        instrutores_data[nome_exibicao]['notas'].append(r.nota)
+        instrutores_data[nome_exibicao]['notas_relacionamento'].append(r.nota_relacionamento)
+        instrutores_data[nome_exibicao]['notas_dominio'].append(r.nota_dominio)
+        instrutores_data[nome_exibicao]['notas_relevancia'].append(r.nota_relevancia)
         instrutores_data[nome_exibicao]['turmas'].add(r.turma.nome)
         
         if r.comentario and r.comentario.strip():
             instrutores_data[nome_exibicao]['comentarios'].append({
                 'turma': r.turma.nome,
                 'texto': r.comentario.strip(),
-                'data': r.data_resposta.strftime('%d/%m/%Y %H:%M')
+                'data': r.data_resposta.strftime('%d/%m/%Y %H:%M') if r.data_resposta else "Recente"
             })
             
-    # Calcular médias
-    labels = []
-    medias = []
+    # Calcular mdias por instrutor
+    lista_instrutores = []
     for nome, data in instrutores_data.items():
-        media = sum(data['notas']) / len(data['notas'])
-        data['media'] = round(media, 2)
+        media_rel = sum(data['notas_relacionamento']) / len(data['notas_relacionamento']) if data['notas_relacionamento'] else 0
+        media_dom = sum(data['notas_dominio']) / len(data['notas_dominio']) if data['notas_dominio'] else 0
+        media_relv = sum(data['notas_relevancia']) / len(data['notas_relevancia']) if data['notas_relevancia'] else 0
+        
+        media_geral_inst = (media_rel + media_dom + media_relv) / 3
+        
+        data['media_relacionamento'] = round(media_rel, 2)
+        data['media_dominio'] = round(media_dom, 2)
+        data['media_relevancia'] = round(media_relv, 2)
+        data['media_geral'] = round(media_geral_inst, 2)
+        data['votos_count'] = len(data['notas_relacionamento'])
         data['turmas'] = list(data['turmas'])
+        lista_instrutores.append(data)
         
-        labels.append(nome)
-        medias.append(data['media'])
-        
-    chart_data = {
-        'labels': labels,
-        'medias': medias
-    }
+    lista_instrutores.sort(key=lambda x: x['nome'])
     
     return render_template('questionario/resultados_avaliacao.html', 
                            campanha=campanha, 
-                           instrutores_data=instrutores_data,
-                           chart_data=json.dumps(chart_data),
+                           geral_data=geral_data,
+                           instrutores_data=lista_instrutores,
                            turmas_disponiveis=turmas_disponiveis,
                            turma_id_filter=turma_id_filter)
 
+@questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>/exportar_pdf_multiplos', methods=['POST'])
+@login_required
+def exportar_pdf_resultados_multiplos(id):
+    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
+        return jsonify({'success': False, 'error': 'Acesso negado.'})
+
+    campanha = db.session.get(CampanhaAvaliacao, id)
+    if not campanha:
+        return jsonify({'success': False, 'error': 'Campanha no encontrada.'})
+        
+    data = request.get_json() or {}
+    instrutores_ids = data.get('instrutores_ids', [])
+    
+    if not instrutores_ids:
+        return jsonify({'success': False, 'error': 'Nenhum instrutor selecionado.'})
+        
+    instrutores_ids = [int(i) for i in instrutores_ids]
+    turma_id_filter = request.args.get('turma_id', type=int)
+    
+    stmt = select(RespostaAvaliacao).where(RespostaAvaliacao.campanha_id == id, RespostaAvaliacao.instrutor_id.in_(instrutores_ids))
+    if turma_id_filter:
+        stmt = stmt.where(RespostaAvaliacao.turma_id == turma_id_filter)
+        
+    respostas = db.session.scalars(stmt).all()
+    
+    instrutores_data = {}
+    for r in respostas:
+        u = r.instrutor.user
+        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        
+        if nome_exibicao not in instrutores_data:
+            instrutores_data[nome_exibicao] = {
+                'votos_count': 0,
+                'soma_notas': 0,
+                'media': 0,
+                'comentarios': [],
+                'turmas': set()
+            }
+        
+        data_inst = instrutores_data[nome_exibicao]
+        data_inst['votos_count'] += 1
+        data_inst['soma_notas'] += ((r.nota_relacionamento + r.nota_dominio + r.nota_relevancia) / 3)
+        data_inst['turmas'].add(r.turma.nome)
+        
+        if r.comentario:
+            data_inst['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome})
+            
+    labels = []
+    medias = []
+    for nome, data_inst in instrutores_data.items():
+        if data_inst['votos_count'] > 0:
+            data_inst['media'] = data_inst['soma_notas'] / data_inst['votos_count']
+        data_inst['turmas'] = list(data_inst['turmas'])
+        labels.append(nome)
+        medias.append(data_inst['media'])
+
+    import urllib.parse
+    import json
+    chart_config = {
+        "type": "bar",
+        "data": {
+            "labels": labels,
+            "datasets": [{
+                "label": "Nota Mdia",
+                "data": medias,
+                "backgroundColor": "#2ecc71"
+            }]
+        },
+        "options": {
+            "scales": {
+                "yAxes": [{"ticks": {"beginAtZero": True, "max": 5}}]
+            }
+        }
+    }
+    
+    quickchart_url = ""
+    if labels:
+        config_json = json.dumps(chart_config)
+        encoded_config = urllib.parse.quote(config_json)
+        quickchart_url = f"https://quickchart.io/chart?c={encoded_config}&w=800&h=400&bkg=white"
+
+    turma_nome = ""
+    if turma_id_filter:
+        from backend.models.turma import Turma
+        t = db.session.get(Turma, turma_id_filter)
+        if t: turma_nome = t.nome
+            
+    rendered_html = render_template('questionario/resultados_avaliacao_pdf.html',
+                                    campanha=campanha,
+                                    instrutores_data=instrutores_data,
+                                    quickchart_url=quickchart_url,
+                                    turma_nome=turma_nome)
+                                    
+    nome_turma_arq = turma_nome.replace(' ', '_') if turma_nome else 'todas_as_turmas'
+    nome_campanha_arq = campanha.titulo.replace(' ', '_') if campanha.titulo else 'avaliacao'
+    pdf_filename = f"avaliacao_de_instrutores_{nome_campanha_arq}_turma_{nome_turma_arq}.pdf"
+    
+    for char in [':', '*', '?', '"', '<', '>', '|', '/']:
+        pdf_filename = pdf_filename.replace(char, '')
+        
+    try:
+        import uuid
+        from backend.models.background_job import BackgroundJob
+        job_id = str(uuid.uuid4())
+        job = BackgroundJob(
+            id=job_id,
+            task_type='generate_pdf',
+            payload=rendered_html,
+            meta_data=json.dumps({"filename": pdf_filename}),
+            user_id=current_user.id
+        )
+        db.session.add(job)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'job_id': job_id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>/exportar_pdf', methods=['POST'])
 @login_required
 def exportar_pdf_resultados(id):
@@ -412,7 +566,7 @@ def exportar_pdf_resultados(id):
 
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        return jsonify({'success': False, 'error': 'Campanha não encontrada.'})
+        return jsonify({'success': False, 'error': 'Campanha no encontrada.'})
         
     turma_id_filter = request.args.get('turma_id', type=int)
     
@@ -443,7 +597,7 @@ def exportar_pdf_resultados(id):
         
         data = instrutores_data[nome_exibicao]
         data['votos_count'] += 1
-        data['soma_notas'] += r.nota
+        data['soma_notas'] += ((r.nota_relacionamento + r.nota_dominio + r.nota_relevancia) / 3)
         data['turmas'].add(r.turma.nome)
         
         if r.comentario:
@@ -465,7 +619,7 @@ def exportar_pdf_resultados(id):
         "data": {
             "labels": labels,
             "datasets": [{
-                "label": "Nota Média",
+                "label": "Nota Mdia",
                 "data": medias,
                 "backgroundColor": "#2ecc71"
             }]

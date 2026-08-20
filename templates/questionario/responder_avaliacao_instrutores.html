@@ -1,80 +1,188 @@
 {% extends "base.html" %}
 
-{% block title %}Avaliação de Instrutores{% endblock %}
-
 {% block content %}
-<div class="content-header text-center py-4 mb-4" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-    <h1 class="display-5 fw-bold"><i class="fas fa-star text-warning"></i> Avaliação de Instrutores</h1>
-    <p class="lead mb-0 mt-2">{{ campanha.titulo }}</p>
-</div>
+<div class="container py-5 max-w-800">
 
-<div class="container pb-5" style="max-width: 800px;">
-    
-    <div class="card border-0 shadow-sm mb-4" style="border-top: 8px solid #4a90e2 !important; border-radius: 12px;">
-        <div class="card-body p-4">
-            <h4 class="card-title fw-bold">Instruções</h4>
-            <p class="card-text text-muted">
-                Prezado(a) aluno(a), avalie abaixo os instrutores que ministraram aulas para a sua turma.
-                Sua avaliação é <strong>100% anônima</strong>. Seja sincero para nos ajudar a melhorar continuamente a qualidade do ensino.
-            </p>
-        </div>
+    <div class="mb-4 text-center">
+        <h2 class="fw-bold mb-3" style="color: #2c3e50;">Avaliação de Módulo e Instrutores</h2>
+        <p class="text-muted fs-5">Por favor, responda o questionário abaixo. <br><strong>Sua avaliação é 100% anônima e confidencial.</strong></p>
     </div>
 
-    <form method="POST">
-        <!-- Token CSRF -->
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        {% for instrutor in instrutores %}
-        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1)'">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-4">
-                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 50px; height: 50px;">
-                        <i class="fas fa-chalkboard-teacher fs-4 text-primary"></i>
-                    </div>
-                    <div>
-                        <h5 class="mb-0 fw-bold">{{ instrutor.user.posto_graduacao }} {{ instrutor.user.nome_de_guerra or instrutor.user.nome_completo }}</h5>
-                        <small class="text-muted">{{ instrutor.user.nome_completo }}</small>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <p class="fw-semibold mb-3">Qual a sua nota para o instrutor?</p>
-                    <div class="d-flex justify-content-between align-items-center px-1" style="max-width: 100%; overflow-x: auto;">
-                        <div class="text-center mx-1">
-                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_1_{{ instrutor.id }}" value="1" autocomplete="off" required>
-                            <label class="btn btn-outline-danger px-4 py-2" for="nota_1_{{ instrutor.id }}">1<br><small>Péssimo</small></label>
-                        </div>
-                        <div class="text-center mx-1">
-                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_2_{{ instrutor.id }}" value="2" autocomplete="off">
-                            <label class="btn btn-outline-warning px-4 py-2" for="nota_2_{{ instrutor.id }}">2<br><small>Ruim</small></label>
-                        </div>
-                        <div class="text-center mx-1">
-                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_3_{{ instrutor.id }}" value="3" autocomplete="off">
-                            <label class="btn btn-outline-secondary px-4 py-2" for="nota_3_{{ instrutor.id }}">3<br><small>Médio</small></label>
-                        </div>
-                        <div class="text-center mx-1">
-                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_4_{{ instrutor.id }}" value="4" autocomplete="off">
-                            <label class="btn btn-outline-info px-4 py-2" for="nota_4_{{ instrutor.id }}">4<br><small>Bom</small></label>
-                        </div>
-                        <div class="text-center mx-1">
-                            <input type="radio" class="btn-check" name="nota_{{ instrutor.id }}" id="nota_5_{{ instrutor.id }}" value="5" autocomplete="off">
-                            <label class="btn btn-outline-success px-4 py-2" for="nota_5_{{ instrutor.id }}">5<br><small>Excelente</small></label>
+    <form method="POST" id="avaliacaoForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <!-- BLOCO A: MÓDULO -->
+        <h3 class="fw-bold mb-3 mt-4" style="color: #2c3e50;"><i class="fas fa-university me-2"></i> Parte 1: Avaliação do Módulo</h3>
+        
+        <div class="card border-0 shadow-sm mb-5" style="border-radius: 12px; border-top: 5px solid #2c3e50 !important;">
+            <div class="card-body p-4 p-md-5">
+                <p class="text-muted mb-4 pb-3 border-bottom">Avalie as afirmações abaixo selecionando uma nota de 1 a 5, onde <strong>1 significa Discordo Totalmente / Muito Ruim</strong> e <strong>5 significa Concordo Totalmente / Excelente</strong>.</p>
+                
+                <div class="rating-container">
+                    
+                    <!-- Q1 -->
+                    <div class="rating-row">
+                        <div class="rating-question">1. Espaço Físico - O Curso possui acomodações físicas adequadas</div>
+                        <div class="rating-options">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="nota_espaco_fisico" id="nef_{{i}}" value="{{i}}" required>
+                            <label class="btn btn-outline-primary" for="nef_{{i}}">{{i}}</label>
+                            {% endfor %}
                         </div>
                     </div>
-                </div>
+                    
+                    <!-- Q2 -->
+                    <div class="rating-row">
+                        <div class="rating-question">2. Tecnologia e Material - O Curso possui recursos materiais e audiovisuais adequados</div>
+                        <div class="rating-options">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="nota_tecnologia" id="nt_{{i}}" value="{{i}}" required>
+                            <label class="btn btn-outline-primary" for="nt_{{i}}">{{i}}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Q3 -->
+                    <div class="rating-row">
+                        <div class="rating-question">3. Corpo de Alunos - Seus integrantes mantiveram um tratamento respeitoso, cordial e justo em suas ações</div>
+                        <div class="rating-options">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="nota_corpo_alunos" id="nca_{{i}}" value="{{i}}" required>
+                            <label class="btn btn-outline-primary" for="nca_{{i}}">{{i}}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Q4 -->
+                    <div class="rating-row">
+                        <div class="rating-question">4. Direção e Gestão da Escola - Manteve um tratamento respeitoso e justo em suas ações</div>
+                        <div class="rating-options">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="nota_direcao" id="nd_{{i}}" value="{{i}}" required>
+                            <label class="btn btn-outline-primary" for="nd_{{i}}">{{i}}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Q5 -->
+                    <div class="rating-row">
+                        <div class="rating-question">5. Avaliação Geral - De forma geral, qual seu nível de satisfação com o curso at aqui</div>
+                        <div class="rating-options">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="nota_satisfacao_geral" id="nsg_{{i}}" value="{{i}}" required>
+                            <label class="btn btn-outline-primary" for="nsg_{{i}}">{{i}}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Text Q -->
+                    <div class="rating-row mt-2" style="background: transparent; padding: 0;">
+                        <p class="fw-semibold mb-2">6. Sugestões, críticas ou elogios <span class="text-muted fw-normal">(Opcional)</span></p>
+                        <textarea class="form-control" name="comentarios_gerais" rows="3" placeholder="Sua opinião geral sobre a escola e o médulo..." style="border-radius: 8px; border: 1px solid #dee2e6; resize: vertical;"></textarea>
+                    </div>
 
-                <div>
-                    <p class="fw-semibold mb-2">Comentário Adicional <span class="text-muted fw-normal">(Opcional)</span></p>
-                    <textarea class="form-control" name="comentario_{{ instrutor.id }}" rows="3" placeholder="Sua opinião é muito importante..." style="border-radius: 8px; border: 1px solid #dee2e6; resize: none;"></textarea>
                 </div>
             </div>
         </div>
-        {% endfor %}
 
-        <div class="d-flex justify-content-end mt-4 mb-5">
+        <!-- BLOCO B: INSTRUTORES (Tabs) -->
+        <h3 class="fw-bold mb-3 mt-5" style="color: #2c3e50;"><i class="fas fa-chalkboard-teacher me-2"></i> Parte 2: Avaliação de Instrutores</h3>
+        <p class="text-muted mb-4">Selecione cada instrutor nos botões abaixo para avaliar as disciplinas ministradas. A página não desce, você avalia todos no mesmo espaço. Suas respostas ficarão salvas enquanto você alterna entre eles.</p>
+
+        {% if instrutores %}
+        <div class="card border-0 shadow-sm mb-5" style="border-radius: 12px; border-top: 5px solid #3498db !important;">
+            
+            <!-- Cards de Seleção Horizontal -->
+            <div class="card-header bg-white border-bottom pt-4 pb-3" style="border-radius: 12px 12px 0 0;">
+                <ul class="nav nav-pills flex-row flex-nowrap overflow-auto pb-2" id="pills-tab" role="tablist">
+                    {% for instrutor in instrutores %}
+                    <li class="nav-item" role="presentation" style="min-width: max-content;">
+                        <button class="nav-link {% if loop.first %}active{% endif %} d-flex align-items-center me-3 border shadow-sm" style="border-radius: 30px; padding: 10px 20px; transition: all 0.2s;" id="pills-{{ instrutor.id }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ instrutor.id }}" type="button" role="tab" aria-controls="pills-{{ instrutor.id }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2 text-primary" style="width: 35px; height: 35px;">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="text-start">
+                                <span class="fw-bold d-block lh-1" style="color: inherit;">{{ instrutor.user.posto_graduacao }} {{ instrutor.user.nome_de_guerra or instrutor.user.nome_completo.split()[0] }}</span>
+                                <small class="fw-normal opacity-75" style="font-size: 0.75rem;">{{ instrutor.disciplina.materia | default('Disciplina') }}</small>
+                            </div>
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <!-- Painel de Avaliação único -->
+            <div class="card-body p-4 bg-light" style="border-radius: 0 0 12px 12px;">
+                <div class="tab-content" id="pills-tabContent">
+                    {% for instrutor in instrutores %}
+                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ instrutor.id }}" role="tabpanel" aria-labelledby="pills-{{ instrutor.id }}-tab">
+                        
+                        <!-- Conteúdo da Avaliação do Instrutor Selecionado -->
+                        <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+                            <div class="bg-white border shadow-sm rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                                <i class="fas fa-chalkboard-teacher fs-3 text-primary"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0 fw-bold" style="color: #2c3e50;">{{ instrutor.disciplina.materia | default('Disciplina Indefinida') }}</h4>
+                                <span class="text-muted fs-5">Instrutor(a): {{ instrutor.user.posto_graduacao }} {{ instrutor.user.nome_completo }}</span>
+                            </div>
+                        </div>
+
+                        <div class="rating-container">
+                            
+                            <!-- Inst Q1 -->
+                            <div class="rating-row">
+                                <div class="rating-question">1. Relacionamento com os Alunos e Gestão de Sala de Aula: <br><small class="text-muted fw-normal">O professor demonstra empatia, respeito e se preocupa com o bem-estar dos alunos, promovendo um ambiente de cooperação</small></div>
+                                <div class="rating-options">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" class="btn-check" name="nota_relacionamento_{{ instrutor.id }}" id="nr_{{ instrutor.id }}_{{i}}" value="{{i}}" required>
+                                    <label class="btn btn-outline-primary" for="nr_{{ instrutor.id }}_{{i}}">{{i}}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Inst Q2 -->
+                            <div class="rating-row">
+                                <div class="rating-question">2. Domínio do Conteúdo: <br><small class="text-muted fw-normal">O Instrutor desenvolveu os conteúdos programáticos previstos na Ementa da Disciplina, demonstrando conhecimento e domínio dos assuntos ministrados</small></div>
+                                <div class="rating-options">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" class="btn-check" name="nota_dominio_{{ instrutor.id }}" id="nd_{{ instrutor.id }}_{{i}}" value="{{i}}" required>
+                                    <label class="btn btn-outline-primary" for="nd_{{ instrutor.id }}_{{i}}">{{i}}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Inst Q3 -->
+                            <div class="rating-row">
+                                <div class="rating-question">3. Relevância e Qualidade: <br><small class="text-muted fw-normal">O conteúdo das matérias ofertadas é relevante para a formação e estão atualizados Os materiais utilizados apresentam boa qualidade</small></div>
+                                <div class="rating-options">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" class="btn-check" name="nota_relevancia_{{ instrutor.id }}" id="nrel_{{ instrutor.id }}_{{i}}" value="{{i}}" required>
+                                    <label class="btn btn-outline-primary" for="nrel_{{ instrutor.id }}_{{i}}">{{i}}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <!-- Inst Text -->
+                            <div class="rating-row mt-3" style="background: transparent; padding: 0;">
+                                <p class="fw-semibold mb-2">Sugestões, Críticas ou Elogios ao Instrutor <span class="text-muted fw-normal">(Opcional)</span></p>
+                                <textarea class="form-control" name="comentario_{{ instrutor.id }}" rows="3" placeholder="Deixe um comentário sobre a disciplina ou instrutor..." style="border-radius: 8px; border: 1px solid #dee2e6; resize: vertical;"></textarea>
+                            </div>
+
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+            <div class="alert alert-info">Nenhum instrutor encontrado para a sua turma.</div>
+        {% endif %}
+
+        <div class="d-flex justify-content-end mt-4 mb-5 pb-5">
             <a href="{{ url_for('questionario.index') }}" class="btn btn-light me-3 px-4 shadow-sm">Cancelar</a>
             <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm" style="border-radius: 8px;">
-                Enviar Avaliações <i class="fas fa-paper-plane ms-2"></i>
+                Enviar Avaliação Completa <i class="fas fa-check-circle ms-2"></i>
             </button>
         </div>
     </form>

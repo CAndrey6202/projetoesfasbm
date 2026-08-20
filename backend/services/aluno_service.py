@@ -72,7 +72,7 @@ def _save_profile_picture(file):
 
     
 
-    # COMPRESSÃƒO AUTOMÃ�TICA (256x256, Qualidade 60, JPEG)
+    # COMPRESSÃƒO AUTOMÃTICA (256x256, Qualidade 60, JPEG)
 
     compressed_file = compress_image_to_memory(file, max_size=(256, 256), quality=60)
 
@@ -487,23 +487,39 @@ class AlunoService:
     @staticmethod
 
     def check_pending_mandatory_evaluations(user):
-
         """
-
-        Verifica se um usuÃ¡rio (Aluno) tem alguma CampanhaAvaliacao obrigatÃ³ria ativa e pendente.
-
+        Verifica se um usuário (Aluno) tem alguma CampanhaAvaliacao obrigatória ativa e pendente.
         Retorna (bloqueio: bool, campanha_id: int ou None)
-
         """
-
-
-
-
         aluno = getattr(user, 'aluno_profile', None)
-
         if not aluno or not aluno.turma:
-
             return False, None
+
+        from ..models.avaliacao_instrutor import CampanhaAvaliacao, ControlePreenchimentoAvaliacao
+        from flask import session
+        
+        active_edicao_id = session.get('active_edicao_id')
+
+        campanhas = db.session.query(CampanhaAvaliacao).filter_by(
+            school_id=aluno.turma.school_id,
+            is_ativa=True,
+            is_obrigatoria=True
+        ).filter(
+            (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+        ).all()
+
+        if not campanhas:
+            return False, None
+
+        for campanha in campanhas:
+            controle = db.session.query(ControlePreenchimentoAvaliacao).filter_by(
+                campanha_id=campanha.id,
+                aluno_id=aluno.id
+            ).first()
+            if not controle:
+                return True, campanha.id
+
+        return False, None
 
 
 

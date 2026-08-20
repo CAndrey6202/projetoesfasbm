@@ -1,248 +1,270 @@
-{% extends "base.html" %}
-
-{% block title %}Resultados - {{ campanha.titulo }}{% endblock %}
+﻿{% extends "base.html" %}
 
 {% block content %}
-<div class="content-header text-center py-4 mb-4" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-    <h1 class="display-5 fw-bold"><i class="fas fa-chart-pie text-info"></i> Resultados: Avaliação de Instrutores</h1>
-    <p class="lead mb-0 mt-2">{{ campanha.titulo }}</p>
-</div>
-
-<div class="container-fluid pb-5" id="report-content">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <a href="{{ url_for('questionario.index') }}" class="btn btn-secondary">
+            <a href="{{ url_for('questionario.index') }}" class="btn btn-sm btn-outline-secondary mb-2">
                 <i class="fas fa-arrow-left"></i> Voltar
             </a>
+            <h4 class="mb-0 text-primary">Resultados: {{ campanha.titulo }}</h4>
+            <small class="text-muted">Anlise de Satisfao do Mdulo e Instrutores</small>
         </div>
         
-        <!-- Filtro por Turma -->
-        {% if turmas_disponiveis %}
-        <form method="GET" class="d-flex align-items-center gap-2">
-            <label for="turma_id" class="fw-bold text-nowrap mb-0"><i class="fas fa-filter text-muted"></i> Filtrar Turma:</label>
-            <select name="turma_id" id="turma_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 200px;">
-                <option value="">Todas as Turmas</option>
-                {% for turma in turmas_disponiveis %}
-                    <option value="{{ turma.id }}" {% if turma_id_filter == turma.id %}selected{% endif %}>{{ turma.nome }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
-
         <div>
-            <button id="btnExportPDF" class="btn btn-success fw-bold px-4">
-                <i class="fas fa-file-pdf"></i> Exportar para PDF
-            </button>
+            <form class="d-flex align-items-center" method="GET">
+                <label for="turma_id" class="me-2 mb-0 fw-semibold">Filtrar por Turma:</label>
+                <select name="turma_id" id="turma_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 200px;">
+                    <option value="">Todas as Turmas (Viso Global)</option>
+                    {% for t in turmas_disponiveis %}
+                        <option value="{{ t.id }}" {% if turma_id_filter == t.id %}selected{% endif %}>{{ t.nome }}</option>
+                    {% endfor %}
+                </select>
+            </form>
         </div>
     </div>
 
-    <!-- Seção de Gráficos -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 12px;">
-                <div class="card-body p-4">
-                    <h4 class="card-title fw-bold mb-4 text-center">Média Geral de Avaliação por Instrutor</h4>
-                    
-                    <div style="height: 400px; width: 100%;">
-                        <canvas id="mediaChart"></canvas>
+    <!-- Bloco A: Avaliao Geral do Mdulo -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+            <h5 class="fw-bold text-dark"><i class="fas fa-university text-primary me-2"></i> Parte 1: Avaliao Geral do Mdulo</h5>
+            <p class="text-muted small mb-0">Total de {{ geral_data.total_respostas }} alunos responderam à avaliao geral desta turma/escola.</p>
+        </div>
+        <div class="card-body">
+            {% if geral_data.total_respostas > 0 %}
+            <div class="row text-center mb-4">
+                <div class="col-md-2 col-sm-4 mb-3">
+                    <div class="p-3 border rounded bg-light">
+                        <h6 class="text-muted small mb-1">Espao Fsico</h6>
+                        <h3 class="mb-0 {% if geral_data.espaco_fisico >= 4 %}text-success{% elif geral_data.espaco_fisico >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.espaco_fisico|round(1) }}</h3>
+                        <small><i class="fas fa-star text-warning"></i></small>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-3">
+                    <div class="p-3 border rounded bg-light">
+                        <h6 class="text-muted small mb-1">Tecnologia</h6>
+                        <h3 class="mb-0 {% if geral_data.tecnologia >= 4 %}text-success{% elif geral_data.tecnologia >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.tecnologia|round(1) }}</h3>
+                        <small><i class="fas fa-star text-warning"></i></small>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-3">
+                    <div class="p-3 border rounded bg-light">
+                        <h6 class="text-muted small mb-1">Corpo de Alunos</h6>
+                        <h3 class="mb-0 {% if geral_data.corpo_alunos >= 4 %}text-success{% elif geral_data.corpo_alunos >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.corpo_alunos|round(1) }}</h3>
+                        <small><i class="fas fa-star text-warning"></i></small>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 mb-3">
+                    <div class="p-3 border rounded bg-light">
+                        <h6 class="text-muted small mb-1">Direo/Gesto</h6>
+                        <h3 class="mb-0 {% if geral_data.direcao >= 4 %}text-success{% elif geral_data.direcao >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ geral_data.direcao|round(1) }}</h3>
+                        <small><i class="fas fa-star text-warning"></i></small>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-8 mb-3">
+                    <div class="p-3 border rounded bg-primary text-white h-100 d-flex flex-column justify-content-center">
+                        <h6 class="mb-1 text-white-50">Satisfao Geral</h6>
+                        <h2 class="mb-0 fw-bold">{{ geral_data.satisfacao|round(1) }} <small class="fs-6"><i class="fas fa-star"></i></small></h2>
                     </div>
                 </div>
             </div>
+
+            {% if geral_data.comentarios %}
+            <h6 class="fw-semibold mt-4 mb-3"><i class="fas fa-comments text-muted me-2"></i> Sugestes e Crticas Gerais ({{ geral_data.comentarios|length }})</h6>
+            <div class="bg-light p-3 rounded" style="max-height: 250px; overflow-y: auto;">
+                {% for com in geral_data.comentarios %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <p class="mb-1 small text-dark">"{{ com }}"</p>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <p class="text-muted text-center py-4">Nenhuma avaliao geral registrada.</p>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Seção de Comentários por Instrutor -->
-    <h4 class="fw-bold mb-4"><i class="fas fa-comments text-primary"></i> Detalhamento e Comentários</h4>
-    
-    <div class="row">
-        {% for nome, data in instrutores_data.items() %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm border-0" style="border-top: 5px solid {% if data.media >= 4 %}#28a745{% elif data.media >= 3 %}#ffc107{% else %}#dc3545{% endif %}; border-radius: 12px;">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title fw-bold mb-0 text-truncate" title="{{ nome }}">{{ nome }}</h5>
-                        <span class="badge fs-6 {% if data.media >= 4 %}bg-success{% elif data.media >= 3 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                            {{ data.media }} <i class="fas fa-star"></i>
-                        </span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <small class="text-muted d-block mb-1"><strong>Turmas avaliadas:</strong></small>
-                        {% for turma in data.turmas %}
-                            <span class="badge bg-light text-dark border me-1">{{ turma }}</span>
-                        {% endfor %}
-                        <small class="text-muted d-block mt-2">Total de votos: {{ data.notas|length }}</small>
-                    </div>
-
-                    <hr>
-
-                    <h6 class="fw-semibold">Comentários ({{ data.comentarios|length }})</h6>
-                    <div class="comentarios-list" style="max-height: 250px; overflow-y: auto;">
-                        {% if data.comentarios %}
-                            {% for com in data.comentarios %}
-                                <div class="bg-light p-3 rounded mb-2" style="font-size: 0.9rem;">
-                                    <p class="mb-1">"{{ com.texto }}"</p>
-                                    <div class="d-flex justify-content-between text-muted" style="font-size: 0.8rem;">
-                                        <span><i class="fas fa-users"></i> {{ com.turma }}</span>
-                                        <span><i class="fas fa-clock"></i> {{ com.data }}</span>
+    <!-- Bloco B: Avaliao dos Instrutores -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-chalkboard-teacher text-primary me-2"></i> Parte 2: Avaliao de Instrutores</h5>
+                <p class="text-muted small mb-0 mt-1">Selecione os instrutores abaixo para exportar o relatrio consolidado (PDF).</p>
+            </div>
+            <div>
+                <button type="button" id="btnExportSelected" class="btn btn-primary" onclick="exportSelected()">
+                    <i class="fas fa-file-pdf me-2"></i> Exportar Selecionados
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            {% if instrutores_data %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">
+                                <input class="form-check-input" type="checkbox" id="selectAll" onclick="toggleSelectAll(this)">
+                            </th>
+                            <th>Instrutor</th>
+                            <th class="text-center">Relacionamento</th>
+                            <th class="text-center">Domnio</th>
+                            <th class="text-center">Relevncia</th>
+                            <th class="text-center">Mdia Geral</th>
+                            <th class="text-center">Avaliaes</th>
+                            <th class="text-end">Aes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for instrutor in instrutores_data %}
+                        <tr>
+                            <td>
+                                <input class="form-check-input inst-checkbox" type="checkbox" value="{{ instrutor.id_instrutor }}">
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ instrutor.nome }}</div>
+                                <div class="small text-muted">Turmas: {{ instrutor.turmas|join(', ') }}</div>
+                            </td>
+                            <td class="text-center fw-semibold {% if instrutor.media_relacionamento >= 4 %}text-success{% elif instrutor.media_relacionamento >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ instrutor.media_relacionamento }}</td>
+                            <td class="text-center fw-semibold {% if instrutor.media_dominio >= 4 %}text-success{% elif instrutor.media_dominio >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ instrutor.media_dominio }}</td>
+                            <td class="text-center fw-semibold {% if instrutor.media_relevancia >= 4 %}text-success{% elif instrutor.media_relevancia >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ instrutor.media_relevancia }}</td>
+                            <td class="text-center fw-bold fs-5 {% if instrutor.media_geral >= 4 %}text-success{% elif instrutor.media_geral >= 3 %}text-warning{% else %}text-danger{% endif %}">{{ instrutor.media_geral }}</td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ instrutor.votos_count }}</span></td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseComments{{ loop.index }}">
+                                    Ver Comentrios <i class="fas fa-chevron-down ms-1"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="8" class="p-0 border-0">
+                                <div class="collapse" id="collapseComments{{ loop.index }}">
+                                    <div class="bg-light p-3 border-bottom border-primary border-3 mb-2">
+                                        <h6 class="fw-bold mb-3 text-dark">Comentrios ({{ instrutor.comentarios|length }})</h6>
+                                        {% if instrutor.comentarios %}
+                                            <div style="max-height: 200px; overflow-y: auto;" class="pe-2">
+                                                {% for com in instrutor.comentarios %}
+                                                <div class="card mb-2 border-0 shadow-sm">
+                                                    <div class="card-body py-2 px-3">
+                                                        <p class="mb-1 small">"{{ com.texto }}"</p>
+                                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-users me-1"></i> {{ com.turma }} &bull; {{ com.data }}</small>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted small mb-0">Nenhum comentrio registrado.</p>
+                                        {% endif %}
                                     </div>
                                 </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-muted text-center my-3"><small>Nenhum comentário registrado.</small></p>
-                        {% endif %}
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+            {% else %}
+            <p class="text-muted text-center py-5">Nenhum instrutor avaliado ainda.</p>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="col-12 text-center py-5">
-            <h5 class="text-muted">Nenhuma avaliação respondida ainda.</h5>
-        </div>
-        {% endfor %}
     </div>
-
 </div>
 
-<!-- Inclusão do Chart.js e HTML2PDF (Via CDN) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Dados recebidos do backend
-        const chartData = {{ chart_data|safe }};
-        
-        // Cores baseadas nas notas (Verde p/ >4, Amarelo p/ >3, Vermelho p/ <3)
-        const bgColors = chartData.medias.map(media => {
-            if(media >= 4) return 'rgba(40, 167, 69, 0.7)';
-            if(media >= 3) return 'rgba(255, 193, 7, 0.7)';
-            return 'rgba(220, 53, 69, 0.7)';
-        });
-        
-        const borderColors = chartData.medias.map(media => {
-            if(media >= 4) return 'rgba(40, 167, 69, 1)';
-            if(media >= 3) return 'rgba(255, 193, 7, 1)';
-            return 'rgba(220, 53, 69, 1)';
-        });
-
-        // Configuração do Gráfico
-        const ctx = document.getElementById('mediaChart').getContext('2d');
-        const mediaChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Média (1 a 5)',
-                    data: chartData.medias,
-                    backgroundColor: bgColors,
-                    borderColor: borderColors,
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 5,
-                        title: { display: true, text: 'Nota Média' }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return ` Média: ${context.parsed.y} Estrelas`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Lógica para exportar para PDF
-        const btnExport = document.getElementById('btnExportPDF');
-        if (btnExport) {
-            btnExport.addEventListener('click', function() {
-                const originalHtml = this.innerHTML;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Gerando...';
-                this.disabled = true;
-                
-                const turmaId = document.getElementById('turma_id') ? document.getElementById('turma_id').value : '';
-                const url = `{{ url_for('questionario.exportar_pdf_resultados', id=campanha.id) }}?turma_id=${turmaId}`;
-
-                fetch(url, { 
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
-                    }
-                })
-                    .then(res => {
-                        if (!res.ok) {
-                            throw new Error('Erro do servidor: ' + res.status);
-                        }
-                        return res.json();
-                    })
-                    .then(data => {
-                        if(data.success && data.job_id) {
-                            pollJobStatus(data.job_id, this, originalHtml);
-                        } else {
-                            alert("Erro ao enviar tarefa de PDF para a Fila.");
-                            this.innerHTML = originalHtml;
-                            this.disabled = false;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert("Erro de conexão ao gerar PDF.");
-                        this.innerHTML = originalHtml;
-                        this.disabled = false;
-                    });
-            });
+    function toggleSelectAll(source) {
+        checkboxes = document.querySelectorAll('.inst-checkbox');
+        for(var i=0, n=checkboxes.length;i<n;i++) {
+            checkboxes[i].checked = source.checked;
         }
+    }
+
+    function exportSelected() {
+        const selected = [];
+        document.querySelectorAll('.inst-checkbox:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+
+        if (selected.length === 0) {
+            alert('Por favor, selecione pelo menos um instrutor para exportar.');
+            return;
+        }
+
+        const btn = document.getElementById('btnExportSelected');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Gerando PDF...';
+        btn.disabled = true;
         
-        function pollJobStatus(jobId, btnElement, originalHtml) {
-            const statusUrl = `/api/jobs/${jobId}/status`;
-            const interval = setInterval(() => {
-                fetch(statusUrl)
-                    .then(res => {
-                        if(!res.ok) { throw new Error('Network error'); }
-                        return res.json();
-                    })
-                    .then(data => {
-                        if(data.error) {
-                            clearInterval(interval);
-                            alert("Erro no Processamento: " + data.error);
-                            btnElement.innerHTML = originalHtml;
-                            btnElement.disabled = false;
-                        } else if(data.status === 'completed') {
-                            clearInterval(interval);
-                            btnElement.innerHTML = '<i class="fas fa-check me-1"></i> Concluído';
-                            // Inicia o download
-                            window.location.href = `/api/jobs/${jobId}/download`;
-                            
-                            setTimeout(() => {
-                                btnElement.innerHTML = originalHtml;
-                                btnElement.disabled = false;
-                            }, 3000);
-                        }
-                        // se pending ou processing, continua
-                    })
-                    .catch(err => {
+        const turmaId = document.getElementById('turma_id') ? document.getElementById('turma_id').value : '';
+        const url = {{ url_for('questionario.exportar_pdf_resultados_multiplos', id=campanha.id) }}?turma_id=;
+
+        fetch(url, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ instrutores_ids: selected })
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error('Erro do servidor: ' + res.status);
+            }
+            return res.json();
+        })
+        .then(data => {
+            if(data.success && data.job_id) {
+                pollJobStatus(data.job_id, btn, originalHtml);
+            } else {
+                alert("Erro ao enviar tarefa de PDF para a Fila.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Erro de conexo ao gerar PDF.");
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    function pollJobStatus(jobId, btnElement, originalHtml) {
+        const statusUrl = /api/jobs//status;
+        const interval = setInterval(() => {
+            fetch(statusUrl)
+                .then(res => {
+                    if(!res.ok) { throw new Error('Network error'); }
+                    return res.json();
+                })
+                .then(data => {
+                    if(data.error) {
                         clearInterval(interval);
-                        console.error("Polling error:", err);
-                        alert("Erro ao checar status do PDF.");
+                        alert("Erro no Processamento: " + data.error);
                         btnElement.innerHTML = originalHtml;
                         btnElement.disabled = false;
-                    });
-            }, 2000);
-        }
-    });
+                    } else if(data.status === 'completed') {
+                        clearInterval(interval);
+                        btnElement.innerHTML = '<i class="fas fa-check me-2"></i> Concludo';
+                        // Inicia o download
+                        window.location.href = /api/jobs//download;
+                        
+                        setTimeout(() => {
+                            btnElement.innerHTML = originalHtml;
+                            btnElement.disabled = false;
+                        }, 3000);
+                    }
+                })
+                .catch(err => {
+                    clearInterval(interval);
+                    console.error("Polling error:", err);
+                    alert("Erro ao checar status do PDF.");
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.disabled = false;
+                });
+        }, 2000);
+    }
 </script>
 {% endblock %}
