@@ -498,14 +498,12 @@ class AlunoService:
         from ..models.avaliacao_instrutor import CampanhaAvaliacao, ControlePreenchimentoAvaliacao
         from flask import session
         
-        active_edicao_id = session.get('active_edicao_id')
-
         campanhas = db.session.query(CampanhaAvaliacao).filter_by(
             school_id=aluno.turma.school_id,
             is_ativa=True,
             is_obrigatoria=True
         ).filter(
-            (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+            (CampanhaAvaliacao.edicao_id == aluno.turma.edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
         ).all()
 
         if not campanhas:
@@ -535,7 +533,7 @@ class AlunoService:
 
 
 
-        active_edicao_id = session.get('active_edicao_id')
+        
 
 
 
@@ -551,7 +549,7 @@ class AlunoService:
 
         ).filter(
 
-            (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+            (CampanhaAvaliacao.edicao_id == aluno.turma.edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
 
         ).all()
 
