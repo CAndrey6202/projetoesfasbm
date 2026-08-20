@@ -59,7 +59,7 @@ def novo():
         publico_alvo = request.form.get('publico_alvo', 'todos')
         
         if not titulo:
-            flash('O ttulo do questionrio é obrigatrio.', 'danger')
+            flash('O título do questionário é obrigatório.', 'danger')
             return render_template('questionario/novo.html')
 
         school_id = UserService.get_current_school_id()
@@ -172,7 +172,7 @@ def realizar(id):
     # Verifica se usurio já respondeu
     ja_respondeu = db.session.scalar(select(Resposta).where(Resposta.questionario_id == id, Resposta.user_id == current_user.id))
     if ja_respondeu:
-        flash('Você já respondeu este questionrio.', 'info')
+        flash('Você já respondeu este questionário.', 'info')
         return redirect(url_for('questionario.index'))
 
     if request.method == 'POST':
@@ -243,7 +243,7 @@ def nova_avaliacao_instrutores():
     school_id = UserService.get_current_school_id()
     titulo = request.form.get('titulo')
     if not titulo:
-        flash('O ttulo da avaliao é obrigatrio.', 'danger')
+        flash('O título da avaliação é obrigatório.', 'danger')
         return redirect(url_for('questionario.index'))
 
     school_id = UserService.get_current_school_id()

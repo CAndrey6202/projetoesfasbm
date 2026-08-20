@@ -328,21 +328,21 @@ def responder_avaliacao(id):
     school_id = session.get('active_school_id')
     local_role = current_user.get_role_in_school(school_id) if school_id else None
     if str(current_user.role).lower().strip() != 'aluno' and local_role != 'aluno':
-        flash('Acesso negado. Apenas alunos podem responder à avaliao.', 'danger')
+        flash('Acesso negado. Apenas alunos podem responder à avaliação.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha or not campanha.is_ativa:
-        flash('Campanha inativa ou no encontrada.', 'danger')
+        flash('Campanha inativa ou não encontrada.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     aluno = db.session.query(Aluno).filter_by(user_id=current_user.id).first()
     if not aluno or not aluno.turma:
-        flash('Turma no encontrada para o aluno.', 'danger')
+        flash('Turma não encontrada para o aluno.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     if campanha.school_id != aluno.turma.school_id:
-        flash('Esta campanha no pertence à sua escola.', 'danger')
+        flash('Esta campanha não pertence à sua escola.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     # Verifica se já preencheu
@@ -351,7 +351,7 @@ def responder_avaliacao(id):
         aluno_id=aluno.id
     ).first()
     if controle:
-        flash('Você já respondeu a esta avaliao do mdulo. Obrigado!', 'success')
+        flash('Você já respondeu a esta avaliação do módulo. Obrigado!', 'success')
         return redirect(url_for('questionario.index'))
         
     # Buscar os instrutores da turma conectando com Disciplina
