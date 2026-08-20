@@ -442,6 +442,7 @@ def responder_avaliacao(id):
         
     return render_template('questionario/responder_avaliacao_instrutores.html', 
                            campanha=campanha, 
-                           instrutores=instrutores_para_avaliar)
+                           instrutores=instrutores_para_avaliar,
+                           aluno=aluno)
 
 
