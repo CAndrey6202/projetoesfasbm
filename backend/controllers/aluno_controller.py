@@ -367,7 +367,7 @@ def responder_avaliacao(id):
         if v.instrutor_id_1:
             inst = db.session.query(Instrutor).get(v.instrutor_id_1)
             disc = db.session.query(Disciplina).get(v.disciplina_id)
-                if inst: registros.append((inst, disc))
+            if inst: registros.append((inst, disc))
         if v.instrutor_id_2:
             inst = db.session.query(Instrutor).get(v.instrutor_id_2)
             disc = db.session.query(Disciplina).get(v.disciplina_id)
