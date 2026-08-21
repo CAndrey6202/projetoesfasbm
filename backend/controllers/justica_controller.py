@@ -96,7 +96,12 @@ def index():
             search_filter = ProcessoDisciplina.fato_constatado.ilike(f'%{search_query}%')
             if search_query.isdigit():
                 search_filter = or_(search_filter, ProcessoDisciplina.id == int(search_query))
-            stmt_finalizados = stmt_finalizados.where(search_filter)
+            
+            # APLICA O FILTRO NA ABA CORRETA
+            if active_tab == 'andamento':
+                stmt_andamento = stmt_andamento.where(search_filter)
+            else:
+                stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
 
@@ -139,7 +144,11 @@ def index():
             if search_query.isdigit():
                 search_filter = or_(search_filter, ProcessoDisciplina.id == int(search_query))
 
-            stmt_finalizados = stmt_finalizados.where(search_filter)
+            # APLICA O FILTRO NA ABA CORRETA
+            if active_tab == 'andamento':
+                stmt_andamento = stmt_andamento.where(search_filter)
+            else:
+                stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
 
