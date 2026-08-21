@@ -35,7 +35,7 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Escola (Opcional)</label>
                                 <select class="form-select" name="escola_id" id="escola_id">
-                                    <option value="all">Todas as Escolas</option>
+                                    <option value="all">Todas as Escolas (Global)</option>
                                     {% for escola in escolas %}
                                         <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
                                     {% endfor %}
@@ -44,29 +44,26 @@
 
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Edição (Opcional)</label>
-                                <select class="form-select" name="edicao_id" id="edicao_id">
-                                    <option value="all">Qualquer Edição</option>
+                                <select class="form-select" name="edicao_id" id="edicao_id" disabled>
+                                    <option value="all">Aguardando Escola...</option>
                                 </select>
                             </div>
 
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Matéria (Obrigatória)</label>
-                                <select class="form-select select2" name="materia" required>
-                                    <option value="">Selecione a Matéria...</option>
-                                    {% for mat in materias %}
-                                        <option value="{{ mat }}" {% if materia_selecionada == mat %}selected{% endif %}>{{ mat }}</option>
-                                    {% endfor %}
+                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
+                                    <option value="">Aguardando Edição...</option>
                                 </select>
                             </div>
 
                             <div class="col-md-2">
                                 <label class="form-label fw-bold">Qtd. Questões</label>
-                                <input type="number" class="form-control" name="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" required>
+                                <input type="number" class="form-control" name="qtd_questoes" id="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" disabled required>
                             </div>
                         </div>
 
                         <div class="mt-4 text-end">
-                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                            <button type="submit" id="btn_gerar" class="btn btn-primary px-4 fw-bold" disabled>
                                 <i class="fas fa-magic"></i> Gerar Prova Agora
                             </button>
                         </div>
@@ -155,39 +152,88 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    $('.select2').select2({ theme: 'bootstrap-5' });
+    var $escola = $('#escola_id');
+    var $edicao = $('#edicao_id');
+    var $materia = $('#materia_id');
+    var $qtd = $('#qtd_questoes');
+    var $btn = $('#btn_gerar');
+
+    $materia.select2({ theme: 'bootstrap-5' });
 
     var selectedEdicao = '{{ edicao_selecionada or "all" }}';
+    var selectedMateria = '{{ materia_selecionada or "" }}';
+    var initialLoad = true; 
 
-    // Atualiza as edições dinamicamente caso o super admin escolha uma escola
-    $('#escola_id').change(function() {
+    // Passo 1: Mudança na Escola -> Desbloqueia Edição
+    $escola.change(function() {
         var schoolId = $(this).val();
-        var edicaoSelect = $('#edicao_id');
-        edicaoSelect.empty().append('<option value="all">Carregando...</option>');
         
+        $edicao.prop('disabled', true).empty().append('<option value="all">Buscando edições...</option>');
+        $materia.prop('disabled', true).empty().append('<option value="">Aguardando Edição...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+
         if (schoolId === 'all') {
-            edicaoSelect.empty().append('<option value="all">Qualquer Edição</option>');
+            $edicao.empty().append('<option value="all">Qualquer Edição</option>');
+            $edicao.prop('disabled', false);
+            $edicao.trigger('change'); 
             return;
         }
 
         $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId), function(data) {
-            edicaoSelect.empty().append('<option value="all">Qualquer Edição</option>');
+            $edicao.empty().append('<option value="all">Qualquer Edição</option>');
             data.forEach(function(ed) {
                 var option = new Option(ed.nome, ed.id);
-                if (ed.id == selectedEdicao) {
-                    option.selected = true;
-                }
-                edicaoSelect.append(option);
+                if (initialLoad && ed.id == selectedEdicao) option.selected = true;
+                $edicao.append(option);
             });
+            $edicao.prop('disabled', false);
+            $edicao.trigger('change');
         }).fail(function() {
-            edicaoSelect.empty().append('<option value="all">Erro ao carregar</option>');
+            $edicao.empty().append('<option value="all">Erro ao carregar</option>');
         });
     });
 
-    // Dispara automaticamente ao carregar a página se já houver escola selecionada
-    if ($('#escola_id').val() !== 'all') {
-        $('#escola_id').trigger('change');
-    }
+    // Passo 2: Mudança na Edição -> Desbloqueia Matéria
+    $edicao.change(function() {
+        var schoolId = $escola.val();
+        var edicaoId = $(this).val();
+        
+        $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+
+        $.get("{{ url_for('questoes.api_get_materias_filtro') }}?school_id=" + schoolId + "&edicao_id=" + edicaoId, function(data) {
+            $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+            data.forEach(function(mat) {
+                var option = new Option(mat, mat);
+                if (initialLoad && mat === selectedMateria) option.selected = true;
+                $materia.append(option);
+            });
+            $materia.prop('disabled', false);
+            
+            if ($materia.val()) {
+                $materia.trigger('change');
+            }
+            initialLoad = false;
+        }).fail(function() {
+            $materia.empty().append('<option value="">Erro ao carregar</option>');
+        });
+    });
+
+    // Passo 3: Mudança na Matéria -> Desbloqueia Qtd e Botão
+    $materia.change(function() {
+        if ($(this).val()) {
+            $qtd.prop('disabled', false);
+            $btn.prop('disabled', false);
+        } else {
+            $qtd.prop('disabled', true);
+            $btn.prop('disabled', true);
+        }
+    });
+
+    // Gatilho inicial da cascata
+    $escola.trigger('change');
 });
 </script>
 {% endblock %}

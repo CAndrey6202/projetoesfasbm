@@ -53,6 +53,24 @@ def api_get_edicoes(school_id):
     edicoes = Edicao.query.filter_by(school_id=school_id).order_by(Edicao.nome).all()
     return jsonify([{"id": e.id, "nome": e.nome} for e in edicoes])
 
+@questoes_bp.route('/api/materias/filtro', methods=['GET'])
+@login_required
+@super_admin_required
+def api_get_materias_filtro():
+    """Retorna as matérias dinamicamente com base na escola e edição selecionadas."""
+    school_id = request.args.get('school_id')
+    edicao_id = request.args.get('edicao_id')
+    
+    query = db.session.query(Disciplina.materia)
+    
+    if school_id and school_id != 'all':
+        query = query.join(Turma).filter(Turma.school_id == int(school_id))
+        if edicao_id and edicao_id != 'all':
+            query = query.filter(Turma.edicao_id == int(edicao_id))
+            
+    materias = query.distinct().all()
+    return jsonify(sorted([m[0] for m in materias if m[0]]))
+
 @questoes_bp.route('/api/configuracao', methods=['GET', 'POST'])
 @login_required
 def api_configuracao_envio():
