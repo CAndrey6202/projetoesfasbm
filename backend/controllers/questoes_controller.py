@@ -376,13 +376,17 @@ def tela_envio():
         ).distinct().all()
         
     materias_vinculadas = set(vinculos_db)
+    is_admin_poderoso = current_user.role == 'super_admin' or current_user.is_admin_escola_in_school(escola_id)
 
     opcoes_autorizadas = []
     for opcao in opcoes_abertas:
+        if is_admin_poderoso:
+            opcoes_autorizadas.append(opcao)
+            continue
+            
         tem_vinculo = False
         for v_materia, v_edicao in materias_vinculadas:
             if v_materia == opcao["materia"]:
-                # Se o envio aberto for 'Geral' (None), ou se for a mesma edição da turma do instrutor
                 if opcao["edicao_id"] is None or opcao["edicao_id"] == v_edicao:
                     tem_vinculo = True
                     break
