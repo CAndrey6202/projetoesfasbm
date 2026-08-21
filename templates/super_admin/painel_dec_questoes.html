@@ -34,7 +34,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Escola (Opcional)</label>
-                                <select class="form-select" name="escola_id" id="escola_id" onchange="window.fluxoCascata.carregarMaterias(this.value)">
+                                <select class="form-select" name="escola_id" id="escola_id">
                                     <option value="all">Todas as Escolas (Global)</option>
                                     {% for escola in escolas %}
                                         <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
@@ -44,7 +44,7 @@
 
                             <div class="col-md-5">
                                 <label class="form-label fw-bold">Matéria (Obrigatória)</label>
-                                <select class="form-select" name="materia" id="materia_id" onchange="window.fluxoCascata.validarMateria(this.value)" disabled required>
+                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
                                     <option value="">Aguardando Escola...</option>
                                 </select>
                             </div>
@@ -144,64 +144,77 @@
 
 {% block scripts %}
 <script>
-window.fluxoCascata = {
-    selectedMateria: '{{ materia_selecionada|default("", true) }}',
-    initialLoad: true,
+$(document).ready(function() {
+    var $escola = $('#escola_id');
+    var $materia = $('#materia_id');
+    var $qtd = $('#qtd_questoes');
+    var $btn = $('#btn_gerar');
 
-    carregarMaterias: function(schoolId) {
-        var materiaEl = document.getElementById('materia_id');
-        var qtdEl = document.getElementById('qtd_questoes');
-        var btnEl = document.getElementById('btn_gerar');
-
-        materiaEl.disabled = true;
-        materiaEl.innerHTML = '<option value="">Buscando matérias...</option>';
-        qtdEl.disabled = true;
-        btnEl.disabled = true;
-
-        fetch('/questoes/api/materias/filtro?school_id=' + schoolId + '&edicao_id=all')
-            .then(res => res.json())
-            .then(data => {
-                materiaEl.innerHTML = '<option value="" selected disabled>Selecione a Matéria...</option>';
-                data.forEach(mat => {
-                    var opt = document.createElement('option');
-                    opt.value = mat;
-                    opt.innerHTML = mat;
-                    if (this.initialLoad && mat === this.selectedMateria) {
-                        opt.selected = true;
-                    }
-                    materiaEl.appendChild(opt);
-                });
-                materiaEl.disabled = false;
-                this.validarMateria(materiaEl.value);
-                this.initialLoad = false;
-            })
-            .catch(err => {
-                console.error(err);
-                materiaEl.innerHTML = '<option value="">Erro ao carregar matérias</option>';
-                materiaEl.disabled = false;
-            });
-    },
-
-    validarMateria: function(materiaValue) {
-        var qtdEl = document.getElementById('qtd_questoes');
-        var btnEl = document.getElementById('btn_gerar');
-        if (materiaValue) {
-            qtdEl.disabled = false;
-            btnEl.disabled = false;
-        } else {
-            qtdEl.disabled = true;
-            btnEl.disabled = true;
+    // Inicializa plugin visual com segurança
+    try {
+        if ($.fn.select2) {
+            $materia.select2({ theme: 'bootstrap-5' });
         }
-    }
-};
+    } catch(e) {}
 
-document.addEventListener("DOMContentLoaded", function() {
-    var escolaEl = document.getElementById('escola_id');
-    if (escolaEl) {
-        setTimeout(function() {
-            window.fluxoCascata.carregarMaterias(escolaEl.value);
-        }, 100);
+    var selectedMateria = '{{ materia_selecionada|default("", true) }}';
+    var initialLoad = true;
+
+    function atualizaVisuais() {
+        try {
+            if ($.fn.select2) $materia.trigger('change.select2');
+        } catch(e) {}
     }
+
+    $escola.on('change', function() {
+        var schoolId = $(this).val() || 'all';
+
+        $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+        atualizaVisuais();
+
+        $.get("/questoes/api/materias/filtro?school_id=" + schoolId + "&edicao_id=all")
+            .done(function(data) {
+                $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                data.forEach(function(mat) {
+                    var option = new Option(mat, mat);
+                    if (initialLoad && mat === selectedMateria) {
+                        option.selected = true;
+                    }
+                    $materia.append(option);
+                });
+                
+                $materia.prop('disabled', false);
+                atualizaVisuais();
+
+                if ($materia.val()) {
+                    $materia.trigger('change');
+                }
+                
+                initialLoad = false;
+            })
+            .fail(function() {
+                $materia.empty().append('<option value="">Erro ao buscar matérias</option>');
+                $materia.prop('disabled', false);
+                atualizaVisuais();
+            });
+    });
+
+    $materia.on('change', function() {
+        if ($(this).val()) {
+            $qtd.prop('disabled', false);
+            $btn.prop('disabled', false);
+        } else {
+            $qtd.prop('disabled', true);
+            $btn.prop('disabled', true);
+        }
+    });
+
+    // Puxa o gatilho pela primeira vez ao carregar a página
+    setTimeout(function() {
+        $escola.trigger('change');
+    }, 100);
 });
 </script>
 {% endblock %}
