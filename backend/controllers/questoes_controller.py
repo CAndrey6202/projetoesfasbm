@@ -459,16 +459,6 @@ def salvar_questoes():
         if not disciplina:
             return jsonify({'success': False, 'message': 'Disciplina não encontrada.'}), 404
 
-        # === NOVA REGRA 1: Segurança de Bloqueio no Backend ===
-        ja_enviou = QuestaoBanco.query.filter_by(
-            instrutor_id=instrutor.id,
-            disciplina_id=disciplina.id,
-            escola_id=escola_id
-        ).first()
-
-        if ja_enviou:
-            return jsonify({'success': False, 'message': 'Você já enviou questões para esta disciplina. Solicite liberação ao Super Admin.'}), 403
-
         # === NOVA REGRA 2: Filtro Anti-Duplicidade ===
         # Puxa apenas os textos (enunciados) que já existem no banco para esta matéria
         existentes = QuestaoBanco.query.filter_by(disciplina_id=disciplina.id).with_entities(QuestaoBanco.enunciado).all()
