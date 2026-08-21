@@ -42,6 +42,21 @@
 
                 <div class="justice-content {% if active_tab == 'andamento' %}active{% endif %}" id="inProgressContent">
                     <h3 class="justice-content-title mb-3">Processos em Andamento</h3>
+
+                    <div class="card mb-3 shadow-sm border-primary">
+                        <div class="card-body p-2">
+                            <form action="{{ url_for('justica.index') }}" method="GET" class="d-flex align-items-center">
+                                <input type="hidden" name="tab" value="andamento">
+                                <i class="fas fa-search text-primary ms-3 me-2"></i>
+                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato..." value="{{ request.args.get('q', '') if active_tab == 'andamento' else '' }}">
+                                <button type="submit" class="btn btn-primary fw-bold px-4 rounded-pill">Buscar</button>
+                                {% if request.args.get('q') and active_tab == 'andamento' %}
+                                    <a href="{{ url_for('justica.index', tab='andamento') }}" class="btn btn-outline-secondary fw-bold rounded-pill ms-2 text-nowrap">Limpar</a>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+
                     {% if em_andamento %}
                         {% for p in em_andamento %}
                             {% set ano_proc = p.data_ocorrencia.strftime('%Y') if p.data_ocorrencia else '2026' %}
