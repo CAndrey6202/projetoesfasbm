@@ -37,7 +37,7 @@
                                 <select class="form-select" name="escola_id" id="escola_id">
                                     <option value="all">Todas as Escolas</option>
                                     {% for escola in escolas %}
-                                        <option value="{{ escola.id }}">{{ escola.nome }}</option>
+                                        <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -157,6 +157,8 @@
 $(document).ready(function() {
     $('.select2').select2({ theme: 'bootstrap-5' });
 
+    var selectedEdicao = '{{ edicao_selecionada or "all" }}';
+
     // Atualiza as edições dinamicamente caso o super admin escolha uma escola
     $('#escola_id').change(function() {
         var schoolId = $(this).val();
@@ -171,12 +173,21 @@ $(document).ready(function() {
         $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId), function(data) {
             edicaoSelect.empty().append('<option value="all">Qualquer Edição</option>');
             data.forEach(function(ed) {
-                edicaoSelect.append(new Option(ed.nome, ed.id));
+                var option = new Option(ed.nome, ed.id);
+                if (ed.id == selectedEdicao) {
+                    option.selected = true;
+                }
+                edicaoSelect.append(option);
             });
         }).fail(function() {
             edicaoSelect.empty().append('<option value="all">Erro ao carregar</option>');
         });
     });
+
+    // Dispara automaticamente ao carregar a página se já houver escola selecionada
+    if ($('#escola_id').val() !== 'all') {
+        $('#escola_id').trigger('change');
+    }
 });
 </script>
 {% endblock %}

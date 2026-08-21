@@ -346,7 +346,9 @@ def gerar_prova_dec():
                            escolas=escolas, 
                            materias=lista_materias, 
                            questoes=questoes_sorteadas, 
-                           materia_selecionada=materia, 
+                           materia_selecionada=materia,
+                           escola_selecionada=escola_id,
+                           edicao_selecionada=edicao_id,
                            qtd=qtd)
 
 
