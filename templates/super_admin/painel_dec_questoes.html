@@ -16,11 +16,11 @@
     .content-wrapper { background: transparent !important; box-shadow: none !important; margin: 20px auto; max-width: 1400px; padding: 20px; }
 </style>
 <div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
         <h2><i class="fas fa-crown text-warning"></i> Painel DEC - Gerador de Provas</h2>
     </div>
 
-    <div class="row">
+    <div class="row d-print-none">
         <!-- Coluna de Geração Rápida -->
         <div class="col-md-12">
             <div class="card shadow-sm border-0">
@@ -54,14 +54,14 @@
                                 <select class="form-select select2" name="materia" required>
                                     <option value="">Selecione a Matéria...</option>
                                     {% for mat in materias %}
-                                        <option value="{{ mat }}">{{ mat }}</option>
+                                        <option value="{{ mat }}" {% if materia_selecionada == mat %}selected{% endif %}>{{ mat }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
 
                             <div class="col-md-2">
                                 <label class="form-label fw-bold">Qtd. Questões</label>
-                                <input type="number" class="form-control" name="qtd_questoes" value="30" min="1" max="100" required>
+                                <input type="number" class="form-control" name="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" required>
                             </div>
                         </div>
 
@@ -75,6 +75,80 @@
             </div>
         </div>
     </div>
+
+    <!-- ÁREA DA PROVA GERADA -->
+    {% if questoes %}
+    <div class="card shadow mt-4 border-0" id="prova-container">
+        <div class="card-body p-5">
+            <!-- Botão de impressão (oculto na impressão) -->
+            <div class="text-end mb-4 d-print-none">
+                <button onclick="window.print()" class="btn btn-primary btn-lg fw-bold shadow">
+                    <i class="fas fa-print"></i> Imprimir / Salvar PDF
+                </button>
+            </div>
+
+            <!-- Cabeçalho da Prova -->
+            <div class="text-center mb-5">
+                <h3 class="fw-bold">BRIGADA MILITAR DO RIO GRANDE DO SUL</h3>
+                <h4 class="fw-bold text-secondary">DEPARTAMENTO DE EDUCAÇÃO E CULTURA</h4>
+                <h5 class="mt-3">Geração Expressa de Prova</h5>
+                <hr>
+                <div class="d-flex justify-content-between mt-3 px-3">
+                    <strong>Matéria: <span class="text-uppercase">{{ materia_selecionada }}</span></strong>
+                    <strong>Quantidade de Questões: {{ qtd }}</strong>
+                </div>
+                <hr>
+            </div>
+
+            <!-- Questões -->
+            <div class="questoes-lista">
+                {% for questao in questoes %}
+                <div class="questao-item mb-4" style="page-break-inside: avoid;">
+                    <p class="fw-bold mb-2">{{ loop.index }}. {{ questao.enunciado }}</p>
+                    
+                    <div class="ps-3">
+                        <p class="mb-1"><strong>A)</strong> {{ questao.alternativas.get('A', '') }}</p>
+                        <p class="mb-1"><strong>B)</strong> {{ questao.alternativas.get('B', '') }}</p>
+                        <p class="mb-1"><strong>C)</strong> {{ questao.alternativas.get('C', '') }}</p>
+                        <p class="mb-1"><strong>D)</strong> {{ questao.alternativas.get('D', '') }}</p>
+                        <p class="mb-1"><strong>E)</strong> {{ questao.alternativas.get('E', '') }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Quebra de página antes do gabarito -->
+            <div style="page-break-before: always;" class="mt-5"></div>
+
+            <!-- Gabarito Oficial -->
+            <div class="gabarito-container text-center mt-5 pt-4">
+                <h4 class="fw-bold text-decoration-underline mb-4">GABARITO OFICIAL - DEC</h4>
+                <h5 class="mb-4 text-uppercase">{{ materia_selecionada }}</h5>
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="50%">Questão</th>
+                                    <th width="50%">Resposta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for questao in questoes %}
+                                <tr>
+                                    <td class="fw-bold">{{ loop.index }}</td>
+                                    <td class="fw-bold text-success">{{ questao.resposta_correta }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

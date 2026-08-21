@@ -326,13 +326,22 @@ def gerar_prova_dec():
         
     todas_questoes = query.all()
     
+    escolas = School.query.order_by(School.nome).all()
+    materias_db = db.session.query(Disciplina.materia).distinct().all()
+    lista_materias = sorted([m[0] for m in materias_db if m[0]])
+    
     if len(todas_questoes) < qtd:
         flash(f"Erro: O banco possui apenas {len(todas_questoes)} questões cadastradas para esses filtros. Tente diminuir a quantidade.", "warning")
-        return redirect(url_for('questoes.painel_dec'))
+        return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
         
     questoes_sorteadas = random.sample(todas_questoes, k=qtd)
     
-    return render_template('super_admin/prova_gerada_dec.html', questoes=questoes_sorteadas, materia=materia, qtd=qtd)
+    return render_template('super_admin/painel_dec_questoes.html', 
+                           escolas=escolas, 
+                           materias=lista_materias, 
+                           questoes=questoes_sorteadas, 
+                           materia_selecionada=materia, 
+                           qtd=qtd)
 
 
 # =========================================================================
