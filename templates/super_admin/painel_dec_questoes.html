@@ -2,6 +2,13 @@
 {% block title %}Painel DEC - Banco de Questões{% endblock %}
 
 {% block content %}
+<style>
+    /* Oculta os menus do sistema para criar um modo focado (nova aba) */
+    .sidebar, .top-navbar { display: none !important; }
+    .page-container, .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #f8f9fa !important; }
+    body { background: #f8f9fa !important; }
+    .content-wrapper { background: transparent !important; box-shadow: none !important; margin: 20px auto; max-width: 1400px; padding: 20px; }
+</style>
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-crown text-warning"></i> Painel DEC - Gerador de Provas</h2>

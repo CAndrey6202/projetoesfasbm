@@ -634,7 +634,7 @@
                     <a href="{{ url_for('super_admin.global_users') }}" class="nav-link {% if request.endpoint == 'super_admin.global_users' %}active{% endif %}"><div class="nav-icon">🌍</div> Painel Global de Usuários</a>
                     <a href="{{ url_for('super_admin.manage_gestores') }}" class="nav-link {% if request.endpoint == 'super_admin.manage_gestores' %}active{% endif %}"><div class="nav-icon">👮</div> Gestores DEC</a>
                     <a href="{{ url_for('questoes.painel_gestao') }}" class="nav-link {% if request.endpoint == 'questoes.painel_gestao' %}active{% endif %}"><div class="nav-icon">🗂️</div> Banco de Questões</a>
-                    <a href="{{ url_for('questoes.painel_dec') }}" class="nav-link {% if request.endpoint == 'questoes.painel_dec' %}active{% endif %}"><div class="nav-icon">🖨️</div> Gerador de Provas</a>
+                    <a href="{{ url_for('questoes.painel_dec') }}" target="_blank" class="nav-link {% if request.endpoint == 'questoes.painel_dec' %}active{% endif %}"><div class="nav-icon">🖨️</div> Gerador de Provas</a>
                 {% endif %}
             </nav>
             
