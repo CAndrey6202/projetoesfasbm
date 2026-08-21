@@ -113,7 +113,7 @@ def index():
         active_edicao = session.get('active_edicao_id')
         edicao_filter = or_(Turma.edicao_id == active_edicao, Turma.edicao_id.is_(None)) if active_edicao else True
 
-        stmt_andamento = select(ProcessoDisciplina).join(Aluno).join(Turma).options(
+        stmt_andamento = select(ProcessoDisciplina).join(Aluno, ProcessoDisciplina.aluno_id == Aluno.id).join(User, Aluno.user_id == User.id).join(Turma, Aluno.turma_id == Turma.id).options(
             joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.user),
             joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.turma)
         ).where(
