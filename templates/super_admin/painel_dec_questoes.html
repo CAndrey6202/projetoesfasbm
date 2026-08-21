@@ -201,15 +201,24 @@ $(document).ready(function() {
             });
     });
 
-    $materia.on('change', function() {
-        if ($(this).val()) {
+    function verificarMateriaSelecionada() {
+        var val = $materia.val();
+        if (val && val !== "") {
             $qtd.prop('disabled', false);
             $btn.prop('disabled', false);
         } else {
             $qtd.prop('disabled', true);
             $btn.prop('disabled', true);
         }
+    }
+
+    // Escuta tanto eventos nativos quanto específicos do Select2
+    $materia.on('change select2:select select2:closing input', function() {
+        verificarMateriaSelecionada();
     });
+
+    // Fallback à prova de falhas: um "vigia" que força a conferência de tempos em tempos
+    setInterval(verificarMateriaSelecionada, 800);
 
     // Puxa o gatilho pela primeira vez ao carregar a página
     setTimeout(function() {
