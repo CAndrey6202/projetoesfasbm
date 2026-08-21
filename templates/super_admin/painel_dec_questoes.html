@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Painel DEC - Banco de Questões{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-crown text-warning"></i> Painel DEC - Gerador de Provas</h2>
+    </div>
+
+    <div class="row">
+        <!-- Coluna de Geração Rápida -->
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-cogs"></i> Gerar Prova Aleatória
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('questoes.gerar_prova_dec') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Escola (Opcional)</label>
+                                <select class="form-select" name="escola_id" id="escola_id">
+                                    <option value="all">Todas as Escolas</option>
+                                    {% for escola in escolas %}
+                                        <option value="{{ escola.id }}">{{ escola.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Edição (Opcional)</label>
+                                <select class="form-select" name="edicao_id" id="edicao_id">
+                                    <option value="all">Qualquer Edição</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matéria (Obrigatória)</label>
+                                <select class="form-select select2" name="materia" required>
+                                    <option value="">Selecione a Matéria...</option>
+                                    {% for mat in materias %}
+                                        <option value="{{ mat }}">{{ mat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Qtd. Questões</label>
+                                <input type="number" class="form-control" name="qtd_questoes" value="30" min="1" max="100" required>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-end">
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                <i class="fas fa-magic"></i> Gerar Prova Agora
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('.select2').select2({ theme: 'bootstrap-5' });
+
+    // Atualiza as edições dinamicamente caso o super admin escolha uma escola
+    $('#escola_id').change(function() {
+        var schoolId = $(this).val();
+        var edicaoSelect = $('#edicao_id');
+        edicaoSelect.empty().append('<option value="all">Carregando...</option>');
+        
+        if (schoolId === 'all') {
+            edicaoSelect.empty().append('<option value="all">Qualquer Edição</option>');
+            return;
+        }
+
+        $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId), function(data) {
+            edicaoSelect.empty().append('<option value="all">Qualquer Edição</option>');
+            data.forEach(function(ed) {
+                edicaoSelect.append(new Option(ed.nome, ed.id));
+            });
+        }).fail(function() {
+            edicaoSelect.empty().append('<option value="all">Erro ao carregar</option>');
+        });
+    });
+});
+</script>
+{% endblock %}

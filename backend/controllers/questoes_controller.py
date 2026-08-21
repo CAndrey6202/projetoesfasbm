@@ -288,6 +288,53 @@ def remover_questao_banco(id):
     return jsonify({'success': True, 'message': 'Questão removida com sucesso.'})
 
 
+@questoes_bp.route('/painel-dec', methods=['GET'])
+@login_required
+@super_admin_required
+def painel_dec():
+    """Painel do DEC para geração de provas globais e análise unificada."""
+    escolas = School.query.order_by(School.nome).all()
+    materias_db = db.session.query(Disciplina.materia).distinct().all()
+    lista_materias = sorted([m[0] for m in materias_db if m[0]])
+    return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
+
+
+@questoes_bp.route('/dec/gerar-prova', methods=['POST'])
+@login_required
+@super_admin_required
+def gerar_prova_dec():
+    """Sorteia as questões globalmente e exibe na tela de impressão imediata."""
+    qtd = request.form.get('qtd_questoes', type=int, default=30)
+    materia = request.form.get('materia', type=str)
+    escola_id = request.form.get('escola_id')
+    edicao_id = request.form.get('edicao_id')
+    
+    if not materia:
+        flash("Selecione uma matéria obrigatória.", "danger")
+        return redirect(url_for('questoes.painel_dec'))
+
+    query = QuestaoBanco.query.join(Disciplina).filter(
+        QuestaoBanco.ativo == True,
+        Disciplina.materia == materia
+    )
+    
+    if escola_id and escola_id != 'all':
+        query = query.filter(QuestaoBanco.escola_id == int(escola_id))
+        
+    if edicao_id and edicao_id not in ['all', 'Geral', '']:
+        query = query.join(Turma, Disciplina.turma_id == Turma.id).filter(Turma.edicao_id == int(edicao_id))
+        
+    todas_questoes = query.all()
+    
+    if len(todas_questoes) < qtd:
+        flash(f"Erro: O banco possui apenas {len(todas_questoes)} questões cadastradas para esses filtros. Tente diminuir a quantidade.", "warning")
+        return redirect(url_for('questoes.painel_dec'))
+        
+    questoes_sorteadas = random.sample(todas_questoes, k=qtd)
+    
+    return render_template('super_admin/prova_gerada_dec.html', questoes=questoes_sorteadas, materia=materia, qtd=qtd)
+
+
 # =========================================================================
 # ROTAS DO INSTRUTOR (ENVIO E MOTOR INTELIGENTE)
 # =========================================================================
