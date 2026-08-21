@@ -48,15 +48,9 @@ def api_get_disciplinas(school_id):
 @login_required
 @super_admin_required
 def api_get_edicoes(school_id):
-    """Retorna as edições que possuem turmas na escola selecionada."""
+    """Retorna as edições que pertencem fisicamente à escola selecionada."""
     from backend.models.edicao import Edicao
-    turmas = Turma.query.filter_by(school_id=school_id).all()
-    edicao_ids = list(set([t.edicao_id for t in turmas if t.edicao_id]))
-    
-    if not edicao_ids:
-        return jsonify([])
-        
-    edicoes = Edicao.query.filter(Edicao.id.in_(edicao_ids)).order_by(Edicao.nome).all()
+    edicoes = Edicao.query.filter_by(school_id=school_id).order_by(Edicao.nome).all()
     return jsonify([{"id": e.id, "nome": e.nome} for e in edicoes])
 
 @questoes_bp.route('/api/configuracao', methods=['GET', 'POST'])
@@ -314,9 +308,13 @@ def gerar_prova_dec():
     escola_id = request.form.get('escola_id')
     edicao_id = request.form.get('edicao_id')
     
+    escolas = School.query.order_by(School.nome).all()
+    materias_db = db.session.query(Disciplina.materia).distinct().all()
+    lista_materias = sorted([m[0] for m in materias_db if m[0]])
+    
     if not materia:
         flash("Selecione uma matéria obrigatória.", "danger")
-        return redirect(url_for('questoes.painel_dec'))
+        return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
 
     query = QuestaoBanco.query.join(Disciplina).filter(
         QuestaoBanco.ativo == True,
@@ -330,16 +328,19 @@ def gerar_prova_dec():
         query = query.join(Turma, Disciplina.turma_id == Turma.id).filter(Turma.edicao_id == int(edicao_id))
         
     todas_questoes = query.all()
+    total_disponivel = len(todas_questoes)
     
-    escolas = School.query.order_by(School.nome).all()
-    materias_db = db.session.query(Disciplina.materia).distinct().all()
-    lista_materias = sorted([m[0] for m in materias_db if m[0]])
-    
-    if len(todas_questoes) < qtd:
-        flash(f"Erro: O banco possui apenas {len(todas_questoes)} questões cadastradas para esses filtros. Tente diminuir a quantidade.", "warning")
+    if total_disponivel == 0:
+        flash("Nenhuma questão foi encontrada no banco para esta disciplina/escola.", "warning")
         return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
         
-    questoes_sorteadas = random.sample(todas_questoes, k=qtd)
+    # Adaptação de inteligência: se pediu 30 mas só tem 5, sorteia as 5 sem travar
+    qtd_real = min(qtd, total_disponivel)
+    
+    if qtd_real < qtd:
+        flash(f"Atenção: Você solicitou {qtd} questões, mas o banco possui apenas {total_disponivel}. A prova foi gerada com o total disponível.", "info")
+        
+    questoes_sorteadas = random.sample(todas_questoes, k=qtd_real)
     
     return render_template('super_admin/painel_dec_questoes.html', 
                            escolas=escolas, 
