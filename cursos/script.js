@@ -167,7 +167,12 @@ function renderAllShelves() {
         `;
 
         if (categories[video.category]) {
-            categories[video.category].container.insertAdjacentHTML("beforeend", cardHtml);
+            // CORREÇÃO: Cria elementos DOM em vez de inserir HTML cru
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cardHtml;
+            while (tempDiv.firstChild) {
+                categories[video.category].container.appendChild(tempDiv.firstChild);
+            }
             categories[video.category].count++;
         }
     });

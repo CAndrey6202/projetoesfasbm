@@ -106,13 +106,14 @@ def generate_unique_filename(filename):
     return f"{unique_id}.{ext}"
 
 def get_file_hash(file_path):
-    """Gera hash MD5 do arquivo para verificar duplicatas"""
-    hash_md5 = hashlib.md5()
+    """Gera hash SHA256 do arquivo para verificar duplicatas"""
+    # CORREÇÃO: Troca MD5 por SHA256 (mais seguro)
+    hash_sha = hashlib.sha256()
     try:
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
+                hash_sha.update(chunk)
+        return hash_sha.hexdigest()
     except FileNotFoundError:
         return None
 

@@ -83,6 +83,11 @@ def create_app(config_class=Config):
     static_dir = os.path.join(project_root, 'static')
 
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+    
+    # CORREÇÃO PARA Host Header Injection
+    app.config['SERVER_NAME'] = os.getenv('DOMINIO_APLICACAO', 'sistema.esfasbm.com')
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
+
     app.config.from_object(config_class)
 
     # --- CONFIGURAÇÕES DE PERFORMANCE DO BANCO (Anti-Travamento) ---
@@ -467,4 +472,7 @@ def register_cli_commands(app):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True)
+    # CORREÇÃO: Remove debug em produção ou usa variável de ambiente
+    import os
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000)
