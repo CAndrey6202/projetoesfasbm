@@ -34,7 +34,7 @@
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Escola (Opcional)</label>
-                                <select class="form-select" name="escola_id" id="escola_id">
+                                <select class="form-select" name="escola_id" id="escola_id" onchange="window.fluxoCascata.carregarEdicoes(this.value)">
                                     <option value="all">Todas as Escolas (Global)</option>
                                     {% for escola in escolas %}
                                         <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
@@ -44,14 +44,14 @@
 
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Edição (Opcional)</label>
-                                <select class="form-select" name="edicao_id" id="edicao_id" disabled>
+                                <select class="form-select" name="edicao_id" id="edicao_id" onchange="window.fluxoCascata.carregarMaterias(this.value)" disabled>
                                     <option value="all">Aguardando Escola...</option>
                                 </select>
                             </div>
 
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Matéria (Obrigatória)</label>
-                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
+                                <select class="form-select" name="materia" id="materia_id" onchange="window.fluxoCascata.validarMateria(this.value)" disabled required>
                                     <option value="">Aguardando Edição...</option>
                                 </select>
                             </div>
@@ -151,104 +151,110 @@
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    try {
-        var $escola = $('#escola_id');
-        var $edicao = $('#edicao_id');
-        var $materia = $('#materia_id');
-        var $qtd = $('#qtd_questoes');
-        var $btn = $('#btn_gerar');
+// Usando Vanilla JS blindado para escapar de conflitos do jQuery ou Select2
+window.fluxoCascata = {
+    selectedEdicao: '{{ edicao_selecionada|default("all", true) }}',
+    selectedMateria: '{{ materia_selecionada|default("", true) }}',
+    initialLoad: true,
 
-        // Proteção para inicialização do Select2
-        try {
-            $materia.select2({ theme: 'bootstrap-5' });
-        } catch(e) {
-            console.log("Aviso: Select2 não inicializou", e);
+    carregarEdicoes: function(schoolId) {
+        var edicaoEl = document.getElementById('edicao_id');
+        var materiaEl = document.getElementById('materia_id');
+        var qtdEl = document.getElementById('qtd_questoes');
+        var btnEl = document.getElementById('btn_gerar');
+
+        edicaoEl.disabled = true;
+        edicaoEl.innerHTML = '<option value="all">Buscando edições...</option>';
+        materiaEl.disabled = true;
+        materiaEl.innerHTML = '<option value="">Aguardando Edição...</option>';
+        qtdEl.disabled = true;
+        btnEl.disabled = true;
+
+        if (schoolId === 'all') {
+            edicaoEl.innerHTML = '<option value="all">Qualquer Edição</option>';
+            edicaoEl.disabled = false;
+            this.carregarMaterias('all');
+            return;
         }
 
-        var selectedEdicao = '{{ edicao_selecionada|default("all", true) }}';
-        var selectedMateria = '{{ materia_selecionada|default("", true) }}';
-        var initialLoad = true;
-
-        $escola.on('change', function() {
-            var schoolId = $(this).val();
-            
-            $edicao.prop('disabled', true).empty().append('<option value="all">Buscando edições...</option>');
-            $materia.prop('disabled', true).empty().append('<option value="">Aguardando Edição...</option>');
-            $qtd.prop('disabled', true);
-            $btn.prop('disabled', true);
-
-            if (schoolId === 'all') {
-                $edicao.empty().append('<option value="all">Qualquer Edição</option>').prop('disabled', false).trigger('change');
-                return;
-            }
-
-            $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId))
-            .done(function(data) {
-                $edicao.empty().append('<option value="all">Qualquer Edição</option>');
-                data.forEach(function(ed) {
-                    var option = new Option(ed.nome, ed.id);
-                    if (initialLoad && String(ed.id) === String(selectedEdicao)) option.selected = true;
-                    $edicao.append(option);
+        fetch('/questoes/api/edicoes/' + schoolId)
+            .then(res => res.json())
+            .then(data => {
+                edicaoEl.innerHTML = '<option value="all">Qualquer Edição</option>';
+                data.forEach(ed => {
+                    var opt = document.createElement('option');
+                    opt.value = ed.id;
+                    opt.innerHTML = ed.nome;
+                    if (this.initialLoad && String(ed.id) === String(this.selectedEdicao)) {
+                        opt.selected = true;
+                    }
+                    edicaoEl.appendChild(opt);
                 });
-                $edicao.prop('disabled', false).trigger('change');
+                edicaoEl.disabled = false;
+                this.carregarMaterias(edicaoEl.value);
             })
-            .fail(function() {
-                $edicao.empty().append('<option value="all">Erro ao carregar</option>');
-                $edicao.prop('disabled', false);
+            .catch(err => {
+                console.error(err);
+                edicaoEl.innerHTML = '<option value="all">Erro ao carregar</option>';
+                edicaoEl.disabled = false;
             });
-        });
+    },
 
-        $edicao.on('change', function() {
-            var schoolId = $escola.val() || 'all';
-            var edicaoId = $(this).val() || 'all';
-            
-            $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
-            $qtd.prop('disabled', true);
-            $btn.prop('disabled', true);
+    carregarMaterias: function(edicaoId) {
+        var schoolId = document.getElementById('escola_id').value || 'all';
+        var materiaEl = document.getElementById('materia_id');
+        var qtdEl = document.getElementById('qtd_questoes');
+        var btnEl = document.getElementById('btn_gerar');
 
-            $.get("{{ url_for('questoes.api_get_materias_filtro') }}?school_id=" + schoolId + "&edicao_id=" + edicaoId)
-            .done(function(data) {
-                $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
-                data.forEach(function(mat) {
-                    var option = new Option(mat, mat);
-                    if (initialLoad && mat === selectedMateria) option.selected = true;
-                    $materia.append(option);
+        materiaEl.disabled = true;
+        materiaEl.innerHTML = '<option value="">Buscando matérias...</option>';
+        qtdEl.disabled = true;
+        btnEl.disabled = true;
+
+        fetch('/questoes/api/materias/filtro?school_id=' + schoolId + '&edicao_id=' + edicaoId)
+            .then(res => res.json())
+            .then(data => {
+                materiaEl.innerHTML = '<option value="" selected disabled>Selecione a Matéria...</option>';
+                data.forEach(mat => {
+                    var opt = document.createElement('option');
+                    opt.value = mat;
+                    opt.innerHTML = mat;
+                    if (this.initialLoad && mat === this.selectedMateria) {
+                        opt.selected = true;
+                    }
+                    materiaEl.appendChild(opt);
                 });
-                $materia.prop('disabled', false);
-                
-                try {
-                    $materia.trigger('change.select2'); // Atualiza visual do Select2
-                } catch(e) {}
-
-                if ($materia.val()) {
-                    $materia.trigger('change');
-                }
-                initialLoad = false;
+                materiaEl.disabled = false;
+                this.validarMateria(materiaEl.value);
+                this.initialLoad = false;
             })
-            .fail(function() {
-                $materia.empty().append('<option value="">Erro ao carregar matérias</option>');
-                $materia.prop('disabled', false);
+            .catch(err => {
+                console.error(err);
+                materiaEl.innerHTML = '<option value="">Erro ao carregar matérias</option>';
+                materiaEl.disabled = false;
             });
-        });
+    },
 
-        $materia.on('change', function() {
-            if ($(this).val()) {
-                $qtd.prop('disabled', false);
-                $btn.prop('disabled', false);
-            } else {
-                $qtd.prop('disabled', true);
-                $btn.prop('disabled', true);
-            }
-        });
+    validarMateria: function(materiaValue) {
+        var qtdEl = document.getElementById('qtd_questoes');
+        var btnEl = document.getElementById('btn_gerar');
+        if (materiaValue) {
+            qtdEl.disabled = false;
+            btnEl.disabled = false;
+        } else {
+            qtdEl.disabled = true;
+            btnEl.disabled = true;
+        }
+    }
+};
 
-        // Inicia a cascata (Atraso mínimo para garantir renderização do DOM)
+// Disparo inicial quando o DOM estiver pronto
+document.addEventListener("DOMContentLoaded", function() {
+    var escolaEl = document.getElementById('escola_id');
+    if (escolaEl) {
         setTimeout(function() {
-            $escola.trigger('change');
+            window.fluxoCascata.carregarEdicoes(escolaEl.value);
         }, 100);
-
-    } catch (error) {
-        console.error("Erro no fluxo do gerador de provas:", error);
     }
 });
 </script>
