@@ -152,88 +152,104 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    var $escola = $('#escola_id');
-    var $edicao = $('#edicao_id');
-    var $materia = $('#materia_id');
-    var $qtd = $('#qtd_questoes');
-    var $btn = $('#btn_gerar');
+    try {
+        var $escola = $('#escola_id');
+        var $edicao = $('#edicao_id');
+        var $materia = $('#materia_id');
+        var $qtd = $('#qtd_questoes');
+        var $btn = $('#btn_gerar');
 
-    $materia.select2({ theme: 'bootstrap-5' });
-
-    var selectedEdicao = '{{ edicao_selecionada or "all" }}';
-    var selectedMateria = '{{ materia_selecionada or "" }}';
-    var initialLoad = true; 
-
-    // Passo 1: Mudança na Escola -> Desbloqueia Edição
-    $escola.change(function() {
-        var schoolId = $(this).val();
-        
-        $edicao.prop('disabled', true).empty().append('<option value="all">Buscando edições...</option>');
-        $materia.prop('disabled', true).empty().append('<option value="">Aguardando Edição...</option>');
-        $qtd.prop('disabled', true);
-        $btn.prop('disabled', true);
-
-        if (schoolId === 'all') {
-            $edicao.empty().append('<option value="all">Qualquer Edição</option>');
-            $edicao.prop('disabled', false);
-            $edicao.trigger('change'); 
-            return;
+        // Proteção para inicialização do Select2
+        try {
+            $materia.select2({ theme: 'bootstrap-5' });
+        } catch(e) {
+            console.log("Aviso: Select2 não inicializou", e);
         }
 
-        $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId), function(data) {
-            $edicao.empty().append('<option value="all">Qualquer Edição</option>');
-            data.forEach(function(ed) {
-                var option = new Option(ed.nome, ed.id);
-                if (initialLoad && ed.id == selectedEdicao) option.selected = true;
-                $edicao.append(option);
-            });
-            $edicao.prop('disabled', false);
-            $edicao.trigger('change');
-        }).fail(function() {
-            $edicao.empty().append('<option value="all">Erro ao carregar</option>');
-        });
-    });
+        var selectedEdicao = '{{ edicao_selecionada|default("all", true) }}';
+        var selectedMateria = '{{ materia_selecionada|default("", true) }}';
+        var initialLoad = true;
 
-    // Passo 2: Mudança na Edição -> Desbloqueia Matéria
-    $edicao.change(function() {
-        var schoolId = $escola.val();
-        var edicaoId = $(this).val();
-        
-        $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
-        $qtd.prop('disabled', true);
-        $btn.prop('disabled', true);
-
-        $.get("{{ url_for('questoes.api_get_materias_filtro') }}?school_id=" + schoolId + "&edicao_id=" + edicaoId, function(data) {
-            $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
-            data.forEach(function(mat) {
-                var option = new Option(mat, mat);
-                if (initialLoad && mat === selectedMateria) option.selected = true;
-                $materia.append(option);
-            });
-            $materia.prop('disabled', false);
+        $escola.on('change', function() {
+            var schoolId = $(this).val();
             
-            if ($materia.val()) {
-                $materia.trigger('change');
-            }
-            initialLoad = false;
-        }).fail(function() {
-            $materia.empty().append('<option value="">Erro ao carregar</option>');
-        });
-    });
-
-    // Passo 3: Mudança na Matéria -> Desbloqueia Qtd e Botão
-    $materia.change(function() {
-        if ($(this).val()) {
-            $qtd.prop('disabled', false);
-            $btn.prop('disabled', false);
-        } else {
+            $edicao.prop('disabled', true).empty().append('<option value="all">Buscando edições...</option>');
+            $materia.prop('disabled', true).empty().append('<option value="">Aguardando Edição...</option>');
             $qtd.prop('disabled', true);
             $btn.prop('disabled', true);
-        }
-    });
 
-    // Gatilho inicial da cascata
-    $escola.trigger('change');
+            if (schoolId === 'all') {
+                $edicao.empty().append('<option value="all">Qualquer Edição</option>').prop('disabled', false).trigger('change');
+                return;
+            }
+
+            $.get("{{ url_for('questoes.api_get_edicoes', school_id=0) }}".replace('/0', '/' + schoolId))
+            .done(function(data) {
+                $edicao.empty().append('<option value="all">Qualquer Edição</option>');
+                data.forEach(function(ed) {
+                    var option = new Option(ed.nome, ed.id);
+                    if (initialLoad && String(ed.id) === String(selectedEdicao)) option.selected = true;
+                    $edicao.append(option);
+                });
+                $edicao.prop('disabled', false).trigger('change');
+            })
+            .fail(function() {
+                $edicao.empty().append('<option value="all">Erro ao carregar</option>');
+                $edicao.prop('disabled', false);
+            });
+        });
+
+        $edicao.on('change', function() {
+            var schoolId = $escola.val() || 'all';
+            var edicaoId = $(this).val() || 'all';
+            
+            $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+            $qtd.prop('disabled', true);
+            $btn.prop('disabled', true);
+
+            $.get("{{ url_for('questoes.api_get_materias_filtro') }}?school_id=" + schoolId + "&edicao_id=" + edicaoId)
+            .done(function(data) {
+                $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                data.forEach(function(mat) {
+                    var option = new Option(mat, mat);
+                    if (initialLoad && mat === selectedMateria) option.selected = true;
+                    $materia.append(option);
+                });
+                $materia.prop('disabled', false);
+                
+                try {
+                    $materia.trigger('change.select2'); // Atualiza visual do Select2
+                } catch(e) {}
+
+                if ($materia.val()) {
+                    $materia.trigger('change');
+                }
+                initialLoad = false;
+            })
+            .fail(function() {
+                $materia.empty().append('<option value="">Erro ao carregar matérias</option>');
+                $materia.prop('disabled', false);
+            });
+        });
+
+        $materia.on('change', function() {
+            if ($(this).val()) {
+                $qtd.prop('disabled', false);
+                $btn.prop('disabled', false);
+            } else {
+                $qtd.prop('disabled', true);
+                $btn.prop('disabled', true);
+            }
+        });
+
+        // Inicia a cascata (Atraso mínimo para garantir renderização do DOM)
+        setTimeout(function() {
+            $escola.trigger('change');
+        }, 100);
+
+    } catch (error) {
+        console.error("Erro no fluxo do gerador de provas:", error);
+    }
 });
 </script>
 {% endblock %}
