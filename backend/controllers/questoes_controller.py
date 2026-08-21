@@ -441,7 +441,10 @@ def processar_texto():
 def salvar_questoes():
     try:
         dados = request.get_json()
-        materia = dados.get('materia')
+        materia_full = dados.get('materia', '')
+        # Remove a parte da edicao (ex: "Materia | Edicao 1")
+        materia = materia_full.split(' | ')[0].strip() if ' | ' in materia_full else materia_full.strip()
+        
         questoes_lista = dados.get('questoes', [])
 
         escola_id = session.get('active_school_id') or (current_user.user_schools[0].school_id if current_user.user_schools else None)
