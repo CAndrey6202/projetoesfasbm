@@ -50,9 +50,14 @@ def api_get_disciplinas(school_id):
 def api_get_edicoes(school_id):
     """Retorna as edições que possuem turmas na escola selecionada."""
     from backend.models.edicao import Edicao
-    query = db.session.query(Edicao.id, Edicao.nome).join(Turma).filter(Turma.school_id == school_id).distinct()
-    edicoes = [{"id": e.id, "nome": e.nome} for e in query.all()]
-    return jsonify(edicoes)
+    turmas = Turma.query.filter_by(school_id=school_id).all()
+    edicao_ids = list(set([t.edicao_id for t in turmas if t.edicao_id]))
+    
+    if not edicao_ids:
+        return jsonify([])
+        
+    edicoes = Edicao.query.filter(Edicao.id.in_(edicao_ids)).order_by(Edicao.nome).all()
+    return jsonify([{"id": e.id, "nome": e.nome} for e in edicoes])
 
 @questoes_bp.route('/api/configuracao', methods=['GET', 'POST'])
 @login_required
