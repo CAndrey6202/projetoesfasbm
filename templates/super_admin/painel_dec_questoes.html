@@ -32,9 +32,9 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="row g-3">
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-bold">Escola (Opcional)</label>
-                                <select class="form-select" name="escola_id" id="escola_id" onchange="window.fluxoCascata.carregarEdicoes(this.value)">
+                                <select class="form-select" name="escola_id" id="escola_id" onchange="window.fluxoCascata.carregarMaterias(this.value)">
                                     <option value="all">Todas as Escolas (Global)</option>
                                     {% for escola in escolas %}
                                         <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
@@ -42,21 +42,14 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold">Edição (Opcional)</label>
-                                <select class="form-select" name="edicao_id" id="edicao_id" onchange="window.fluxoCascata.carregarMaterias(this.value)" disabled>
-                                    <option value="all">Aguardando Escola...</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
+                            <div class="col-md-5">
                                 <label class="form-label fw-bold">Matéria (Obrigatória)</label>
                                 <select class="form-select" name="materia" id="materia_id" onchange="window.fluxoCascata.validarMateria(this.value)" disabled required>
-                                    <option value="">Aguardando Edição...</option>
+                                    <option value="">Aguardando Escola...</option>
                                 </select>
                             </div>
 
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold">Qtd. Questões</label>
                                 <input type="number" class="form-control" name="qtd_questoes" id="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" disabled required>
                             </div>
@@ -151,57 +144,11 @@
 
 {% block scripts %}
 <script>
-// Usando Vanilla JS blindado para escapar de conflitos do jQuery ou Select2
 window.fluxoCascata = {
-    selectedEdicao: '{{ edicao_selecionada|default("all", true) }}',
     selectedMateria: '{{ materia_selecionada|default("", true) }}',
     initialLoad: true,
 
-    carregarEdicoes: function(schoolId) {
-        var edicaoEl = document.getElementById('edicao_id');
-        var materiaEl = document.getElementById('materia_id');
-        var qtdEl = document.getElementById('qtd_questoes');
-        var btnEl = document.getElementById('btn_gerar');
-
-        edicaoEl.disabled = true;
-        edicaoEl.innerHTML = '<option value="all">Buscando edições...</option>';
-        materiaEl.disabled = true;
-        materiaEl.innerHTML = '<option value="">Aguardando Edição...</option>';
-        qtdEl.disabled = true;
-        btnEl.disabled = true;
-
-        if (schoolId === 'all') {
-            edicaoEl.innerHTML = '<option value="all">Qualquer Edição</option>';
-            edicaoEl.disabled = false;
-            this.carregarMaterias('all');
-            return;
-        }
-
-        fetch('/questoes/api/edicoes/' + schoolId)
-            .then(res => res.json())
-            .then(data => {
-                edicaoEl.innerHTML = '<option value="all">Qualquer Edição</option>';
-                data.forEach(ed => {
-                    var opt = document.createElement('option');
-                    opt.value = ed.id;
-                    opt.innerHTML = ed.nome;
-                    if (this.initialLoad && String(ed.id) === String(this.selectedEdicao)) {
-                        opt.selected = true;
-                    }
-                    edicaoEl.appendChild(opt);
-                });
-                edicaoEl.disabled = false;
-                this.carregarMaterias(edicaoEl.value);
-            })
-            .catch(err => {
-                console.error(err);
-                edicaoEl.innerHTML = '<option value="all">Erro ao carregar</option>';
-                edicaoEl.disabled = false;
-            });
-    },
-
-    carregarMaterias: function(edicaoId) {
-        var schoolId = document.getElementById('escola_id').value || 'all';
+    carregarMaterias: function(schoolId) {
         var materiaEl = document.getElementById('materia_id');
         var qtdEl = document.getElementById('qtd_questoes');
         var btnEl = document.getElementById('btn_gerar');
@@ -211,7 +158,7 @@ window.fluxoCascata = {
         qtdEl.disabled = true;
         btnEl.disabled = true;
 
-        fetch('/questoes/api/materias/filtro?school_id=' + schoolId + '&edicao_id=' + edicaoId)
+        fetch('/questoes/api/materias/filtro?school_id=' + schoolId + '&edicao_id=all')
             .then(res => res.json())
             .then(data => {
                 materiaEl.innerHTML = '<option value="" selected disabled>Selecione a Matéria...</option>';
@@ -248,12 +195,11 @@ window.fluxoCascata = {
     }
 };
 
-// Disparo inicial quando o DOM estiver pronto
 document.addEventListener("DOMContentLoaded", function() {
     var escolaEl = document.getElementById('escola_id');
     if (escolaEl) {
         setTimeout(function() {
-            window.fluxoCascata.carregarEdicoes(escolaEl.value);
+            window.fluxoCascata.carregarMaterias(escolaEl.value);
         }, 100);
     }
 });
