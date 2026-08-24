@@ -386,9 +386,8 @@ $(document).ready(function() {
         $questaoProva.find('.q-enunciado').before('<span class="q-ref">Ref. #' + idProva + ' - </span>');
         
         // 3. Executa a troca física no DOM
-        var $cloneBanco = $questaoBanco.clone(true);
-        $questaoProva.replaceWith($cloneBanco);
-        $('#lista-banco').prepend($questaoProva);
+        $questaoProva.before($questaoBanco); // Move do banco para a prova, no lugar exato
+        $('#lista-banco').prepend($questaoProva); // Move da prova para o topo do banco
         
         // Reset
         questaoSelecionadaNaProva = null;
