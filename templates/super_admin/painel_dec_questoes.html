@@ -14,6 +14,21 @@
     .page-container, .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #f8f9fa !important; }
     body { background: #f8f9fa !important; }
     .content-wrapper { background: transparent !important; box-shadow: none !important; margin: 20px auto; max-width: 1400px; padding: 20px; }
+    
+    .questao-selecionada {
+        border: 2px solid #0d6efd !important;
+        background-color: #e9ecef !important;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+        transform: scale(1.01);
+    }
+    
+    @media print {
+        .col-banco, .d-print-none { display: none !important; }
+        .col-prova { width: 100% !important; max-width: 100% !important; flex: 0 0 100% !important; }
+        .p-print-0 { padding: 0 !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        .card-body { padding: 0 !important; }
+    }
 </style>
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
@@ -73,73 +88,116 @@
         </div>
     </div>
 
-    <!-- ÁREA DA PROVA GERADA -->
+    <!-- ÁREA DA PROVA GERADA E EDITOR LADO-A-LADO -->
     {% if questoes %}
-    <div class="card shadow mt-4 border-0" id="prova-container">
-        <div class="card-body p-5">
-            <!-- Botão de impressão (oculto na impressão) -->
-            <div class="text-end mb-4 d-print-none">
-                <button onclick="window.print()" class="btn btn-primary btn-lg fw-bold shadow">
-                    <i class="fas fa-print"></i> Imprimir / Salvar PDF
-                </button>
-            </div>
-
-            <!-- Cabeçalho da Prova -->
-            <div class="text-center mb-5">
-                <h3 class="fw-bold">BRIGADA MILITAR DO RIO GRANDE DO SUL</h3>
-                <h4 class="fw-bold text-secondary">DEPARTAMENTO DE EDUCAÇÃO E CULTURA</h4>
-                <h5 class="mt-3">Geração Expressa de Prova</h5>
-                <hr>
-                <div class="d-flex justify-content-between mt-3 px-3">
-                    <strong>Matéria: <span class="text-uppercase">{{ materia_selecionada }}</span></strong>
-                    <strong>Quantidade de Questões: {{ qtd }}</strong>
+    <div class="row mt-4" id="editor-container">
+        
+        <!-- COLUNA ESQUERDA: A PROVA GERADA -->
+        <div class="col-lg-6 mb-4 col-prova" id="coluna-prova">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center d-print-none">
+                    <h5 class="mb-0"><i class="fas fa-file-alt"></i> Prova Gerada</h5>
+                    <button onclick="window.print()" class="btn btn-light btn-sm fw-bold shadow-sm">
+                        <i class="fas fa-print"></i> Imprimir Prova
+                    </button>
                 </div>
-                <hr>
-            </div>
-
-            <!-- Questões -->
-            <div class="questoes-lista">
-                {% for questao in questoes %}
-                <div class="questao-item mb-4" style="page-break-inside: avoid;">
-                    <p class="fw-bold mb-2">{{ loop.index }}. {{ questao.enunciado }}</p>
+                <div class="card-body p-4 p-print-0" id="prova-content">
                     
-                    <div class="ps-3">
-                        <p class="mb-1"><strong>A)</strong> {{ questao.alternativas.get('A', '') }}</p>
-                        <p class="mb-1"><strong>B)</strong> {{ questao.alternativas.get('B', '') }}</p>
-                        <p class="mb-1"><strong>C)</strong> {{ questao.alternativas.get('C', '') }}</p>
-                        <p class="mb-1"><strong>D)</strong> {{ questao.alternativas.get('D', '') }}</p>
-                        <p class="mb-1"><strong>E)</strong> {{ questao.alternativas.get('E', '') }}</p>
+                    <!-- Cabeçalho da Prova -->
+                    <div class="text-center mb-5">
+                        <h3 class="fw-bold fs-4 fs-print-3">BRIGADA MILITAR DO RIO GRANDE DO SUL</h3>
+                        <h4 class="fw-bold text-secondary fs-5 fs-print-4">DEPARTAMENTO DE EDUCAÇÃO E CULTURA</h4>
+                        <h5 class="mt-3">Geração Expressa de Prova</h5>
+                        <hr>
+                        <div class="d-flex justify-content-between mt-3 px-3">
+                            <strong>Matéria: <span class="text-uppercase">{{ materia_selecionada }}</span></strong>
+                            <strong>Quantidade de Questões: <span id="qtd-display">{{ qtd }}</span></strong>
+                        </div>
+                        <hr>
+                    </div>
+
+                    <!-- Questões (Sorteadas) -->
+                    <div class="questoes-lista" id="lista-prova">
+                        {% for questao in questoes %}
+                        <div class="questao-item questao-prova mb-4 p-3 border rounded bg-white" style="page-break-inside: avoid; cursor: pointer; transition: all 0.2s;" data-id="{{ questao.id }}" data-resposta="{{ questao.resposta_correta }}">
+                            <p class="fw-bold mb-2 text-dark"><span class="q-num">{{ loop.index }}</span>. <span class="q-enunciado">{{ questao.enunciado }}</span></p>
+                            
+                            <div class="ps-3 q-alternativas">
+                                <p class="mb-1"><strong>A)</strong> <span class="alt-a">{{ questao.alternativas.get('A', '') }}</span></p>
+                                <p class="mb-1"><strong>B)</strong> <span class="alt-b">{{ questao.alternativas.get('B', '') }}</span></p>
+                                <p class="mb-1"><strong>C)</strong> <span class="alt-c">{{ questao.alternativas.get('C', '') }}</span></p>
+                                <p class="mb-1"><strong>D)</strong> <span class="alt-d">{{ questao.alternativas.get('D', '') }}</span></p>
+                                <p class="mb-1"><strong>E)</strong> <span class="alt-e">{{ questao.alternativas.get('E', '') }}</span></p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Quebra de página antes do gabarito -->
+                    <div style="page-break-before: always;" class="mt-5"></div>
+
+                    <!-- Gabarito Oficial -->
+                    <div class="gabarito-container text-center mt-5 pt-4">
+                        <h4 class="fw-bold text-decoration-underline mb-4">GABARITO OFICIAL - DEC</h4>
+                        <h5 class="mb-4 text-uppercase">{{ materia_selecionada }}</h5>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <table class="table table-bordered table-sm" id="gabarito-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th width="50%">Questão</th>
+                                            <th width="50%">Resposta</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for questao in questoes %}
+                                        <tr data-id="{{ questao.id }}">
+                                            <td class="fw-bold q-num-gabarito">{{ loop.index }}</td>
+                                            <td class="fw-bold text-success q-resp-gabarito">{{ questao.resposta_correta }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
+        </div>
 
-            <!-- Quebra de página antes do gabarito -->
-            <div style="page-break-before: always;" class="mt-5"></div>
+        <!-- COLUNA DIREITA: O BANCO DE QUESTÕES (NÃO SORTEADAS) -->
+        <div class="col-lg-6 mb-4 col-banco d-print-none">
+            <div class="card shadow border-0 h-100 bg-light">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-database"></i> Banco de Questões</h5>
+                    <small>Dê 2 cliques na questão abaixo para enviá-la à prova.</small>
+                </div>
+                <div class="card-body p-4" style="max-height: 1200px; overflow-y: auto;">
+                    
+                    <div class="alert alert-info py-2 mb-4 shadow-sm" id="status-troca">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Selecione (com 1 clique) uma questão da Prova ao lado para substituí-la.</strong>
+                    </div>
 
-            <!-- Gabarito Oficial -->
-            <div class="gabarito-container text-center mt-5 pt-4">
-                <h4 class="fw-bold text-decoration-underline mb-4">GABARITO OFICIAL - DEC</h4>
-                <h5 class="mb-4 text-uppercase">{{ materia_selecionada }}</h5>
-                
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <table class="table table-bordered table-sm">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th width="50%">Questão</th>
-                                    <th width="50%">Resposta</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for questao in questoes %}
-                                <tr>
-                                    <td class="fw-bold">{{ loop.index }}</td>
-                                    <td class="fw-bold text-success">{{ questao.resposta_correta }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="questoes-lista-banco" id="lista-banco">
+                        {% if questoes_banco %}
+                            {% for questao in questoes_banco %}
+                            <div class="questao-item questao-banco mb-4 p-3 border bg-white rounded shadow-sm" style="cursor: pointer; transition: all 0.2s;" data-id="{{ questao.id }}" data-resposta="{{ questao.resposta_correta }}">
+                                <p class="fw-bold mb-2 text-primary"><span class="q-num d-none"></span><span class="q-ref">Ref. #{{ questao.id }} - </span><span class="q-enunciado">{{ questao.enunciado }}</span></p>
+                                
+                                <div class="ps-3 text-muted small q-alternativas">
+                                    <p class="mb-0"><strong>A)</strong> <span class="alt-a">{{ questao.alternativas.get('A', '') }}</span></p>
+                                    <p class="mb-0"><strong>B)</strong> <span class="alt-b">{{ questao.alternativas.get('B', '') }}</span></p>
+                                    <p class="mb-0"><strong>C)</strong> <span class="alt-c">{{ questao.alternativas.get('C', '') }}</span></p>
+                                    <p class="mb-0"><strong>D)</strong> <span class="alt-d">{{ questao.alternativas.get('D', '') }}</span></p>
+                                    <p class="mb-0"><strong>E)</strong> <span class="alt-e">{{ questao.alternativas.get('E', '') }}</span></p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-center text-muted mt-5" id="banco-vazio">Nenhuma outra questão disponível no banco para esta matéria.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -268,6 +326,77 @@ $(document).ready(function() {
         var schoolId = $('#escola_id').val() || 'all';
         fetchCiclos(schoolId);
     }, 200);
+
+    // ==========================================
+    // LÓGICA DO EDITOR LADO-A-LADO (SWAP)
+    // ==========================================
+    var questaoSelecionadaNaProva = null;
+    
+    function renumerarProvaEGabarito() {
+        var $gabaritoTbody = $('#gabarito-table tbody');
+        $gabaritoTbody.empty();
+        
+        $('#lista-prova .questao-item').each(function(index) {
+            var num = index + 1;
+            $(this).find('.q-num').text(num);
+            
+            // Adiciona no gabarito
+            var resp = $(this).attr('data-resposta');
+            var id = $(this).attr('data-id');
+            var tr = '<tr data-id="' + id + '">' +
+                     '<td class="fw-bold q-num-gabarito">' + num + '</td>' +
+                     '<td class="fw-bold text-success q-resp-gabarito">' + resp + '</td>' +
+                     '</tr>';
+            $gabaritoTbody.append(tr);
+        });
+        
+        $('#qtd-display').text($('#lista-prova .questao-item').length);
+    }
+
+    $(document).on('click', '.questao-prova', function() {
+        $('.questao-prova').removeClass('questao-selecionada');
+        $(this).addClass('questao-selecionada');
+        questaoSelecionadaNaProva = $(this);
+        
+        $('#status-troca').removeClass('alert-info').addClass('alert-warning').html('<i class="fas fa-exclamation-triangle"></i> <strong>Questão selecionada!</strong> Agora dê 2 cliques na questão desejada do banco para substituí-la.');
+    });
+
+    $(document).on('dblclick', '.questao-banco', function() {
+        if (!questaoSelecionadaNaProva) {
+            alert('Primeiro, clique 1 vez em uma questão da Prova (coluna da esquerda) para selecioná-la.');
+            return;
+        }
+        
+        var $questaoBanco = $(this);
+        var $questaoProva = questaoSelecionadaNaProva;
+        
+        // Remove selection state
+        $questaoProva.removeClass('questao-selecionada');
+        
+        // 1. Prepara a questão do banco para ir para a prova
+        $questaoBanco.removeClass('questao-banco text-primary').addClass('questao-prova text-dark');
+        $questaoBanco.find('.q-ref').remove();
+        $questaoBanco.find('.q-num').removeClass('d-none');
+        
+        // 2. Prepara a questão da prova para ir para o banco
+        var idProva = $questaoProva.attr('data-id');
+        $questaoProva.removeClass('questao-prova text-dark').addClass('questao-banco text-primary');
+        $questaoProva.find('.q-num').addClass('d-none');
+        $questaoProva.find('.q-ref').remove(); // previne duplicação
+        $questaoProva.find('.q-enunciado').before('<span class="q-ref">Ref. #' + idProva + ' - </span>');
+        
+        // 3. Executa a troca física no DOM
+        var $cloneBanco = $questaoBanco.clone(true);
+        $questaoProva.replaceWith($cloneBanco);
+        $('#lista-banco').prepend($questaoProva);
+        
+        // Reset
+        questaoSelecionadaNaProva = null;
+        $('#status-troca').removeClass('alert-warning').addClass('alert-info').html('<i class="fas fa-info-circle"></i> <strong>Selecione (com 1 clique) uma questão da Prova ao lado para substituí-la.</strong>');
+        $('#banco-vazio').remove();
+        
+        renumerarProvaEGabarito();
+    });
 });
 </script>
 {% endblock %}

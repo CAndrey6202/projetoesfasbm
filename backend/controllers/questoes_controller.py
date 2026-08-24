@@ -376,11 +376,13 @@ def gerar_prova_dec():
         flash(f"Atenção: Você solicitou {qtd} questões, mas o banco possui apenas {total_disponivel}. A prova foi gerada com o total disponível.", "info")
         
     questoes_sorteadas = random.sample(todas_questoes, k=qtd_real)
+    questoes_banco = [q for q in todas_questoes if q not in questoes_sorteadas]
     
     return render_template('super_admin/painel_dec_questoes.html', 
                            escolas=escolas, 
                            materias=lista_materias, 
-                           questoes=questoes_sorteadas, 
+                           questoes=questoes_sorteadas,
+                           questoes_banco=questoes_banco,
                            materia_selecionada=materia,
                            escola_selecionada=escola_id,
                            edicao_selecionada=edicao_id,
