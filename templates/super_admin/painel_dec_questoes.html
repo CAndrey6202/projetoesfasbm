@@ -32,7 +32,7 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold">Escola (Opcional)</label>
                                 <select class="form-select" name="escola_id" id="escola_id">
                                     <option value="all">Todas as Escolas (Global)</option>
@@ -42,14 +42,21 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-5">
-                                <label class="form-label fw-bold">Matéria (Obrigatória)</label>
-                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
-                                    <option value="">Aguardando Escola...</option>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Ciclo (Opcional)</label>
+                                <select class="form-select" name="ciclo_id" id="ciclo_id" disabled>
+                                    <option value="all">Aguardando Escola...</option>
                                 </select>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matéria (Obrigatória)</label>
+                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
+                                    <option value="">Aguardando Ciclo...</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
                                 <label class="form-label fw-bold">Qtd. Questões</label>
                                 <input type="number" class="form-control" name="qtd_questoes" id="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" disabled required>
                             </div>
@@ -146,17 +153,18 @@
 <script>
 $(document).ready(function() {
     var $escola = $('#escola_id');
+    var $ciclo = $('#ciclo_id');
     var $materia = $('#materia_id');
     var $qtd = $('#qtd_questoes');
     var $btn = $('#btn_gerar');
 
-    // Inicializa Select2 APENAS para a matéria (escola fica nativa para não dar conflito)
     if ($.fn.select2) {
         $materia.select2({ theme: 'bootstrap-5' });
     }
 
     var selectedMateria = '{{ materia_selecionada|default("", true) }}';
-    var urlFiltro = "{{ url_for('questoes.api_get_materias_filtro') }}";
+    var urlFiltroMaterias = "{{ url_for('questoes.api_get_materias_filtro') }}";
+    var urlFiltroCiclos = "{{ url_for('questoes.api_get_ciclos_filtro') }}";
 
     function atualizaVisuaisMateria() {
         if ($.fn.select2 && $materia.hasClass("select2-hidden-accessible")) {
@@ -164,25 +172,52 @@ $(document).ready(function() {
         }
     }
 
-    function fetchMaterias(schoolId) {
-        console.log("Buscando matérias para escola:", schoolId);
-        
+    function fetchCiclos(schoolId) {
+        $ciclo.prop('disabled', true).empty().append('<option value="">Buscando ciclos...</option>');
+        $materia.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+        atualizaVisuaisMateria();
+
+        $.ajax({
+            url: urlFiltroCiclos,
+            type: 'GET',
+            data: { school_id: schoolId },
+            success: function(data) {
+                $ciclo.empty().append('<option value="all">Todos os Ciclos (Global)</option>');
+                if (data && data.length > 0) {
+                    data.forEach(function(c) {
+                        $ciclo.append('<option value="' + c.id + '">' + c.nome + '</option>');
+                    });
+                }
+                $ciclo.prop('disabled', false);
+                // Após carregar ciclos, busca as matérias considerando o filtro global
+                fetchMaterias(schoolId, 'all');
+            },
+            error: function(err) {
+                $ciclo.empty().append('<option value="all">Erro ao carregar</option>');
+                $ciclo.prop('disabled', false);
+                fetchMaterias(schoolId, 'all'); // Fallback
+            }
+        });
+    }
+
+    function fetchMaterias(schoolId, cicloId) {
         $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
         $qtd.prop('disabled', true);
         $btn.prop('disabled', true);
         atualizaVisuaisMateria();
 
         $.ajax({
-            url: urlFiltro,
+            url: urlFiltroMaterias,
             type: 'GET',
             data: {
                 school_id: schoolId,
+                ciclo_id: cicloId,
                 edicao_id: 'all'
             },
             success: function(data) {
-                console.log("Matérias encontradas:", data);
                 $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
-                
                 if (data && data.length > 0) {
                     data.forEach(function(mat) {
                         var isSelected = (mat === selectedMateria) ? ' selected' : '';
@@ -191,13 +226,11 @@ $(document).ready(function() {
                 } else {
                     $materia.empty().append('<option value="" selected disabled>Nenhuma matéria encontrada</option>');
                 }
-                
                 $materia.prop('disabled', false);
                 atualizaVisuaisMateria();
                 verificarMateriaSelecionada();
             },
             error: function(err) {
-                console.error("Erro ao buscar matérias", err);
                 $materia.empty().append('<option value="" selected disabled>Erro ao carregar</option>');
                 $materia.prop('disabled', false);
                 atualizaVisuaisMateria();
@@ -207,7 +240,6 @@ $(document).ready(function() {
 
     function verificarMateriaSelecionada() {
         var val = $materia.val();
-        console.log("Matéria selecionada:", val);
         if (val && val !== "") {
             $qtd.prop('disabled', false);
             $btn.prop('disabled', false);
@@ -217,20 +249,24 @@ $(document).ready(function() {
         }
     }
 
-    // Event delegation é mais à prova de falhas caso outro script recrie o elemento
     $(document).on('change', '#escola_id', function() {
         var schoolId = $(this).val() || 'all';
-        fetchMaterias(schoolId);
+        fetchCiclos(schoolId);
+    });
+
+    $(document).on('change', '#ciclo_id', function() {
+        var schoolId = $('#escola_id').val() || 'all';
+        var cicloId = $(this).val() || 'all';
+        fetchMaterias(schoolId, cicloId);
     });
 
     $(document).on('change', '#materia_id', function() {
         verificarMateriaSelecionada();
     });
 
-    // Forçar a busca inicial logo ao carregar a página
     setTimeout(function() {
         var schoolId = $('#escola_id').val() || 'all';
-        fetchMaterias(schoolId);
+        fetchCiclos(schoolId);
     }, 200);
 });
 </script>

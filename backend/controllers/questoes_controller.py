@@ -7,7 +7,7 @@ from markupsafe import escape
 
 from utils.decorators import super_admin_required
 from backend.models.database import db
-from backend.models import QuestaoBanco, DelegacaoProva, Disciplina, School, Instrutor, Turma, User
+from backend.models import QuestaoBanco, DelegacaoProva, Disciplina, School, Instrutor, Turma, User, Ciclo
 from backend.models.banco_questoes import ConfiguracaoEnvio
 from backend.models.disciplina_turma import DisciplinaTurma
 
@@ -53,13 +53,27 @@ def api_get_edicoes(school_id):
     edicoes = Edicao.query.filter_by(school_id=school_id).order_by(Edicao.nome).all()
     return jsonify([{"id": e.id, "nome": e.nome} for e in edicoes])
 
+@questoes_bp.route('/api/ciclos/filtro', methods=['GET'])
+@login_required
+@super_admin_required
+def api_get_ciclos_filtro():
+    school_id = request.args.get('school_id')
+    query = db.session.query(Ciclo.id, Ciclo.nome)
+    
+    if school_id and school_id != 'all':
+        query = query.filter(Ciclo.school_id == int(school_id))
+        
+    ciclos = query.order_by(Ciclo.nome).distinct().all()
+    return jsonify([{'id': c.id, 'nome': c.nome} for c in ciclos])
+
 @questoes_bp.route('/api/materias/filtro', methods=['GET'])
 @login_required
 @super_admin_required
 def api_get_materias_filtro():
-    """Retorna as matérias dinamicamente com base na escola e edição selecionadas."""
+    """Retorna as matérias dinamicamente com base na escola, edição e ciclo selecionados."""
     school_id = request.args.get('school_id')
     edicao_id = request.args.get('edicao_id')
+    ciclo_id = request.args.get('ciclo_id')
     
     query = db.session.query(Disciplina.materia)
     
@@ -67,6 +81,9 @@ def api_get_materias_filtro():
         query = query.join(Turma).filter(Turma.school_id == int(school_id))
         if edicao_id and edicao_id != 'all':
             query = query.filter(Turma.edicao_id == int(edicao_id))
+            
+    if ciclo_id and ciclo_id != 'all':
+        query = query.filter(Disciplina.ciclo_id == int(ciclo_id))
             
     materias = query.distinct().all()
     return jsonify(sorted([m[0] for m in materias if m[0]]))
