@@ -354,9 +354,13 @@ def responder_avaliacao(id):
         flash('Você já respondeu a esta avaliação do módulo. Obrigado!', 'success')
         return redirect(url_for('questionario.index'))
         
-    # Buscar os instrutores da turma via DisciplinaTurma (Vínculo Ativo)
+    # Buscar os instrutores da turma conectando com Disciplina para evitar vazamento entre escolas com turmas de mesmo nome
     from backend.models.disciplina import Disciplina
-    vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
+    vinculos = db.session.query(DisciplinaTurma).join(
+        Disciplina, DisciplinaTurma.disciplina_id == Disciplina.id
+    ).filter(
+        Disciplina.turma_id == aluno.turma.id
+    ).all()
     
     registros = []
     for v in vinculos:
