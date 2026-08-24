@@ -561,16 +561,9 @@ class AlunoService:
 
 
 
-        horarios = db.session.query(Horario).filter_by(pelotao=aluno.turma.nome).all()
-
-        for h in horarios:
-
-            if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
-
-
-
+        # Apenas os instrutores que tem vínculo ativo (DisciplinaTurma)
+        # Evitando o acúmulo de instrutores de Horario
         if not instrutores_ids:
-
             return False, None
 
 

@@ -347,18 +347,12 @@ def responder_avaliacao(id):
         
     instrutores_ids = set()
     
-    # 1. Buscar via DisciplinaTurma
+    # Apenas buscar via DisciplinaTurma (Vínculo Ativo), para evitar acumulo
+    # de instrutores que apenas ministraram aulas esporádicas no passado.
     vinculos = db.session.query(DisciplinaTurma).filter_by(pelotao=aluno.turma.nome).all()
     for v in vinculos:
         if v.instrutor_id_1: instrutores_ids.add(v.instrutor_id_1)
         if v.instrutor_id_2: instrutores_ids.add(v.instrutor_id_2)
-            
-    # 2. Buscar via Horario (pois às vezes o vínculo direto não está preenchido)
-    from ..models.horario import Horario
-    horarios = db.session.query(Horario).filter_by(pelotao=aluno.turma.nome).all()
-    for h in horarios:
-        if h.instrutor_id: instrutores_ids.add(h.instrutor_id)
-        if h.instrutor_id_2: instrutores_ids.add(h.instrutor_id_2)
             
     if not instrutores_ids:
         flash('Nenhum instrutor alocado para a sua turma no momento.', 'warning')
