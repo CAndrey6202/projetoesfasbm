@@ -150,59 +150,64 @@ $(document).ready(function() {
     var $qtd = $('#qtd_questoes');
     var $btn = $('#btn_gerar');
 
-    // Inicializa plugin visual com segurança
-    try {
-        if ($.fn.select2) {
-            $materia.select2({ theme: 'bootstrap-5' });
-        }
-    } catch(e) {}
-
-    var selectedMateria = '{{ materia_selecionada|default("", true) }}';
-    var initialLoad = true;
-
-    function atualizaVisuais() {
-        try {
-            if ($.fn.select2) $materia.trigger('change.select2');
-        } catch(e) {}
+    // Inicializa Select2 APENAS para a matéria (escola fica nativa para não dar conflito)
+    if ($.fn.select2) {
+        $materia.select2({ theme: 'bootstrap-5' });
     }
 
-    $escola.on('change', function() {
-        var schoolId = $(this).val() || 'all';
+    var selectedMateria = '{{ materia_selecionada|default("", true) }}';
+    var urlFiltro = "{{ url_for('questoes.api_get_materias_filtro') }}";
 
+    function atualizaVisuaisMateria() {
+        if ($.fn.select2 && $materia.hasClass("select2-hidden-accessible")) {
+            $materia.trigger('change.select2');
+        }
+    }
+
+    function fetchMaterias(schoolId) {
+        console.log("Buscando matérias para escola:", schoolId);
+        
         $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
         $qtd.prop('disabled', true);
         $btn.prop('disabled', true);
-        atualizaVisuais();
+        atualizaVisuaisMateria();
 
-        $.get("/questoes/api/materias/filtro?school_id=" + schoolId + "&edicao_id=all")
-            .done(function(data) {
+        $.ajax({
+            url: urlFiltro,
+            type: 'GET',
+            data: {
+                school_id: schoolId,
+                edicao_id: 'all'
+            },
+            success: function(data) {
+                console.log("Matérias encontradas:", data);
                 $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
-                data.forEach(function(mat) {
-                    var option = new Option(mat, mat);
-                    if (initialLoad && mat === selectedMateria) {
-                        option.selected = true;
-                    }
-                    $materia.append(option);
-                });
                 
-                $materia.prop('disabled', false);
-                atualizaVisuais();
-
-                if ($materia.val()) {
-                    $materia.trigger('change');
+                if (data && data.length > 0) {
+                    data.forEach(function(mat) {
+                        var isSelected = (mat === selectedMateria) ? ' selected' : '';
+                        $materia.append('<option value="' + mat + '"' + isSelected + '>' + mat + '</option>');
+                    });
+                } else {
+                    $materia.empty().append('<option value="" selected disabled>Nenhuma matéria encontrada</option>');
                 }
                 
-                initialLoad = false;
-            })
-            .fail(function() {
-                $materia.empty().append('<option value="">Erro ao buscar matérias</option>');
                 $materia.prop('disabled', false);
-                atualizaVisuais();
-            });
-    });
+                atualizaVisuaisMateria();
+                verificarMateriaSelecionada();
+            },
+            error: function(err) {
+                console.error("Erro ao buscar matérias", err);
+                $materia.empty().append('<option value="" selected disabled>Erro ao carregar</option>');
+                $materia.prop('disabled', false);
+                atualizaVisuaisMateria();
+            }
+        });
+    }
 
     function verificarMateriaSelecionada() {
         var val = $materia.val();
+        console.log("Matéria selecionada:", val);
         if (val && val !== "") {
             $qtd.prop('disabled', false);
             $btn.prop('disabled', false);
@@ -212,18 +217,21 @@ $(document).ready(function() {
         }
     }
 
-    // Escuta tanto eventos nativos quanto específicos do Select2
-    $materia.on('change select2:select select2:closing input', function() {
+    // Event delegation é mais à prova de falhas caso outro script recrie o elemento
+    $(document).on('change', '#escola_id', function() {
+        var schoolId = $(this).val() || 'all';
+        fetchMaterias(schoolId);
+    });
+
+    $(document).on('change', '#materia_id', function() {
         verificarMateriaSelecionada();
     });
 
-    // Fallback à prova de falhas: um "vigia" que força a conferência de tempos em tempos
-    setInterval(verificarMateriaSelecionada, 800);
-
-    // Puxa o gatilho pela primeira vez ao carregar a página
+    // Forçar a busca inicial logo ao carregar a página
     setTimeout(function() {
-        $escola.trigger('change');
-    }, 100);
+        var schoolId = $('#escola_id').val() || 'all';
+        fetchMaterias(schoolId);
+    }, 200);
 });
 </script>
 {% endblock %}
