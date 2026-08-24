@@ -341,6 +341,7 @@ def gerar_prova_dec():
     qtd = request.form.get('qtd_questoes', type=int, default=30)
     materia = request.form.get('materia', type=str)
     escola_id = request.form.get('escola_id')
+    ciclo_id = request.form.get('ciclo_id')
     edicao_id = request.form.get('edicao_id')
     
     escolas = School.query.order_by(School.nome).all()
@@ -359,6 +360,9 @@ def gerar_prova_dec():
     if escola_id and escola_id != 'all':
         query = query.filter(QuestaoBanco.escola_id == int(escola_id))
         
+    if ciclo_id and ciclo_id != 'all':
+        query = query.filter(Disciplina.ciclo_id == int(ciclo_id))
+        
     if edicao_id and edicao_id not in ['all', 'Geral', '']:
         query = query.join(Turma, Disciplina.turma_id == Turma.id).filter(Turma.edicao_id == int(edicao_id))
         
@@ -376,7 +380,10 @@ def gerar_prova_dec():
         flash(f"Atenção: Você solicitou {qtd} questões, mas o banco possui apenas {total_disponivel}. A prova foi gerada com o total disponível.", "info")
         
     questoes_sorteadas = random.sample(todas_questoes, k=qtd_real)
-    questoes_banco = [q for q in todas_questoes if q not in questoes_sorteadas]
+    
+    # Compara por ID para garantir precisão
+    sorteadas_ids = {q.id for q in questoes_sorteadas}
+    questoes_banco = [q for q in todas_questoes if q.id not in sorteadas_ids]
     
     return render_template('super_admin/painel_dec_questoes.html', 
                            escolas=escolas, 
