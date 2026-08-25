@@ -1,0 +1,539 @@
+{% extends 'base.html' %}
+{% block title %}Painel DEC - Banco de Questões{% endblock %}
+
+{% block navbar_content %}
+<nav class="navbar d-flex justify-content-center align-items-center" style="background-color: var(--secondary-color, #1a232c); min-height: 70px;">
+    <h1 class="m-0" style="color: var(--primary-color, #0d6efd); font-family: 'Bree Serif', serif; font-weight: bold; font-size: 2.2rem; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">SisGEn v1.01</h1>
+</nav>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Oculta os menus do sistema para criar um modo focado (nova aba) */
+    .sidebar, .top-navbar { display: none !important; }
+    .page-container, .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #f8f9fa !important; }
+    body { background: #f8f9fa !important; }
+    .content-wrapper { background: transparent !important; box-shadow: none !important; margin: 20px auto; max-width: 1400px; padding: 20px; }
+    
+    .questao-selecionada {
+        border: 2px solid #0d6efd !important;
+        background-color: #e9ecef !important;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+        transform: scale(1.01);
+    }
+    
+    @media print {
+        .col-banco, .d-print-none { display: none !important; }
+        .col-prova { width: 100% !important; max-width: 100% !important; flex: 0 0 100% !important; }
+        .p-print-0 { padding: 0 !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        .card-body { padding: 0 !important; }
+    }
+</style>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <h2><i class="fas fa-crown text-warning"></i> Painel DEC - Gerador de Provas (SisGEn v1.01)</h2>
+    </div>
+
+    <div class="row d-print-none mb-4">
+        <div class="col-md-12">
+            <button class="btn btn-info text-white fw-bold shadow-sm w-100 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#bancoCollapse" aria-expanded="false" aria-controls="bancoCollapse" style="font-size: 1.1rem;">
+                <i class="fas fa-search"></i> Visualizar Questões
+            </button>
+            <div class="collapse mt-3" id="bancoCollapse">
+                <div class="card shadow-sm border-info">
+                    <div class="card-header bg-info text-white fw-bold">
+                        <i class="fas fa-filter"></i> Filtros de Acesso ao Banco
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Escola</label>
+                                <select class="form-select" id="escola_banco_id">
+                                    <option value="" selected disabled>Selecione a Escola...</option>
+                                    <option value="all">Todas as Escolas (Global)</option>
+                                    {% for escola in escolas %}
+                                        <option value="{{ escola.id }}">{{ escola.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Ciclo</label>
+                                <select class="form-select" id="ciclo_banco_id" disabled>
+                                    <option value="">Aguardando Escola...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matéria</label>
+                                <select class="form-select" id="materia_banco_id" disabled>
+                                    <option value="">Aguardando Ciclo...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <a href="#" id="btn_acessar_banco" class="btn btn-primary w-100 fw-bold disabled">
+                                    Acessar Banco
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row d-print-none">
+        <!-- Coluna de Geração Rápida -->
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-cogs"></i> Gerar Prova Aleatória
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('questoes.gerar_prova_dec') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Escola (Opcional)</label>
+                                <select class="form-select" name="escola_id" id="escola_id">
+                                    <option value="all">Todas as Escolas (Global)</option>
+                                    {% for escola in escolas %}
+                                        <option value="{{ escola.id }}" {% if escola_selecionada and escola_selecionada|string == escola.id|string %}selected{% endif %}>{{ escola.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Ciclo (Opcional)</label>
+                                <select class="form-select" name="ciclo_id" id="ciclo_id" disabled>
+                                    <option value="all">Aguardando Escola...</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matéria (Obrigatória)</label>
+                                <select class="form-select select2" name="materia" id="materia_id" disabled required>
+                                    <option value="">Aguardando Ciclo...</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Qtd. Questões</label>
+                                <input type="number" class="form-control" name="qtd_questoes" id="qtd_questoes" value="{{ qtd or 30 }}" min="1" max="100" disabled required>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-end">
+                            <button type="submit" id="btn_gerar" class="btn btn-primary px-4 fw-bold" disabled>
+                                <i class="fas fa-magic"></i> Gerar Prova Agora
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÁREA DA PROVA GERADA E EDITOR LADO-A-LADO -->
+    {% if questoes %}
+    <div class="row mt-4" id="editor-container">
+        
+        <!-- COLUNA ESQUERDA: A PROVA GERADA -->
+        <div class="col-lg-6 mb-4 col-prova" id="coluna-prova">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center d-print-none">
+                    <h5 class="mb-0"><i class="fas fa-file-alt"></i> Prova Gerada</h5>
+                    <button onclick="window.print()" class="btn btn-light btn-sm fw-bold shadow-sm">
+                        <i class="fas fa-print"></i> Imprimir Prova
+                    </button>
+                </div>
+                <div class="card-body p-4 p-print-0" id="prova-content">
+                    
+                    <!-- Cabeçalho da Prova -->
+                    <div class="text-center mb-5">
+                        <h3 class="fw-bold fs-4 fs-print-3">BRIGADA MILITAR DO RIO GRANDE DO SUL</h3>
+                        <h4 class="fw-bold text-secondary fs-5 fs-print-4">DEPARTAMENTO DE EDUCAÇÃO E CULTURA</h4>
+                        <h5 class="mt-3">Geração Expressa de Prova</h5>
+                        <hr>
+                        <div class="d-flex justify-content-between mt-3 px-3">
+                            <strong>Matéria: <span class="text-uppercase">{{ materia_selecionada }}</span></strong>
+                            <strong>Quantidade de Questões: <span id="qtd-display">{{ qtd }}</span></strong>
+                        </div>
+                        <hr>
+                    </div>
+
+                    <!-- Questões (Sorteadas) -->
+                    <div class="questoes-lista" id="lista-prova">
+                        {% for questao in questoes %}
+                        <div class="questao-item questao-prova mb-4 p-3 border rounded bg-white" style="page-break-inside: avoid; cursor: pointer; transition: all 0.2s;" data-id="{{ questao.id }}" data-resposta="{{ questao.resposta_correta }}">
+                            <p class="fw-bold mb-2 text-dark"><span class="q-num">{{ loop.index }}</span>. <span class="q-enunciado">{{ questao.enunciado }}</span></p>
+                            
+                            <div class="ps-3 q-alternativas">
+                                <p class="mb-1"><strong>A)</strong> <span class="alt-a">{{ questao.alternativas.get('A', '') }}</span></p>
+                                <p class="mb-1"><strong>B)</strong> <span class="alt-b">{{ questao.alternativas.get('B', '') }}</span></p>
+                                <p class="mb-1"><strong>C)</strong> <span class="alt-c">{{ questao.alternativas.get('C', '') }}</span></p>
+                                <p class="mb-1"><strong>D)</strong> <span class="alt-d">{{ questao.alternativas.get('D', '') }}</span></p>
+                                <p class="mb-1"><strong>E)</strong> <span class="alt-e">{{ questao.alternativas.get('E', '') }}</span></p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Quebra de página antes do gabarito -->
+                    <div style="page-break-before: always;" class="mt-5"></div>
+
+                    <!-- Gabarito Oficial -->
+                    <div class="gabarito-container text-center mt-5 pt-4">
+                        <h4 class="fw-bold text-decoration-underline mb-4">GABARITO OFICIAL - DEC</h4>
+                        <h5 class="mb-4 text-uppercase">{{ materia_selecionada }}</h5>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <table class="table table-bordered table-sm" id="gabarito-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th width="50%">Questão</th>
+                                            <th width="50%">Resposta</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for questao in questoes %}
+                                        <tr data-id="{{ questao.id }}">
+                                            <td class="fw-bold q-num-gabarito">{{ loop.index }}</td>
+                                            <td class="fw-bold text-success q-resp-gabarito">{{ questao.resposta_correta }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUNA DIREITA: O BANCO DE QUESTÕES (NÃO SORTEADAS) -->
+        <div class="col-lg-6 mb-4 col-banco d-print-none">
+            <div class="card shadow border-0 h-100 bg-light">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-database"></i> Banco de Questões</h5>
+                    <small>Dê 2 cliques na questão abaixo para enviá-la à prova.</small>
+                </div>
+                <div class="card-body p-4" style="max-height: 1200px; overflow-y: auto;">
+                    
+                    <div class="alert alert-info py-2 mb-4 shadow-sm" id="status-troca">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Selecione (com 1 clique) uma questão da Prova ao lado para substituí-la.</strong>
+                    </div>
+
+                    <div class="questoes-lista-banco" id="lista-banco">
+                        {% if questoes_banco %}
+                            {% for questao in questoes_banco %}
+                            <div class="questao-item questao-banco mb-4 p-3 border bg-white rounded shadow-sm" style="cursor: pointer; transition: all 0.2s;" data-id="{{ questao.id }}" data-resposta="{{ questao.resposta_correta }}">
+                                <p class="fw-bold mb-2 text-primary"><span class="q-num d-none"></span><span class="q-ref">Ref. #{{ questao.id }} - </span><span class="q-enunciado">{{ questao.enunciado }}</span></p>
+                                
+                                <div class="ps-3 text-muted small q-alternativas">
+                                    <p class="mb-0"><strong>A)</strong> <span class="alt-a">{{ questao.alternativas.get('A', '') }}</span></p>
+                                    <p class="mb-0"><strong>B)</strong> <span class="alt-b">{{ questao.alternativas.get('B', '') }}</span></p>
+                                    <p class="mb-0"><strong>C)</strong> <span class="alt-c">{{ questao.alternativas.get('C', '') }}</span></p>
+                                    <p class="mb-0"><strong>D)</strong> <span class="alt-d">{{ questao.alternativas.get('D', '') }}</span></p>
+                                    <p class="mb-0"><strong>E)</strong> <span class="alt-e">{{ questao.alternativas.get('E', '') }}</span></p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-center text-muted mt-5" id="banco-vazio">Nenhuma outra questão disponível no banco para esta matéria.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    var $escola = $('#escola_id');
+    var $ciclo = $('#ciclo_id');
+    var $materia = $('#materia_id');
+    var $qtd = $('#qtd_questoes');
+    var $btn = $('#btn_gerar');
+
+    if ($.fn.select2) {
+        $materia.select2({ theme: 'bootstrap-5' });
+    }
+
+    var selectedMateria = '{{ materia_selecionada|default("", true) }}';
+    var urlFiltroMaterias = "{{ url_for('questoes.api_get_materias_filtro') }}";
+    var urlFiltroCiclos = "{{ url_for('questoes.api_get_ciclos_filtro') }}";
+
+    function atualizaVisuaisMateria() {
+        if ($.fn.select2 && $materia.hasClass("select2-hidden-accessible")) {
+            $materia.trigger('change.select2');
+        }
+    }
+
+    function fetchCiclos(schoolId) {
+        $ciclo.prop('disabled', true).empty().append('<option value="">Buscando ciclos...</option>');
+        $materia.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+        atualizaVisuaisMateria();
+
+        $.ajax({
+            url: urlFiltroCiclos,
+            type: 'GET',
+            data: { school_id: schoolId },
+            success: function(data) {
+                $ciclo.empty().append('<option value="all">Todos os Ciclos (Global)</option>');
+                if (data && data.length > 0) {
+                    data.forEach(function(c) {
+                        $ciclo.append('<option value="' + c.id + '">' + c.nome + '</option>');
+                    });
+                }
+                $ciclo.prop('disabled', false);
+                // Após carregar ciclos, busca as matérias considerando o filtro global
+                fetchMaterias(schoolId, 'all');
+            },
+            error: function(err) {
+                $ciclo.empty().append('<option value="all">Erro ao carregar</option>');
+                $ciclo.prop('disabled', false);
+                fetchMaterias(schoolId, 'all'); // Fallback
+            }
+        });
+    }
+
+    function fetchMaterias(schoolId, cicloId) {
+        $materia.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+        $qtd.prop('disabled', true);
+        $btn.prop('disabled', true);
+        atualizaVisuaisMateria();
+
+        $.ajax({
+            url: urlFiltroMaterias,
+            type: 'GET',
+            data: {
+                school_id: schoolId,
+                ciclo_id: cicloId,
+                edicao_id: 'all'
+            },
+            success: function(data) {
+                $materia.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                if (data && data.length > 0) {
+                    data.forEach(function(mat) {
+                        var isSelected = (mat === selectedMateria) ? ' selected' : '';
+                        $materia.append('<option value="' + mat + '"' + isSelected + '>' + mat + '</option>');
+                    });
+                } else {
+                    $materia.empty().append('<option value="" selected disabled>Nenhuma matéria encontrada</option>');
+                }
+                $materia.prop('disabled', false);
+                atualizaVisuaisMateria();
+                verificarMateriaSelecionada();
+            },
+            error: function(err) {
+                $materia.empty().append('<option value="" selected disabled>Erro ao carregar</option>');
+                $materia.prop('disabled', false);
+                atualizaVisuaisMateria();
+            }
+        });
+    }
+
+    function verificarMateriaSelecionada() {
+        var val = $materia.val();
+        if (val && val !== "") {
+            $qtd.prop('disabled', false);
+            $btn.prop('disabled', false);
+        } else {
+            $qtd.prop('disabled', true);
+            $btn.prop('disabled', true);
+        }
+    }
+
+    $(document).on('change', '#escola_id', function() {
+        var schoolId = $(this).val() || 'all';
+        fetchCiclos(schoolId);
+    });
+
+    $(document).on('change', '#ciclo_id', function() {
+        var schoolId = $('#escola_id').val() || 'all';
+        var cicloId = $(this).val() || 'all';
+        fetchMaterias(schoolId, cicloId);
+    });
+
+    $(document).on('change', '#materia_id', function() {
+        verificarMateriaSelecionada();
+    });
+
+    setTimeout(function() {
+        var schoolId = $('#escola_id').val() || 'all';
+        fetchCiclos(schoolId);
+    }, 200);
+
+    // ==========================================
+    // LÓGICA DO EDITOR LADO-A-LADO (SWAP)
+    // ==========================================
+    var questaoSelecionadaNaProva = null;
+    
+    function renumerarProvaEGabarito() {
+        var $gabaritoTbody = $('#gabarito-table tbody');
+        $gabaritoTbody.empty();
+        
+        $('#lista-prova .questao-item').each(function(index) {
+            var num = index + 1;
+            $(this).find('.q-num').text(num);
+            
+            // Adiciona no gabarito
+            var resp = $(this).attr('data-resposta');
+            var id = $(this).attr('data-id');
+            var tr = '<tr data-id="' + id + '">' +
+                     '<td class="fw-bold q-num-gabarito">' + num + '</td>' +
+                     '<td class="fw-bold text-success q-resp-gabarito">' + resp + '</td>' +
+                     '</tr>';
+            $gabaritoTbody.append(tr);
+        });
+        
+        $('#qtd-display').text($('#lista-prova .questao-item').length);
+    }
+
+    $(document).on('click', '.questao-prova', function() {
+        $('.questao-prova').removeClass('questao-selecionada');
+        $(this).addClass('questao-selecionada');
+        questaoSelecionadaNaProva = $(this);
+        
+        $('#status-troca').removeClass('alert-info').addClass('alert-warning').html('<i class="fas fa-exclamation-triangle"></i> <strong>Questão selecionada!</strong> Agora dê 2 cliques na questão desejada do banco para substituí-la.');
+    });
+
+    $(document).on('dblclick', '.questao-banco', function() {
+        if (!questaoSelecionadaNaProva) {
+            alert('Primeiro, clique 1 vez em uma questão da Prova (coluna da esquerda) para selecioná-la.');
+            return;
+        }
+        
+        var $questaoBanco = $(this);
+        var $questaoProva = questaoSelecionadaNaProva;
+        
+        // Remove selection state
+        $questaoProva.removeClass('questao-selecionada');
+        
+        // 1. Prepara a questão do banco para ir para a prova
+        $questaoBanco.removeClass('questao-banco text-primary').addClass('questao-prova text-dark');
+        $questaoBanco.find('.q-ref').remove();
+        $questaoBanco.find('.q-num').removeClass('d-none');
+        
+        // 2. Prepara a questão da prova para ir para o banco
+        var idProva = $questaoProva.attr('data-id');
+        $questaoProva.removeClass('questao-prova text-dark').addClass('questao-banco text-primary');
+        $questaoProva.find('.q-num').addClass('d-none');
+        $questaoProva.find('.q-ref').remove(); // previne duplicação
+        $questaoProva.find('.q-enunciado').before('<span class="q-ref">Ref. #' + idProva + ' - </span>');
+        
+        // 3. Executa a troca física no DOM
+        $questaoProva.before($questaoBanco); // Move do banco para a prova, no lugar exato
+        $('#lista-banco').prepend($questaoProva); // Move da prova para o topo do banco
+        
+        // Reset
+        questaoSelecionadaNaProva = null;
+        $('#status-troca').removeClass('alert-warning').addClass('alert-info').html('<i class="fas fa-info-circle"></i> <strong>Selecione (com 1 clique) uma questão da Prova ao lado para substituí-la.</strong>');
+        $('#banco-vazio').remove();
+        
+        renumerarProvaEGabarito();
+    });
+
+    // LÓGICA DOS FILTROS DO BANCO DE QUESTÕES
+    var $escolaBanco = $('#escola_banco_id');
+    var $cicloBanco = $('#ciclo_banco_id');
+    var $materiaBanco = $('#materia_banco_id');
+    var $btnBanco = $('#btn_acessar_banco');
+
+    function atualizaBotaoBanco() {
+        var escolaVal = $escolaBanco.val();
+        var materiaVal = $materiaBanco.val();
+        
+        if (escolaVal && materiaVal) {
+            $btnBanco.removeClass('disabled');
+            $btnBanco.attr('href', '/questoes/banco/' + escolaVal + '/' + encodeURIComponent(materiaVal));
+        } else {
+            $btnBanco.addClass('disabled');
+            $btnBanco.attr('href', '#');
+        }
+    }
+
+    $escolaBanco.on('change', function() {
+        var schoolId = $(this).val();
+        $btnBanco.addClass('disabled');
+        
+        if (schoolId) {
+            $cicloBanco.prop('disabled', true).empty().append('<option value="">Buscando ciclos...</option>');
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+            
+            $.ajax({
+                url: urlFiltroCiclos,
+                type: 'GET',
+                data: { school_id: schoolId },
+                success: function(data) {
+                    $cicloBanco.empty().append('<option value="all">Todos os Ciclos (Global)</option>');
+                    if (data && data.length > 0) {
+                        data.forEach(function(c) {
+                            $cicloBanco.append('<option value="' + c.id + '">' + c.nome + '</option>');
+                        });
+                    }
+                    $cicloBanco.prop('disabled', false);
+                    
+                    // Fetch materias for the school with 'all' cycles
+                    $materiaBanco.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+                    $.ajax({
+                        url: urlFiltroMaterias,
+                        type: 'GET',
+                        data: { school_id: schoolId, ciclo_id: 'all', edicao_id: 'all' },
+                        success: function(matData) {
+                            $materiaBanco.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                            if (matData && matData.length > 0) {
+                                matData.forEach(function(mat) {
+                                    $materiaBanco.append('<option value="' + mat + '">' + mat + '</option>');
+                                });
+                            }
+                            $materiaBanco.prop('disabled', false);
+                            atualizaBotaoBanco();
+                        }
+                    });
+                }
+            });
+        } else {
+            $cicloBanco.prop('disabled', true).empty().append('<option value="">Aguardando Escola...</option>');
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+        }
+    });
+
+    $cicloBanco.on('change', function() {
+        var schoolId = $escolaBanco.val();
+        var cicloId = $(this).val();
+        $btnBanco.addClass('disabled');
+        
+        if (schoolId && cicloId) {
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+            $.ajax({
+                url: urlFiltroMaterias,
+                type: 'GET',
+                data: { school_id: schoolId, ciclo_id: cicloId, edicao_id: 'all' },
+                success: function(matData) {
+                    $materiaBanco.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                    if (matData && matData.length > 0) {
+                        matData.forEach(function(mat) {
+                            $materiaBanco.append('<option value="' + mat + '">' + mat + '</option>');
+                        });
+                    }
+                    $materiaBanco.prop('disabled', false);
+                    atualizaBotaoBanco();
+                }
+            });
+        }
+    });
+
+    $materiaBanco.on('change', atualizaBotaoBanco);
+});
+</script>
+{% endblock %}

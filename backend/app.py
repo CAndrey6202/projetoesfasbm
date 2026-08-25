@@ -28,6 +28,7 @@ from backend.services.asset_service import AssetService
 
 # --- Importações de TODOS os modelos para o Flask-Migrate ---
 from backend.models.aluno import Aluno
+from backend.models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao, RespostaAvaliacaoGeral, ControlePreenchimentoAvaliacao
 # from backend.models.avaliacao import AvaliacaoAtitudinal, AvaliacaoItem
 from backend.models.disciplina import Disciplina
 from backend.models.disciplina_turma import DisciplinaTurma
@@ -346,8 +347,10 @@ def register_handlers_and_processors(app):
         # ---------------------------------------------
 
         # --- VERIFICACAO DE BLOQUEIO POR AVALIACAO OBRIGATORIA ---
-        bloqueio_avaliacao = False
+        hard_lock_avaliacao = False
+        soft_lock_avaliacao = False
         campanha_pendente_id = None
+        horas_restantes_avaliacao = 0
         
         if current_user.is_authenticated:
             act_sid = g.active_school.id if g.get('active_school') else None
@@ -355,7 +358,7 @@ def register_handlers_and_processors(app):
             if str(getattr(current_user, 'role', '')).lower().strip() == 'aluno' or local_role == 'aluno':
                 try:
                     from backend.services.aluno_service import AlunoService
-                    bloqueio_avaliacao, campanha_pendente_id = AlunoService.check_pending_mandatory_evaluations(current_user)
+                    hard_lock_avaliacao, soft_lock_avaliacao, campanha_pendente_id, horas_restantes_avaliacao = AlunoService.check_pending_mandatory_evaluations(current_user)
                 except Exception as e:
                     app.logger.error(f'Erro ao checar avaliacoes pendentes: {e}')
         # ---------------------------------------------
@@ -367,8 +370,10 @@ def register_handlers_and_processors(app):
             'edicoes_disponiveis': edicoes_disponiveis,
             'dec_mode_active': dec_mode_active,
             'tem_pendencia_suporte': tem_pendencia_suporte,
-            'bloqueio_avaliacao': bloqueio_avaliacao,
-            'campanha_pendente_id': campanha_pendente_id
+            'hard_lock_avaliacao': hard_lock_avaliacao,
+            'soft_lock_avaliacao': soft_lock_avaliacao,
+            'campanha_pendente_id': campanha_pendente_id,
+            'horas_restantes_avaliacao': horas_restantes_avaliacao
         }
 
     @app.after_request

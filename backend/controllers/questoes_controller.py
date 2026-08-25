@@ -7,7 +7,7 @@ from markupsafe import escape
 
 from utils.decorators import super_admin_required
 from backend.models.database import db
-from backend.models import QuestaoBanco, DelegacaoProva, Disciplina, School, Instrutor, Turma, User
+from backend.models import QuestaoBanco, DelegacaoProva, Disciplina, School, Instrutor, Turma, User, Ciclo
 from backend.models.banco_questoes import ConfiguracaoEnvio
 from backend.models.disciplina_turma import DisciplinaTurma
 
@@ -48,11 +48,45 @@ def api_get_disciplinas(school_id):
 @login_required
 @super_admin_required
 def api_get_edicoes(school_id):
-    """Retorna as edições que possuem turmas na escola selecionada."""
+    """Retorna as edições que pertencem fisicamente à escola selecionada."""
     from backend.models.edicao import Edicao
-    query = db.session.query(Edicao.id, Edicao.nome).join(Turma).filter(Turma.school_id == school_id).distinct()
-    edicoes = [{"id": e.id, "nome": e.nome} for e in query.all()]
-    return jsonify(edicoes)
+    edicoes = Edicao.query.filter_by(school_id=school_id).order_by(Edicao.nome).all()
+    return jsonify([{"id": e.id, "nome": e.nome} for e in edicoes])
+
+@questoes_bp.route('/api/ciclos/filtro', methods=['GET'])
+@login_required
+@super_admin_required
+def api_get_ciclos_filtro():
+    school_id = request.args.get('school_id')
+    query = db.session.query(Ciclo.id, Ciclo.nome)
+    
+    if school_id and school_id != 'all':
+        query = query.filter(Ciclo.school_id == int(school_id))
+        
+    ciclos = query.order_by(Ciclo.nome).distinct().all()
+    return jsonify([{'id': c.id, 'nome': c.nome} for c in ciclos])
+
+@questoes_bp.route('/api/materias/filtro', methods=['GET'])
+@login_required
+@super_admin_required
+def api_get_materias_filtro():
+    """Retorna as matérias dinamicamente com base na escola, edição e ciclo selecionados."""
+    school_id = request.args.get('school_id')
+    edicao_id = request.args.get('edicao_id')
+    ciclo_id = request.args.get('ciclo_id')
+    
+    query = db.session.query(Disciplina.materia)
+    
+    if school_id and school_id != 'all':
+        query = query.join(Turma).filter(Turma.school_id == int(school_id))
+        if edicao_id and edicao_id != 'all':
+            query = query.filter(Turma.edicao_id == int(edicao_id))
+            
+    if ciclo_id and ciclo_id != 'all':
+        query = query.filter(Disciplina.ciclo_id == int(ciclo_id))
+            
+    materias = query.distinct().all()
+    return jsonify(sorted([m[0] for m in materias if m[0]]))
 
 @questoes_bp.route('/api/configuracao', methods=['GET', 'POST'])
 @login_required
@@ -287,6 +321,108 @@ def remover_questao_banco(id):
     db.session.commit()
     return jsonify({'success': True, 'message': 'Questão removida com sucesso.'})
 
+@questoes_bp.route('/api/questao/editar/<int:id>', methods=['POST'])
+@login_required
+@super_admin_required
+def editar_questao_banco(id):
+    """Edita uma questão do banco."""
+    questao = QuestaoBanco.query.get_or_404(id)
+    
+    dados = request.get_json()
+    if not dados:
+        return jsonify({'success': False, 'message': 'Nenhum dado recebido.'})
+
+    enunciado = dados.get('enunciado')
+    alternativas = dados.get('alternativas')
+    resposta_correta = dados.get('resposta_correta')
+    assunto = dados.get('assunto')
+
+    if enunciado:
+        questao.enunciado = enunciado.strip()
+    if alternativas and isinstance(alternativas, dict):
+        # Limpar espaços e padronizar chaves para string
+        questao.alternativas = {str(k).upper().strip(): str(v).strip() for k, v in alternativas.items()}
+    if resposta_correta and isinstance(resposta_correta, str):
+        questao.resposta_correta = resposta_correta.upper().strip()
+    if assunto is not None:
+        questao.assunto = assunto.strip()
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Questão atualizada com sucesso.'})
+
+@questoes_bp.route('/painel-dec', methods=['GET'])
+@login_required
+@super_admin_required
+def painel_dec():
+    """Painel do DEC para geração de provas globais e análise unificada."""
+    escolas = School.query.order_by(School.nome).all()
+    materias_db = db.session.query(Disciplina.materia).distinct().all()
+    lista_materias = sorted([m[0] for m in materias_db if m[0]])
+    return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
+
+
+@questoes_bp.route('/dec/gerar-prova', methods=['POST'])
+@login_required
+@super_admin_required
+def gerar_prova_dec():
+    """Sorteia as questões globalmente e exibe na tela de impressão imediata."""
+    qtd = request.form.get('qtd_questoes', type=int, default=30)
+    materia = request.form.get('materia', type=str)
+    escola_id = request.form.get('escola_id')
+    ciclo_id = request.form.get('ciclo_id')
+    edicao_id = request.form.get('edicao_id')
+    
+    escolas = School.query.order_by(School.nome).all()
+    materias_db = db.session.query(Disciplina.materia).distinct().all()
+    lista_materias = sorted([m[0] for m in materias_db if m[0]])
+    
+    if not materia:
+        flash("Selecione uma matéria obrigatória.", "danger")
+        return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
+
+    query = QuestaoBanco.query.join(Disciplina).filter(
+        QuestaoBanco.ativo == True,
+        Disciplina.materia == materia
+    )
+    
+    if escola_id and escola_id != 'all':
+        query = query.filter(QuestaoBanco.escola_id == int(escola_id))
+        
+    if ciclo_id and ciclo_id != 'all':
+        query = query.filter(Disciplina.ciclo_id == int(ciclo_id))
+        
+    if edicao_id and edicao_id not in ['all', 'Geral', '']:
+        query = query.join(Turma, Disciplina.turma_id == Turma.id).filter(Turma.edicao_id == int(edicao_id))
+        
+    todas_questoes = query.all()
+    total_disponivel = len(todas_questoes)
+    
+    if total_disponivel == 0:
+        flash("Nenhuma questão foi encontrada no banco para esta disciplina/escola.", "warning")
+        return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
+        
+    # Adaptação de inteligência: se pediu 30 mas só tem 5, sorteia as 5 sem travar
+    qtd_real = min(qtd, total_disponivel)
+    
+    if qtd_real < qtd:
+        flash(f"Atenção: Você solicitou {qtd} questões, mas o banco possui apenas {total_disponivel}. A prova foi gerada com o total disponível.", "info")
+        
+    questoes_sorteadas = random.sample(todas_questoes, k=qtd_real)
+    
+    # Compara por ID para garantir precisão
+    sorteadas_ids = {q.id for q in questoes_sorteadas}
+    questoes_banco = [q for q in todas_questoes if q.id not in sorteadas_ids]
+    
+    return render_template('super_admin/painel_dec_questoes.html', 
+                           escolas=escolas, 
+                           materias=lista_materias, 
+                           questoes=questoes_sorteadas,
+                           questoes_banco=questoes_banco,
+                           materia_selecionada=materia,
+                           escola_selecionada=escola_id,
+                           edicao_selecionada=edicao_id,
+                           qtd=qtd)
+
 
 # =========================================================================
 # ROTAS DO INSTRUTOR (ENVIO E MOTOR INTELIGENTE)
@@ -335,7 +471,6 @@ def tela_envio():
         tem_vinculo = False
         for v_materia, v_edicao in materias_vinculadas:
             if v_materia == opcao["materia"]:
-                # Se o envio aberto for 'Geral' (None), ou se for a mesma edição da turma do instrutor
                 if opcao["edicao_id"] is None or opcao["edicao_id"] == v_edicao:
                     tem_vinculo = True
                     break
@@ -395,7 +530,10 @@ def processar_texto():
 def salvar_questoes():
     try:
         dados = request.get_json()
-        materia = dados.get('materia')
+        materia_full = dados.get('materia', '')
+        # Remove a parte da edicao (ex: "Materia | Edicao 1")
+        materia = materia_full.split(' | ')[0].strip() if ' | ' in materia_full else materia_full.strip()
+        
         questoes_lista = dados.get('questoes', [])
 
         escola_id = session.get('active_school_id') or (current_user.user_schools[0].school_id if current_user.user_schools else None)
@@ -409,16 +547,6 @@ def salvar_questoes():
 
         if not disciplina:
             return jsonify({'success': False, 'message': 'Disciplina não encontrada.'}), 404
-
-        # === NOVA REGRA 1: Segurança de Bloqueio no Backend ===
-        ja_enviou = QuestaoBanco.query.filter_by(
-            instrutor_id=instrutor.id,
-            disciplina_id=disciplina.id,
-            escola_id=escola_id
-        ).first()
-
-        if ja_enviou:
-            return jsonify({'success': False, 'message': 'Você já enviou questões para esta disciplina. Solicite liberação ao Super Admin.'}), 403
 
         # === NOVA REGRA 2: Filtro Anti-Duplicidade ===
         # Puxa apenas os textos (enunciados) que já existem no banco para esta matéria

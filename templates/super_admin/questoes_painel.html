@@ -57,10 +57,6 @@
                                     <input class="form-check-input" type="checkbox" id="toggle-envio">
                                     <label class="form-check-label ms-2 fw-bold" for="toggle-envio" id="label-toggle">Verificando...</label>
                                 </div>
-
-                                <a href="#" id="btn-acessar-banco" class="btn btn-info text-white fw-bold w-100 py-2 shadow-sm">
-                                    <i class="fas fa-search"></i> Visualizar Questões
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -122,7 +118,6 @@ document.addEventListener('DOMContentLoaded', function() {
         toggle: document.getElementById('toggle-envio'),
         edicao: document.getElementById('select-edicao'),
         label: document.getElementById('label-toggle'),
-        btnBanco: document.getElementById('btn-acessar-banco'),
         btnDelegar: document.getElementById('btn-delegar'),
         tabelaDel: document.getElementById('lista-delegacoes')
     };
@@ -177,7 +172,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const sid = els.escola.value;
         const mat = this.value;
         
-        els.btnBanco.href = `/questoes/banco/${sid}/${encodeURIComponent(mat)}`;
         verificarStatusEdicao();
 
         fetch(`/questoes/api/instrutores?school_id=${sid}&materia=${encodeURIComponent(mat)}`)

@@ -72,7 +72,7 @@ def _save_profile_picture(file):
 
     
 
-    # COMPRESSÃƒO AUTOMÃ�TICA (256x256, Qualidade 60, JPEG)
+    # COMPRESSÃƒO AUTOMÃTICA (256x256, Qualidade 60, JPEG)
 
     compressed_file = compress_image_to_memory(file, max_size=(256, 256), quality=60)
 
@@ -490,24 +490,119 @@ class AlunoService:
 
         """
 
-        Verifica se um usuÃ¡rio (Aluno) tem alguma CampanhaAvaliacao obrigatÃ³ria ativa e pendente.
+        Verifica se um usuário (Aluno) tem alguma CampanhaAvaliacao obrigatória ativa e pendente.
 
-        Retorna (bloqueio: bool, campanha_id: int ou None)
+        Retorna (hard_lock: bool, soft_lock: bool, campanha_id: int ou None, horas_restantes: int)
 
         """
-
-
-
 
         aluno = getattr(user, 'aluno_profile', None)
 
         if not aluno or not aluno.turma:
 
-            return False, None
+            return False, False, None, 0
+
+
+
+        from ..models.avaliacao_instrutor import CampanhaAvaliacao, ControlePreenchimentoAvaliacao
+
+        from flask import session
+
+        from datetime import datetime, timedelta
+
+        
+
+        campanhas = db.session.query(CampanhaAvaliacao).filter_by(
+
+            school_id=aluno.turma.school_id,
+
+            is_ativa=True
+
+        ).filter(
+
+            (CampanhaAvaliacao.edicao_id == aluno.turma.edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+
+        ).all()
+
+
+
+        if not campanhas:
+
+            return False, False, None, 0
+
+
+
+        now = datetime.utcnow()
+
+        soft_lock = False
+
+        hard_lock = False
+
+        campanha_id = None
+
+        horas_restantes = 0
+
+
+
+        for campanha in campanhas:
+
+            # Ignora se a avaliação ainda não começou
+
+            if campanha.data_inicio and now < campanha.data_inicio:
+
+                continue
+
+                
+
+            controle = db.session.query(ControlePreenchimentoAvaliacao).filter_by(
+
+                campanha_id=campanha.id,
+
+                aluno_id=aluno.id
+
+            ).first()
+
+            
+
+            if not controle:
+
+                # O aluno ainda não respondeu. Verifica os prazos.
+
+                inicio = campanha.data_inicio or campanha.data_criacao
+
+                bloqueio = inicio + timedelta(hours=48)
+
+                
+
+                if now >= bloqueio:
+
+                    # Prazo estourou, HARD LOCK
+
+                    return True, False, campanha.id, 0
+
+                else:
+
+                    # Ainda no prazo (nas primeiras 48h)
+
+                    soft_lock = True
+
+                    campanha_id = campanha.id
+
+                    delta = bloqueio - now
+
+                    horas_restantes = int(delta.total_seconds() // 3600)
+
+                    # Não damos return aqui para caso haja OUTRA campanha estourada que precise dar hard lock
+
+        
+
+        return hard_lock, soft_lock, campanha_id, horas_restantes
 
 
 
         from ..models.avaliacao_instrutor import CampanhaAvaliacao, RespostaAvaliacao
+
+
 
         from ..models.horario import Horario
 
@@ -519,7 +614,7 @@ class AlunoService:
 
 
 
-        active_edicao_id = session.get('active_edicao_id')
+        
 
 
 
@@ -535,7 +630,7 @@ class AlunoService:
 
         ).filter(
 
-            (CampanhaAvaliacao.edicao_id == active_edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
+            (CampanhaAvaliacao.edicao_id == aluno.turma.edicao_id) | (CampanhaAvaliacao.edicao_id.is_(None))
 
         ).all()
 
