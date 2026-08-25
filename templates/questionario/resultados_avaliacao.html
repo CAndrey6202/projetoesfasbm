@@ -176,8 +176,8 @@
 
 <script>
     function toggleSelectAll(source) {
-        checkboxes = document.querySelectorAll('.inst-checkbox');
-        for(var i=0, n=checkboxes.length;i<n;i++) {
+        const checkboxes = document.querySelectorAll('.inst-checkbox');
+        for(let i=0, n=checkboxes.length; i<n; i++) {
             checkboxes[i].checked = source.checked;
         }
     }
@@ -233,7 +233,7 @@
     }
 
     function pollJobStatus(jobId, btnElement, originalHtml) {
-        const statusUrl = /api/jobs//status;
+        const statusUrl = `/api/jobs/${jobId}/status`;
         const interval = setInterval(() => {
             fetch(statusUrl)
                 .then(res => {
@@ -248,9 +248,9 @@
                         btnElement.disabled = false;
                     } else if(data.status === 'completed') {
                         clearInterval(interval);
-                        btnElement.innerHTML = '<i class="fas fa-check me-2"></i> Concludo';
+                        btnElement.innerHTML = '<i class="fas fa-check me-2"></i> Concluído';
                         // Inicia o download
-                        window.location.href = /api/jobs//download;
+                        window.location.href = `/api/jobs/${jobId}/download`;
                         
                         setTimeout(() => {
                             btnElement.innerHTML = originalHtml;
