@@ -259,10 +259,18 @@ def nova_avaliacao_instrutores():
     is_obrigatoria = True
     
     from datetime import datetime
+    import pytz
+    
     data_inicio_str = request.form.get('data_inicio')
     if data_inicio_str:
         try:
-            data_inicio_obj = datetime.strptime(data_inicio_str, '%Y-%m-%dT%H:%M')
+            # Pega a string enviada (horário local do Brasil)
+            naive_dt = datetime.strptime(data_inicio_str, '%Y-%m-%dT%H:%M')
+            # Define que este horário é de SP
+            sp_tz = pytz.timezone('America/Sao_Paulo')
+            local_dt = sp_tz.localize(naive_dt)
+            # Converte para UTC para gravar no banco
+            data_inicio_obj = local_dt.astimezone(pytz.utc).replace(tzinfo=None)
         except ValueError:
             data_inicio_obj = datetime.utcnow()
     else:

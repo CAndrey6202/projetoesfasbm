@@ -30,6 +30,23 @@ class CampanhaAvaliacao(db.Model):
     respostas_geral: Mapped[list["RespostaAvaliacaoGeral"]] = relationship(back_populates="campanha", cascade="all, delete-orphan")
     controles_preenchimento: Mapped[list["ControlePreenchimentoAvaliacao"]] = relationship(back_populates="campanha", cascade="all, delete-orphan")
 
+    @property
+    def data_inicio_local(self):
+        import pytz
+        if not self.data_inicio:
+            return None
+        # O banco salva como naive UTC. Vamos forçar UTC e converter para SP.
+        utc_dt = self.data_inicio.replace(tzinfo=pytz.utc)
+        sp_tz = pytz.timezone('America/Sao_Paulo')
+        return utc_dt.astimezone(sp_tz)
+
+    @property
+    def is_liberada(self):
+        from datetime import datetime
+        if not self.data_inicio:
+            return True
+        return datetime.utcnow() >= self.data_inicio
+
     def __repr__(self):
         return f"<CampanhaAvaliacao id={self.id} titulo='{self.titulo}' ativa={self.is_ativa}>"
 

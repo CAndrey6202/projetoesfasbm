@@ -332,8 +332,8 @@ def responder_avaliacao(id):
         return redirect(url_for('dashboard.index'))
         
     campanha = db.session.get(CampanhaAvaliacao, id)
-    if not campanha or not campanha.is_ativa:
-        flash('Campanha inativa ou não encontrada.', 'danger')
+    if not campanha or not campanha.is_ativa or not campanha.is_liberada:
+        flash('Campanha inativa ou não liberada.', 'danger')
         return redirect(url_for('dashboard.index'))
         
     aluno = db.session.query(Aluno).filter_by(user_id=current_user.id).first()

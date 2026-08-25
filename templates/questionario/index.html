@@ -131,8 +131,8 @@
                         </td>
                         <td>
                             {% if c.data_inicio %}
-                                <small class="text-muted d-block">Início: {{ c.data_inicio.strftime('%d/%m/%Y %H:%M') }}</small>
-                                <small class="text-danger d-block">Bloqueio: {{ (c.data_inicio + timedelta(hours=48)).strftime('%d/%m/%Y %H:%M') }}</small>
+                                <small class="text-muted d-block">Início: {{ c.data_inicio_local.strftime('%d/%m/%Y %H:%M') }}</small>
+                                <small class="text-danger d-block">Bloqueio: {{ (c.data_inicio_local + timedelta(hours=48)).strftime('%d/%m/%Y %H:%M') }}</small>
                             {% else %}
                                 <span class="badge bg-secondary">Imediato</span>
                             {% endif %}
@@ -143,7 +143,7 @@
                         <td class="text-end">
                             <div class="btn-group">
                                 {# Botão REALIZAR (Para Alunos) #}
-                                {% if c.is_ativa and (current_user.role|string|lower|trim == 'aluno' or current_user.get_role_in_school(session.get('active_school_id')) == 'aluno') %}
+                                {% if c.is_ativa and c.is_liberada and (current_user.role|string|lower|trim == 'aluno' or current_user.get_role_in_school(session.get('active_school_id')) == 'aluno') %}
                                     <a href="{{ url_for('aluno.responder_avaliacao', id=c.id) }}" class="btn btn-sm btn-success" title="Avaliar Instrutores">
                                         <i class="fas fa-pen"></i> Avaliar
                                     </a>
