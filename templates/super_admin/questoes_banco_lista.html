@@ -158,7 +158,9 @@
             container.innerHTML += html;
         });
         
-        const modal = new bootstrap.Modal(document.getElementById('modalEditarQuestao'));
+        const modalEl = document.getElementById('modalEditarQuestao');
+        document.body.appendChild(modalEl); // Fixes backdrop and z-index issues
+        const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }
 
