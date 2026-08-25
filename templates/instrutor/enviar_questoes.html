@@ -47,7 +47,7 @@
 
             <div class="mb-4">
                 <button type="button" id="btn-add-caixa" class="btn btn-outline-primary fw-bold">
-                    <i class="fas fa-plus"></i> Adicionar outra caixa
+                    <i class="fas fa-plus"></i> Adicionar outra questão
                 </button>
             </div>
             <button id="btn-analisar" class="btn btn-success btn-lg shadow-sm">
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const wrapper = document.createElement('div');
             wrapper.className = 'textarea-wrapper position-relative mt-3 pt-3 border-top border-secondary-subtle';
             wrapper.innerHTML = `
-                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 mt-3 me-2 btn-remover-caixa" title="Remover caixa">
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 mt-3 me-2 btn-remover-caixa" title="Remover questão">
                     <i class="fas fa-trash"></i>
                 </button>
                 <textarea class="form-control texto-bruto-item" rows="10" placeholder="Cole a próxima questão aqui..."></textarea>
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         if (!textoBruto) {
-            alert("Por favor, cole o texto das questões em pelo menos uma caixa.");
+            alert("Por favor, cole o texto das questões em pelo menos um dos campos.");
             return;
         }
 
