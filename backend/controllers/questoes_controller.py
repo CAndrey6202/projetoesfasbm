@@ -321,6 +321,34 @@ def remover_questao_banco(id):
     db.session.commit()
     return jsonify({'success': True, 'message': 'Questão removida com sucesso.'})
 
+@questoes_bp.route('/api/questao/editar/<int:id>', methods=['POST'])
+@login_required
+@super_admin_required
+def editar_questao_banco(id):
+    """Edita uma questão do banco."""
+    questao = QuestaoBanco.query.get_or_404(id)
+    
+    dados = request.get_json()
+    if not dados:
+        return jsonify({'success': False, 'message': 'Nenhum dado recebido.'})
+
+    enunciado = dados.get('enunciado')
+    alternativas = dados.get('alternativas')
+    resposta_correta = dados.get('resposta_correta')
+    assunto = dados.get('assunto')
+
+    if enunciado:
+        questao.enunciado = enunciado.strip()
+    if alternativas and isinstance(alternativas, dict):
+        # Limpar espaços e padronizar chaves para string
+        questao.alternativas = {str(k).upper().strip(): str(v).strip() for k, v in alternativas.items()}
+    if resposta_correta and isinstance(resposta_correta, str):
+        questao.resposta_correta = resposta_correta.upper().strip()
+    if assunto is not None:
+        questao.assunto = assunto.strip()
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Questão atualizada com sucesso.'})
 
 @questoes_bp.route('/painel-dec', methods=['GET'])
 @login_required
