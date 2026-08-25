@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -199,7 +199,7 @@
         btn.disabled = true;
         
         const turmaId = document.getElementById('turma_id') ? document.getElementById('turma_id').value : '';
-        const url = {{ url_for('questionario.exportar_pdf_resultados_multiplos', id=campanha.id) }}?turma_id=;
+        const url = "{{ url_for('questionario.exportar_pdf_resultados_multiplos', id=campanha.id) }}?turma_id=" + turmaId;
 
         fetch(url, { 
             method: 'POST',
