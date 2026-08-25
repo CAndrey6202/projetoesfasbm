@@ -39,10 +39,17 @@
                 </select>
             </div>
 
-            <div class="mb-3">
-                <textarea id="texto_bruto" class="form-control" rows="15" placeholder="Cole as suas questões aqui respeitando as regras acima..."></textarea>
+            <div id="container-textareas" class="mb-3">
+                <div class="textarea-wrapper position-relative">
+                    <textarea class="form-control texto-bruto-item" rows="10" placeholder="Cole as suas questões aqui respeitando as regras acima..."></textarea>
+                </div>
             </div>
 
+            <div class="mb-4">
+                <button type="button" id="btn-add-caixa" class="btn btn-outline-primary fw-bold">
+                    <i class="fas fa-plus"></i> Adicionar outra caixa
+                </button>
+            </div>
             <button id="btn-analisar" class="btn btn-success btn-lg shadow-sm">
                 <i class="fas fa-magic"></i> Analisar e Formatar Questões
             </button>
@@ -103,14 +110,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnAnalisar = document.getElementById('btn-analisar');
     const btnVoltar = document.getElementById('btn-voltar');
     const btnSalvarBanco = document.getElementById('btn-salvar-banco');
+    const btnAddCaixa = document.getElementById('btn-add-caixa');
+    const containerTextareas = document.getElementById('container-textareas');
 
     const etapa1 = document.getElementById('etapa-1-colagem');
     const etapa2 = document.getElementById('etapa-2-auditoria');
     const etapa3 = document.getElementById('etapa-3-sucesso');
     const loadingSpinner = document.getElementById('loading-spinner');
 
+    if (btnAddCaixa) {
+        btnAddCaixa.addEventListener('click', function() {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'textarea-wrapper position-relative mt-3 pt-3 border-top border-secondary-subtle';
+            wrapper.innerHTML = `
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 mt-3 me-2 btn-remover-caixa" title="Remover caixa">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <textarea class="form-control texto-bruto-item" rows="10" placeholder="Cole a próxima questão aqui..."></textarea>
+            `;
+            containerTextareas.appendChild(wrapper);
+
+            wrapper.querySelector('.btn-remover-caixa').addEventListener('click', function() {
+                wrapper.remove();
+            });
+        });
+    }
+
     btnAnalisar.addEventListener('click', function() {
-        const textoBruto = document.getElementById('texto_bruto').value.trim();
+        let textoBruto = '';
+        document.querySelectorAll('.texto-bruto-item').forEach(ta => {
+            const val = ta.value.trim();
+            if (val) {
+                textoBruto += '\n\n' + val;
+            }
+        });
+        textoBruto = textoBruto.trim();
+
         const materia = document.getElementById('disciplina_selecionada').value;
 
         if (!materia) {
@@ -118,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         if (!textoBruto) {
-            alert("Por favor, cole o texto das questões.");
+            alert("Por favor, cole o texto das questões em pelo menos uma caixa.");
             return;
         }
 
