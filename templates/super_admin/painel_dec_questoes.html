@@ -166,7 +166,7 @@
                     <div class="questoes-lista" id="lista-prova">
                         {% for questao in questoes %}
                         <div class="questao-item questao-prova mb-4 p-3 border rounded bg-white" style="page-break-inside: avoid; cursor: pointer; transition: all 0.2s;" data-id="{{ questao.id }}" data-resposta="{{ questao.resposta_correta }}">
-                            <p class="fw-bold mb-2 text-dark"><span class="q-num">{{ loop.index }}</span>. <span class="q-enunciado">{{ questao.enunciado }}</span></p>
+                            <p class="fw-bold mb-2 text-dark"><span class="q-num">{{ loop.index }}. </span><span class="q-enunciado">{{ questao.enunciado }}</span></p>
                             
                             <div class="ps-3 q-alternativas">
                                 <p class="mb-1"><strong>A)</strong> <span class="alt-a">{{ questao.alternativas.get('A', '') }}</span></p>
@@ -384,7 +384,7 @@ $(document).ready(function() {
         
         $('#lista-prova .questao-item').each(function(index) {
             var num = index + 1;
-            $(this).find('.q-num').text(num);
+            $(this).find('.q-num').text(num + '. ');
             
             // Adiciona no gabarito
             var resp = $(this).attr('data-resposta');
