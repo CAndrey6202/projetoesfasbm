@@ -74,7 +74,8 @@
             <div class="bg-light p-3 rounded" style="max-height: 250px; overflow-y: auto;">
                 {% for com in geral_data.comentarios %}
                     <div class="border-bottom pb-2 mb-2">
-                        <p class="mb-1 small text-dark">"{{ com }}"</p>
+                        <p class="mb-1 small text-dark">"{{ com.texto }}"</p>
+                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-user-secret me-1"></i> Aluno #{{ com.token }}</small>
                     </div>
                 {% endfor %}
             </div>
@@ -150,7 +151,7 @@
                                                 <div class="card mb-2 border-0 shadow-sm">
                                                     <div class="card-body py-2 px-3">
                                                         <p class="mb-1 small">"{{ com.texto }}"</p>
-                                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-users me-1"></i> {{ com.turma }} &bull; {{ com.data }}</small>
+                                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-user-secret me-1"></i> Aluno #{{ com.token }} &bull; <i class="fas fa-users me-1"></i> {{ com.turma }} &bull; {{ com.data }}</small>
                                                     </div>
                                                 </div>
                                                 {% endfor %}

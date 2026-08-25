@@ -99,7 +99,7 @@
                 {% for com in data['comentarios'] %}
                     <div class="comentario-item">
                         <p style="margin: 0; font-style: italic;">"{{ com.texto }}"</p>
-                        <small style="color: #777;">- {{ com.turma_nome }}</small>
+                        <small style="color: #777;">- Aluno #{{ com.token }} | {{ com.turma_nome }}</small>
                     </div>
                 {% endfor %}
             {% else %}

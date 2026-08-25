@@ -398,7 +398,7 @@ def resultado_avaliacao(id):
         geral_data['satisfacao'] = sum(r.nota_satisfacao_geral for r in respostas_gerais) / len(respostas_gerais)
         for r in respostas_gerais:
             if r.comentarios_gerais and r.comentarios_gerais.strip():
-                geral_data['comentarios'].append(r.comentarios_gerais.strip())
+                geral_data['comentarios'].append({'texto': r.comentarios_gerais.strip(), 'token': r.token_sigilo})
     
     # 2. Preparar DADOS DOS INSTRUTORES
     instrutores_data = {}
@@ -431,7 +431,8 @@ def resultado_avaliacao(id):
             instrutores_data[nome_exibicao]['comentarios'].append({
                 'turma': r.turma.nome,
                 'texto': r.comentario.strip(),
-                'data': r.data_resposta.strftime('%d/%m/%Y %H:%M') if r.data_resposta else "Recente"
+                'data': r.data_resposta.strftime('%d/%m/%Y %H:%M') if r.data_resposta else "Recente",
+                'token': r.token_sigilo
             })
             
     # Calcular mdias por instrutor
@@ -505,7 +506,7 @@ def exportar_pdf_resultados_multiplos(id):
         data_inst['turmas'].add(r.turma.nome)
         
         if r.comentario:
-            data_inst['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome})
+            data_inst['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome, 'token': r.token_sigilo})
             
     labels = []
     medias = []
@@ -622,7 +623,7 @@ def exportar_pdf_resultados(id):
         data['turmas'].add(r.turma.nome)
         
         if r.comentario:
-            data['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome})
+            data['comentarios'].append({'texto': r.comentario, 'turma_nome': r.turma.nome, 'token': r.token_sigilo})
             
     labels = []
     medias = []
