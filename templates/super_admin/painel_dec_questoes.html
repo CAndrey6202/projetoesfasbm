@@ -35,6 +35,52 @@
         <h2><i class="fas fa-crown text-warning"></i> Painel DEC - Gerador de Provas (SisGEn v1.01)</h2>
     </div>
 
+    <div class="row d-print-none mb-4">
+        <div class="col-md-12">
+            <button class="btn btn-info text-white fw-bold shadow-sm w-100 py-3" type="button" data-bs-toggle="collapse" data-bs-target="#bancoCollapse" aria-expanded="false" aria-controls="bancoCollapse" style="font-size: 1.1rem;">
+                <i class="fas fa-search"></i> Visualizar Questões
+            </button>
+            <div class="collapse mt-3" id="bancoCollapse">
+                <div class="card shadow-sm border-info">
+                    <div class="card-header bg-info text-white fw-bold">
+                        <i class="fas fa-filter"></i> Filtros de Acesso ao Banco
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Escola</label>
+                                <select class="form-select" id="escola_banco_id">
+                                    <option value="" selected disabled>Selecione a Escola...</option>
+                                    <option value="all">Todas as Escolas (Global)</option>
+                                    {% for escola in escolas %}
+                                        <option value="{{ escola.id }}">{{ escola.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Ciclo</label>
+                                <select class="form-select" id="ciclo_banco_id" disabled>
+                                    <option value="">Aguardando Escola...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Matéria</label>
+                                <select class="form-select" id="materia_banco_id" disabled>
+                                    <option value="">Aguardando Ciclo...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <a href="#" id="btn_acessar_banco" class="btn btn-primary w-100 fw-bold disabled">
+                                    Acessar Banco
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row d-print-none">
         <!-- Coluna de Geração Rápida -->
         <div class="col-md-12">
@@ -396,6 +442,98 @@ $(document).ready(function() {
         
         renumerarProvaEGabarito();
     });
+
+    // LÓGICA DOS FILTROS DO BANCO DE QUESTÕES
+    var $escolaBanco = $('#escola_banco_id');
+    var $cicloBanco = $('#ciclo_banco_id');
+    var $materiaBanco = $('#materia_banco_id');
+    var $btnBanco = $('#btn_acessar_banco');
+
+    function atualizaBotaoBanco() {
+        var escolaVal = $escolaBanco.val();
+        var materiaVal = $materiaBanco.val();
+        
+        if (escolaVal && materiaVal) {
+            $btnBanco.removeClass('disabled');
+            $btnBanco.attr('href', '/questoes/banco/' + escolaVal + '/' + encodeURIComponent(materiaVal));
+        } else {
+            $btnBanco.addClass('disabled');
+            $btnBanco.attr('href', '#');
+        }
+    }
+
+    $escolaBanco.on('change', function() {
+        var schoolId = $(this).val();
+        $btnBanco.addClass('disabled');
+        
+        if (schoolId) {
+            $cicloBanco.prop('disabled', true).empty().append('<option value="">Buscando ciclos...</option>');
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+            
+            $.ajax({
+                url: urlFiltroCiclos,
+                type: 'GET',
+                data: { school_id: schoolId },
+                success: function(data) {
+                    $cicloBanco.empty().append('<option value="all">Todos os Ciclos (Global)</option>');
+                    if (data && data.length > 0) {
+                        data.forEach(function(c) {
+                            $cicloBanco.append('<option value="' + c.id + '">' + c.nome + '</option>');
+                        });
+                    }
+                    $cicloBanco.prop('disabled', false);
+                    
+                    // Fetch materias for the school with 'all' cycles
+                    $materiaBanco.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+                    $.ajax({
+                        url: urlFiltroMaterias,
+                        type: 'GET',
+                        data: { school_id: schoolId, ciclo_id: 'all', edicao_id: 'all' },
+                        success: function(matData) {
+                            $materiaBanco.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                            if (matData && matData.length > 0) {
+                                matData.forEach(function(mat) {
+                                    $materiaBanco.append('<option value="' + mat + '">' + mat + '</option>');
+                                });
+                            }
+                            $materiaBanco.prop('disabled', false);
+                            atualizaBotaoBanco();
+                        }
+                    });
+                }
+            });
+        } else {
+            $cicloBanco.prop('disabled', true).empty().append('<option value="">Aguardando Escola...</option>');
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Aguardando Ciclo...</option>');
+        }
+    });
+
+    $cicloBanco.on('change', function() {
+        var schoolId = $escolaBanco.val();
+        var cicloId = $(this).val();
+        $btnBanco.addClass('disabled');
+        
+        if (schoolId && cicloId) {
+            $materiaBanco.prop('disabled', true).empty().append('<option value="">Buscando matérias...</option>');
+            $.ajax({
+                url: urlFiltroMaterias,
+                type: 'GET',
+                data: { school_id: schoolId, ciclo_id: cicloId, edicao_id: 'all' },
+                success: function(matData) {
+                    $materiaBanco.empty().append('<option value="" selected disabled>Selecione a Matéria...</option>');
+                    if (matData && matData.length > 0) {
+                        matData.forEach(function(mat) {
+                            $materiaBanco.append('<option value="' + mat + '">' + mat + '</option>');
+                        });
+                    }
+                    $materiaBanco.prop('disabled', false);
+                    atualizaBotaoBanco();
+                }
+            });
+        }
+    });
+
+    $materiaBanco.on('change', atualizaBotaoBanco);
 });
 </script>
 {% endblock %}
