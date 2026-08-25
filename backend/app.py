@@ -82,8 +82,8 @@ def create_app(config_class=Config):
 
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     
-    # CORREÇÃO PARA Host Header Injection
-    app.config['SERVER_NAME'] = os.getenv('DOMINIO_APLICACAO', 'sistema.esfasbm.com')
+    # CORREÇÃO PARA Host Header Injection - Temporariamente desativado para permitir acesso pelo domínio do Render
+    # app.config['SERVER_NAME'] = os.getenv('DOMINIO_APLICACAO', 'sistema.esfasbm.com')
     app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     app.config.from_object(config_class)
