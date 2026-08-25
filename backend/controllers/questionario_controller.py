@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user
 from sqlalchemy import select, func, distinct
 import json
@@ -254,12 +254,25 @@ def nova_avaliacao_instrutores():
     from flask import session
     active_edicao_id = session.get('active_edicao_id')
 
-    is_obrigatoria = request.form.get('is_obrigatoria') == 'on'
+    # A obrigatoriedade agora é automática por 48h, podemos manter is_obrigatoria=True por padrão
+    # Ou False, já que o aluno_service.py que fará a trava
+    is_obrigatoria = True
+    
+    from datetime import datetime
+    data_inicio_str = request.form.get('data_inicio')
+    if data_inicio_str:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            data_inicio_obj = datetime.utcnow()
+    else:
+        data_inicio_obj = datetime.utcnow()
 
     nova_campanha = CampanhaAvaliacao(
         titulo=titulo,
         is_ativa=True,
         is_obrigatoria=is_obrigatoria,
+        data_inicio=data_inicio_obj,
         school_id=school_id,
         edicao_id=active_edicao_id
     )

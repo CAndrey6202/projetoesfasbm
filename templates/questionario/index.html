@@ -112,7 +112,7 @@
                 <tr>
                     <th>Título</th>
                     <th>Status</th>
-                    <th>Obrigatória?</th>
+                    <th>Agendamento</th>
                     <th>Respostas</th>
                     <th class="text-end">Ações</th>
                 </tr>
@@ -130,10 +130,11 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if c.is_obrigatoria %}
-                                <span class="badge bg-warning text-dark">Sim</span>
+                            {% if c.data_inicio %}
+                                <small class="text-muted d-block">Início: {{ c.data_inicio.strftime('%d/%m/%Y %H:%M') }}</small>
+                                <small class="text-danger d-block">Bloqueio: {{ (c.data_inicio + timedelta(hours=48)).strftime('%d/%m/%Y %H:%M') }}</small>
                             {% else %}
-                                <span class="badge bg-secondary">Não</span>
+                                <span class="badge bg-secondary">Imediato</span>
                             {% endif %}
                         </td>
                         <td>
@@ -156,9 +157,7 @@
                                     <a href="{{ url_for('questionario.alternar_status_avaliacao', id=c.id) }}" class="btn btn-sm btn-{{ 'warning' if c.is_ativa else 'success' }}" title="{{ 'Encerrar' if c.is_ativa else 'Ativar' }}">
                                         <i class="fas fa-{{ 'pause' if c.is_ativa else 'play' }}"></i>
                                     </a>
-                                    <a href="{{ url_for('questionario.alternar_obrigatoriedade_avaliacao', id=c.id) }}" class="btn btn-sm btn-{{ 'secondary' if c.is_obrigatoria else 'warning' }}" title="{{ 'Tornar Opcional' if c.is_obrigatoria else 'Tornar Obrigatório' }}">
-                                        <i class="fas fa-lock{{ '-open' if c.is_obrigatoria else '' }}"></i>
-                                    </a>
+
                                     <a href="{{ url_for('questionario.excluir_avaliacao', id=c.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza? Isso apagará todas as notas dos alunos.')" title="Excluir">
                                         <i class="fas fa-trash"></i>
                                     </a>
@@ -197,14 +196,15 @@
                 <input type="text" class="form-control" name="titulo" required placeholder="Ex: Avaliação Final 2026">
                 <small class="text-muted">Isso criará uma campanha de avaliação para todos os alunos da escola atual avaliarem os instrutores da turma deles.</small>
             </div>
-            <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="checkObrigatoria" name="is_obrigatoria">
-                <label class="form-check-label" for="checkObrigatoria">Avaliação Obrigatória (Trava a tela do aluno)</label>
+            <div class="mb-3">
+                <label class="form-label">Agendar Início</label>
+                <input type="datetime-local" class="form-control" name="data_inicio">
+                <small class="text-muted">A avaliação será liberada para os alunos a partir desta data. Se vazio, inicia imediatamente.<br><b>Nota:</b> A avaliação se tornará obrigatória e bloqueará a tela do aluno automaticamente 48 horas após este início.</small>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Iniciar Avaliação</button>
+            <button type="submit" class="btn btn-primary">Agendar / Iniciar Avaliação</button>
           </div>
       </form>
     </div>

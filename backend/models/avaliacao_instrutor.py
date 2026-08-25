@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import typing as t
 from datetime import datetime
 from .database import db
@@ -20,6 +20,7 @@ class CampanhaAvaliacao(db.Model):
     is_ativa: Mapped[bool] = mapped_column(db.Boolean, default=True)
     is_obrigatoria: Mapped[bool] = mapped_column(db.Boolean, default=False)
     data_criacao: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow)
+    data_inicio: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow)
     school_id: Mapped[int] = mapped_column(db.ForeignKey('schools.id'), nullable=False)
     edicao_id: Mapped[t.Optional[int]] = mapped_column(db.ForeignKey('edicoes.id'), nullable=True)
 
