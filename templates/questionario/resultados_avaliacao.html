@@ -256,6 +256,11 @@
                             btnElement.innerHTML = originalHtml;
                             btnElement.disabled = false;
                         }, 3000);
+                    } else if(data.status === 'failed') {
+                        clearInterval(interval);
+                        alert("A geração do PDF falhou no servidor: " + (data.error_message || "Erro desconhecido."));
+                        btnElement.innerHTML = originalHtml;
+                        btnElement.disabled = false;
                     }
                 })
                 .catch(err => {
