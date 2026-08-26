@@ -276,14 +276,23 @@ def listar_recursos_pendentes():
     recurso_instrutores_map = {}
     for r in recursos:
         validos = set()
-        if r.prova and r.prova.disciplina:
-            for assoc in r.prova.disciplina.associacoes_turmas:
-                if assoc.instrutor_1 and assoc.instrutor_1.user:
-                    u = assoc.instrutor_1.user
-                    validos.add((u.id, u.nome_completo, u.posto_graduacao))
-                if assoc.instrutor_2 and assoc.instrutor_2.user:
-                    u = assoc.instrutor_2.user
-                    validos.add((u.id, u.nome_completo, u.posto_graduacao))
+        if r.prova and r.prova.disciplina and r.prova.disciplina.turma:
+            disciplina_atual = r.prova.disciplina
+            # Busca todas as disciplinas (turmas diferentes) da mesma matéria e mesma edição (ciclo)
+            disciplinas_ciclo = Disciplina.query.join(Turma).filter(
+                Disciplina.materia == disciplina_atual.materia,
+                Turma.edicao_id == disciplina_atual.turma.edicao_id,
+                Turma.school_id == active_school_id
+            ).all()
+            
+            for d in disciplinas_ciclo:
+                for assoc in d.associacoes_turmas:
+                    if assoc.instrutor_1 and assoc.instrutor_1.user:
+                        u = assoc.instrutor_1.user
+                        validos.add((u.id, u.nome_completo, u.posto_graduacao))
+                    if assoc.instrutor_2 and assoc.instrutor_2.user:
+                        u = assoc.instrutor_2.user
+                        validos.add((u.id, u.nome_completo, u.posto_graduacao))
         
         recurso_instrutores_map[r.id] = [
             {'id': v[0], 'nome': f"{v[2] or ''} {v[1]}".strip()} for v in validos
