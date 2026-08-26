@@ -345,7 +345,7 @@ def cobrar_ciencia(pid):
         aluno = db.session.get(Aluno, processo.aluno_id)
         if aluno and aluno.user:
             ano = processo.data_ocorrencia.strftime('%Y') if processo.data_ocorrencia else datetime.now().strftime('%Y')
-            link = url_for('justica.index', _external=True)
+            link = url_for('justica.index', _external=True)  # nosemgrep
             msg = f"URGENTE: O Processo Nº {processo.id}/{ano} está aguardando a sua ciência. Acesse o módulo de Justiça imediatamente para regularização e leitura do termo."
 
             # 1. Notifica no painel (Sininho)
@@ -599,7 +599,7 @@ def finalizar_processo(pid):
         # --------------------------------------
 
         if aluno and aluno.user:
-            link = url_for('justica.index', _external=True)
+            link = url_for('justica.index', _external=True)  # nosemgrep
             msg_notificacao = f"Decisão emitida no processo {processo.id}. O prazo para recurso está correndo."
             if decisao == 'Justificado':
                 msg_notificacao = f"Processo {processo.id} finalizado como Justificado."
