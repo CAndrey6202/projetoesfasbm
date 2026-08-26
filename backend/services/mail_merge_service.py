@@ -5,6 +5,10 @@ from docx import Document
 from io import BytesIO
 import zipfile
 import re
+import tempfile
+import subprocess
+import os
+import platform
 
 class MailMergeService:
     @staticmethod
@@ -89,9 +93,46 @@ class MailMergeService:
                     doc_buffer.seek(0)
                     
                     file_name_base = record.get('nome', f"documento_{index + 1}").strip().replace(" ", "_")
-                    filename = f"Certificado_{file_name_base}.docx"
                     
-                    zf.writestr(filename, doc_buffer.getvalue())
+                    if output_format == 'pdf':
+                        filename = f"Certificado_{file_name_base}.pdf"
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            temp_docx = os.path.join(temp_dir, "temp.docx")
+                            with open(temp_docx, "wb") as f:
+                                f.write(doc_buffer.getvalue())
+                                
+                            try:
+                                if platform.system() == 'Windows':
+                                    # Caminhos comuns do LibreOffice no Windows
+                                    soffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
+                                    if not os.path.exists(soffice_path):
+                                        soffice_path = r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+                                else:
+                                    soffice_path = "soffice"
+                                
+                                subprocess.run(
+                                    [soffice_path, "--headless", "--convert-to", "pdf", "temp.docx"],
+                                    cwd=temp_dir,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    check=True
+                                )
+                                
+                                temp_pdf = os.path.join(temp_dir, "temp.pdf")
+                                if os.path.exists(temp_pdf):
+                                    with open(temp_pdf, "rb") as f:
+                                        zf.writestr(filename, f.read())
+                                else:
+                                    raise Exception("Falha ao gerar o PDF (arquivo não encontrado).")
+                            except FileNotFoundError:
+                                return None, "Para gerar PDFs, é necessário ter o LibreOffice instalado no servidor/computador."
+                            except subprocess.CalledProcessError as e:
+                                return None, f"Erro interno na conversão para PDF pelo LibreOffice: {e.stderr.decode('utf-8', errors='ignore')}"
+                            except Exception as e:
+                                return None, f"Ocorreu um erro ao converter para PDF: {str(e)}"
+                    else:
+                        filename = f"Certificado_{file_name_base}.docx"
+                        zf.writestr(filename, doc_buffer.getvalue())
 
             zip_buffer.seek(0)
             return zip_buffer, None
