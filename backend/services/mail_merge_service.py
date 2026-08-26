@@ -102,34 +102,47 @@ class MailMergeService:
                                 f.write(doc_buffer.getvalue())
                                 
                             try:
-                                if platform.system() == 'Windows':
-                                    # Caminhos comuns do LibreOffice no Windows
-                                    soffice_path = r"C:\Program Files\LibreOffice\program\soffice.exe"
-                                    if not os.path.exists(soffice_path):
-                                        soffice_path = r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
-                                else:
-                                    soffice_path = "soffice"
+                                # Tenta importar as bibliotecas necessárias
+                                import mammoth
+                                from weasyprint import HTML
                                 
-                                subprocess.run(
-                                    [soffice_path, "--headless", "--convert-to", "pdf", "temp.docx"],
-                                    cwd=temp_dir,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    check=True
-                                )
+                                # 1. Converte DOCX para HTML usando Mammoth
+                                with open(temp_docx, "rb") as docx_file:
+                                    result = mammoth.convert_to_html(docx_file)
+                                    html_content = result.value
+                                    
+                                # Adiciona um estilo básico para manter a aparência de documento
+                                styled_html = f"""
+                                <html>
+                                <head>
+                                    <style>
+                                        @page {{ size: A4; margin: 2cm; }}
+                                        body {{ font-family: Arial, sans-serif; line-height: 1.5; }}
+                                        table {{ border-collapse: collapse; width: 100%; }}
+                                        td, th {{ border: 1px solid black; padding: 5px; }}
+                                    </style>
+                                </head>
+                                <body>
+                                    {html_content}
+                                </body>
+                                </html>
+                                """
                                 
+                                # 2. Converte HTML para PDF usando WeasyPrint
                                 temp_pdf = os.path.join(temp_dir, "temp.pdf")
+                                HTML(string=styled_html).write_pdf(temp_pdf)
+                                
+                                # 3. Adiciona ao ZIP
                                 if os.path.exists(temp_pdf):
                                     with open(temp_pdf, "rb") as f:
                                         zf.writestr(filename, f.read())
                                 else:
-                                    raise Exception("Falha ao gerar o PDF (arquivo não encontrado).")
-                            except FileNotFoundError:
-                                return None, "Para gerar PDFs, é necessário ter o LibreOffice instalado no servidor/computador."
-                            except subprocess.CalledProcessError as e:
-                                return None, f"Erro interno na conversão para PDF pelo LibreOffice: {e.stderr.decode('utf-8', errors='ignore')}"
+                                    raise Exception("Falha ao gerar o PDF.")
+                            
+                            except ImportError:
+                                return None, "As bibliotecas 'mammoth' e 'weasyprint' não estão instaladas. Verifique o requirements.txt."
                             except Exception as e:
-                                return None, f"Ocorreu um erro ao converter para PDF: {str(e)}"
+                                return None, f"Ocorreu um erro ao converter para PDF usando WeasyPrint: {str(e)}"
                     else:
                         filename = f"Certificado_{file_name_base}.docx"
                         zf.writestr(filename, doc_buffer.getvalue())
