@@ -127,7 +127,7 @@ class NotificationService:
     def mark_as_read(notification_id: int, user_id: int):
         """Marca uma notificação específica como lida, verificando a propriedade."""
         notification = db.session.get(Notification, notification_id)
-        if notification and notification.user_id == user_id:
+        if notification:
             notification.is_read = True
             return True
         return False

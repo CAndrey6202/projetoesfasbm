@@ -780,9 +780,7 @@ class HorarioService:
             disciplina_nome = aula.disciplina.materia if aula.disciplina else "Desconhecida"
             escola_id = aula.semana.ciclo.school_id
             
-            # ATUALIZAÇÃO: SÓ GERA O ALERTA SE A AULA JÁ ESTAVA APROVADA NA GRADE (oficial).
-            # Se for 'pendente', o instrutor está apenas editando seu rascunho/marcação, não é urgente.
-            if aula.status == 'aprovado' and escola_id:
+            if escola_id:
                 alert_info = {
                     "instrutor": instrutor_nome,
                     "turma": turma_nome,
@@ -815,13 +813,14 @@ class HorarioService:
             mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
             
             for su in sens_users:
-                if su.id != user.id:
-                    notif = Notification(
-                        user_id=su.id,
-                        message=mensagem_alerta,
-                        url="#URGENTE_SENS"
-                    )
-                    db.session.add(notif)
+                # Removida temporariamente a checagem (su.id != user.id) 
+                # para que o proprio usuario testando receba o alerta e veja funcionando.
+                notif = Notification(
+                    user_id=su.id,
+                    message=mensagem_alerta,
+                    url="#URGENTE_SENS"
+                )
+                db.session.add(notif)
             db.session.commit()
         # ------------------------------------------------
 
