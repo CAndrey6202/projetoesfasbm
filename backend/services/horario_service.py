@@ -760,10 +760,11 @@ class HorarioService:
             return False, 'Aula não encontrada ou sem permissão.'
             
         # --- VERIFICAÇÃO PARA ALERTA URGENTE (SENS) ---
-        is_instructor = getattr(user, 'role', '') == 'instrutor'
+        # Removida a trava de "is_instructor". 
+        # Sempre que uma aula for removida, coletaremos os dados para alertar a SENS.
         alert_info = None
         
-        if is_instructor:
+        try:
             if aula.group_id:
                 aulas_grupo = db.session.query(Horario).filter(Horario.group_id == aula.group_id).order_by(Horario.periodo).all()
                 periodos = [str(a.periodo) for a in aulas_grupo]
@@ -779,12 +780,8 @@ class HorarioService:
             instrutor_nome = aula.instrutor.user.nome_de_guerra if (aula.instrutor and aula.instrutor.user) else "Desconhecido"
             turma_nome = aula.pelotao
             disciplina_nome = aula.disciplina.materia if aula.disciplina else "Desconhecida"
+            escola_id = aula.semana.ciclo.school_id
             
-            try:
-                escola_id = aula.semana.ciclo.school_id
-            except AttributeError:
-                escola_id = None
-                
             if escola_id:
                 alert_info = {
                     "instrutor": instrutor_nome,
@@ -793,6 +790,8 @@ class HorarioService:
                     "periodos": periodos_str,
                     "escola_id": escola_id
                 }
+        except Exception as e:
+            pass
         # ----------------------------------------------
 
         if aula.group_id:
@@ -816,13 +815,15 @@ class HorarioService:
             
             mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
             
+            # Não enviar para o próprio cara que está apagando (se for um Admin apagando, ele já sabe)
             for su in sens_users:
-                notif = Notification(
-                    user_id=su.id,
-                    message=mensagem_alerta,
-                    url="#URGENTE_SENS"
-                )
-                db.session.add(notif)
+                if su.id != user.id:
+                    notif = Notification(
+                        user_id=su.id,
+                        message=mensagem_alerta,
+                        url="#URGENTE_SENS"
+                    )
+                    db.session.add(notif)
             db.session.commit()
         # ------------------------------------------------
 
