@@ -5,6 +5,10 @@ from docx import Document
 from io import BytesIO
 import zipfile
 import re
+import tempfile
+import subprocess
+import os
+import platform
 
 class MailMergeService:
     @staticmethod
@@ -89,9 +93,59 @@ class MailMergeService:
                     doc_buffer.seek(0)
                     
                     file_name_base = record.get('nome', f"documento_{index + 1}").strip().replace(" ", "_")
-                    filename = f"Certificado_{file_name_base}.docx"
                     
-                    zf.writestr(filename, doc_buffer.getvalue())
+                    if output_format == 'pdf':
+                        filename = f"Certificado_{file_name_base}.pdf"
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            temp_docx = os.path.join(temp_dir, "temp.docx")
+                            with open(temp_docx, "wb") as f:
+                                f.write(doc_buffer.getvalue())
+                                
+                            try:
+                                # Tenta importar as bibliotecas necessárias
+                                import mammoth
+                                from weasyprint import HTML
+                                
+                                # 1. Converte DOCX para HTML usando Mammoth
+                                with open(temp_docx, "rb") as docx_file:
+                                    result = mammoth.convert_to_html(docx_file)
+                                    html_content = result.value
+                                    
+                                # Adiciona um estilo básico para manter a aparência de documento
+                                styled_html = f"""
+                                <html>
+                                <head>
+                                    <style>
+                                        @page {{ size: A4; margin: 2cm; }}
+                                        body {{ font-family: Arial, sans-serif; line-height: 1.5; }}
+                                        table {{ border-collapse: collapse; width: 100%; }}
+                                        td, th {{ border: 1px solid black; padding: 5px; }}
+                                    </style>
+                                </head>
+                                <body>
+                                    {html_content}
+                                </body>
+                                </html>
+                                """
+                                
+                                # 2. Converte HTML para PDF usando WeasyPrint
+                                temp_pdf = os.path.join(temp_dir, "temp.pdf")
+                                HTML(string=styled_html).write_pdf(temp_pdf)
+                                
+                                # 3. Adiciona ao ZIP
+                                if os.path.exists(temp_pdf):
+                                    with open(temp_pdf, "rb") as f:
+                                        zf.writestr(filename, f.read())
+                                else:
+                                    raise Exception("Falha ao gerar o PDF.")
+                            
+                            except ImportError:
+                                return None, "As bibliotecas 'mammoth' e 'weasyprint' não estão instaladas. Verifique o requirements.txt."
+                            except Exception as e:
+                                return None, f"Ocorreu um erro ao converter para PDF usando WeasyPrint: {str(e)}"
+                    else:
+                        filename = f"Certificado_{file_name_base}.docx"
+                        zf.writestr(filename, doc_buffer.getvalue())
 
             zip_buffer.seek(0)
             return zip_buffer, None
