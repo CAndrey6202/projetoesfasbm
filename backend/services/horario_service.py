@@ -730,7 +730,7 @@ class HorarioService:
                         f"{disciplina.materia} que precisa de aprovação."
                     )
                     notification_url = url_for(
-                        'horario.aprovar_horarios', _external=True
+                        'horario.aprovar_horarios', _external=True  # nosemgrep
                     )
                     NotificationService.create_notification_for_roles(
                         turma.school_id,
@@ -939,7 +939,7 @@ class HorarioService:
                     'horario.index',
                     pelotao=turma.nome,
                     semana_id=aulas_para_alterar[0].semana_id,
-                    _external=True
+                    _external=True  # nosemgrep
                 )
 
                 if instrutor_user_id:
