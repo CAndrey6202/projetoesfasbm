@@ -1,7 +1,7 @@
 import re
 import json
 import random
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, session, g
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, session, g, abort
 from flask_login import login_required, current_user
 from markupsafe import escape
 
@@ -222,6 +222,8 @@ def api_listar_delegacoes():
 @login_required
 @super_admin_required
 def ver_banco_disciplina(school_id, materia):
+    if current_user.role != 'super_admin':
+        abort(403, description="Acesso restrito exclusivamente ao Administrador DEC.")
     """
     Lista as questões de uma matéria/escola para auditoria do Super Admin.
     """
@@ -357,6 +359,9 @@ def editar_questao_banco(id):
 @super_admin_required
 def painel_dec():
     """Painel do DEC para geração de provas globais e análise unificada."""
+    if current_user.role != 'super_admin':
+        abort(403, description="Acesso restrito exclusivamente ao Administrador DEC.")
+        
     escolas = School.query.order_by(School.nome).all()
     materias_db = db.session.query(Disciplina.materia).distinct().all()
     lista_materias = sorted([m[0] for m in materias_db if m[0]])
