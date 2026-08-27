@@ -161,18 +161,6 @@ def create_app(config_class=Config):
 
     # ### FIM PWA ###
 
-    # ### PLATAFORMA DE CURSOS (LOCAL/DEPLOY) ###
-    @app.route('/cursos/')
-    def serve_cursos_index():
-        cursos_dir = os.path.join(app.root_path, '..', 'plataforma_cursos')
-        return send_from_directory(cursos_dir, 'index.html')
-
-    @app.route('/cursos/<path:filename>')
-    def serve_cursos_files(filename):
-        cursos_dir = os.path.join(app.root_path, '..', 'plataforma_cursos')
-        return send_from_directory(cursos_dir, filename)
-    # ### FIM PLATAFORMA DE CURSOS ###
-
     db.init_app(app)
     Migrate(app, db)
     csrf.init_app(app)
