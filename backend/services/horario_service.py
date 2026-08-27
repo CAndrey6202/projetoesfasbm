@@ -758,12 +758,74 @@ class HorarioService:
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
+            
+        # --- VERIFICAÇÃO PARA ALERTA URGENTE (SENS) ---
+        is_instructor = getattr(user, 'role', '') == 'instrutor'
+        alert_info = None
+        
+        if is_instructor:
+            if aula.group_id:
+                aulas_grupo = db.session.query(Horario).filter(Horario.group_id == aula.group_id).order_by(Horario.periodo).all()
+                periodos = [str(a.periodo) for a in aulas_grupo]
+                if len(periodos) > 1:
+                    periodos_str = ", ".join(periodos[:-1]) + f" e {periodos[-1]}º períodos"
+                elif len(periodos) == 1:
+                    periodos_str = f"{periodos[0]}º período"
+                else:
+                    periodos_str = "períodos desconhecidos"
+            else:
+                periodos_str = f"{aula.periodo}º período"
+                
+            instrutor_nome = aula.instrutor.user.nome_de_guerra if (aula.instrutor and aula.instrutor.user) else "Desconhecido"
+            turma_nome = aula.pelotao
+            disciplina_nome = aula.disciplina.materia if aula.disciplina else "Desconhecida"
+            
+            try:
+                escola_id = aula.semana.ciclo.school_id
+            except AttributeError:
+                escola_id = None
+                
+            if escola_id:
+                alert_info = {
+                    "instrutor": instrutor_nome,
+                    "turma": turma_nome,
+                    "disciplina": disciplina_nome,
+                    "periodos": periodos_str,
+                    "escola_id": escola_id
+                }
+        # ----------------------------------------------
+
         if aula.group_id:
             db.session.query(Horario).filter(Horario.group_id == aula.group_id).delete()
         else:
             db.session.delete(aula)
 
         db.session.commit()
+        
+        # --- DISPARO DE NOTIFICAÇÃO URGENTE PARA SENS ---
+        if alert_info:
+            from ..models.user import User
+            from ..models.user_school import UserSchool
+            from ..models.notification import Notification
+            
+            # Buscar todos da SENS e Comandantes
+            sens_users = db.session.query(User).join(UserSchool).filter(
+                UserSchool.school_id == alert_info["escola_id"],
+                UserSchool.role.in_(['admin_sens', 'admin_escola'])
+            ).all()
+            
+            mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
+            
+            for su in sens_users:
+                notif = Notification(
+                    user_id=su.id,
+                    message=mensagem_alerta,
+                    url="#URGENTE_SENS"
+                )
+                db.session.add(notif)
+            db.session.commit()
+        # ------------------------------------------------
+
         return True, 'Aula removida com sucesso!'
 
     @staticmethod

@@ -891,10 +891,32 @@
                     list.innerHTML = '';
                     if (notifications && notifications.length > 0) {
                         notifications.forEach(n => {
+                            // --- CHECK FOR URGENT SENS ALERT ---
+                            if (n.url === '#URGENTE_SENS' && !n.is_read) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: '🚨 AULA DESMARCADA! 🚨',
+                                        html: `<p style="font-size: 1.15em;">${n.message}</p>`,
+                                        confirmButtonText: 'Ciente',
+                                        confirmButtonColor: '#d33',
+                                        allowOutsideClick: false,
+                                        allowEscapeKey: false,
+                                        backdrop: `rgba(0,0,0,0.8)`
+                                    }).then((result) => {
+                                        if (result.isConfirmed) {
+                                            fetch(`/notifications/mark-as-read/${n.id}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } }).then(() => fetchNotifications());
+                                        }
+                                    });
+                                }
+                                n.is_read = true; // prevent multiple popups
+                            }
+                            
                             const item = document.createElement('li');
                             const itemClass = n.is_read ? 'read' : 'unread';
                             const markAsReadButton = n.is_read ? '' : `<button class="btn btn-sm btn-outline-primary mark-one-read-btn" data-id="${n.id}" title="Marcar como lida">✓</button>`;
-                            item.innerHTML = `<div class="dropdown-item notification-item ${itemClass}"><a href="${n.url}" class="notification-link-main"><p class="notification-message">${n.message}</p><small class="notification-date">${n.created_at}</small></a>${markAsReadButton}</div>`;
+                            const displayUrl = n.url === '#URGENTE_SENS' ? '#' : n.url;
+                            item.innerHTML = `<div class="dropdown-item notification-item ${itemClass}"><a href="${displayUrl}" class="notification-link-main"><p class="notification-message">${n.message}</p><small class="notification-date">${n.created_at}</small></a>${markAsReadButton}</div>`;
                             list.appendChild(item);
                         });
                         list.innerHTML += '<li><hr class="dropdown-divider" style="margin: 0;"></li>';
@@ -927,8 +949,13 @@
 
             if ({{ current_user.is_authenticated | tojson }} && "{{ request.endpoint }}" !== "auth.configurar_2fa" && "{{ request.endpoint }}" !== "auth.recuperar_senha") {
                 fetchNotifications();
+                {% if current_user.is_sens %}
+                // Polling acelerado (60s) para SENS poder receber pop-ups urgentes de desmarcação
+                notificationInterval = setInterval(fetchNotifications, 60000);
+                {% else %}
                 // O usuário solicitou verificação a cada 30 minutos (1.800.000 ms) para economizar banda e CPU
                 notificationInterval = setInterval(fetchNotifications, 1800000); 
+                {% endif %}
             }
         });
     </script>
