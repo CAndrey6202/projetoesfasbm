@@ -134,6 +134,21 @@
         </div>
     </div>
 
+    <!-- AREA PARA EXIBICAO DO BANCO INCORPORADO -->
+    <div class="row mt-4 d-print-none" id="banco-embed-container" style="display: none;">
+        <div class="col-md-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-list-ul"></i> Banco de Questões</h5>
+                    <button type="button" class="btn btn-sm btn-light" onclick="$('#banco-embed-container').hide();"><i class="fas fa-times"></i> Fechar</button>
+                </div>
+                <div class="card-body p-0">
+                    <iframe id="iframe-banco" src="" style="width: 100%; height: 800px; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ÁREA DA PROVA GERADA E EDITOR LADO-A-LADO -->
     {% if questoes %}
     <div class="row mt-4" id="editor-container">
@@ -455,12 +470,27 @@ $(document).ready(function() {
         
         if (escolaVal && materiaVal) {
             $btnBanco.removeClass('disabled');
-            $btnBanco.attr('href', '/questoes/banco/' + escolaVal + '/' + encodeURIComponent(materiaVal));
         } else {
             $btnBanco.addClass('disabled');
-            $btnBanco.attr('href', '#');
         }
     }
+
+    $btnBanco.on('click', function(e) {
+        e.preventDefault();
+        if ($(this).hasClass('disabled')) return;
+        
+        var escolaVal = $escolaBanco.val();
+        var materiaVal = $materiaBanco.val();
+        
+        if (escolaVal && materiaVal) {
+            var url = '/questoes/banco/' + escolaVal + '/' + encodeURIComponent(materiaVal) + '?embed=1';
+            $('#iframe-banco').attr('src', url);
+            $('#banco-embed-container').show();
+            $('html, body').animate({
+                scrollTop: $("#banco-embed-container").offset().top - 20
+            }, 500);
+        }
+    });
 
     $escolaBanco.on('change', function() {
         var schoolId = $(this).val();

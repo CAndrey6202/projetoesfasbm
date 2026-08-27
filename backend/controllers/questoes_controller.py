@@ -232,11 +232,13 @@ def ver_banco_disciplina(school_id, materia):
         QuestaoBanco.ativo == True
     ).all()
 
+    base_tmpl = 'base_empty.html' if request.args.get('embed') else 'base.html'
     return render_template(
         'super_admin/questoes_banco_lista.html',
         escola=escola,
         materia=materia,
-        questoes=questoes
+        questoes=questoes,
+        base_template=base_tmpl
     )
 
 
