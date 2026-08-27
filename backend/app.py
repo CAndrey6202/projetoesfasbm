@@ -501,7 +501,7 @@ def register_handlers_and_processors(app):
         response.headers["X-Content-Type-Options"] = "nosniff"
 
         # Prevenção contra Clickjacking (Bandeira Laranja do ZAP corrigida)
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
 
         # Controle de vazamento de URLs no Referer
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -522,7 +522,7 @@ def register_handlers_and_processors(app):
             "media-src 'self' https://cadtech.com.br https://*.cadtech.com.br https://commondatastorage.googleapis.com data: blob:",
             "frame-src 'self' https://www.youtube.com https://youtube.com https://*.youtube.com https://*.live.com https://*.live.net https://*.onedrive.live.com https://*.sharepoint.com",
             "object-src 'none'",
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'",
             "manifest-src 'self'",
             "worker-src 'self'",
         ]
