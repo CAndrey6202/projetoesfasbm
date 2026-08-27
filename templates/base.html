@@ -890,28 +890,35 @@
                 if (list) {
                     list.innerHTML = '';
                     if (notifications && notifications.length > 0) {
-                        notifications.forEach(n => {
-                            // --- CHECK FOR URGENT SENS ALERT ---
-                            if (n.url === '#URGENTE_SENS' && !n.is_read) {
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: '🚨 AULA DESMARCADA! 🚨',
-                                        html: `<p style="font-size: 1.15em;">${n.message}</p>`,
-                                        confirmButtonText: 'Ciente',
-                                        confirmButtonColor: '#d33',
-                                        allowOutsideClick: false,
-                                        allowEscapeKey: false,
-                                        backdrop: `rgba(0,0,0,0.8)`
-                                    }).then((result) => {
-                                        if (result.isConfirmed) {
-                                            fetch(`/notifications/mark-as-read/${n.id}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } }).then(() => fetchNotifications());
-                                        }
-                                    });
-                                }
-                                n.is_read = true; // prevent multiple popups
+                        
+                        // --- CHECK FOR URGENT SENS ALERTS ---
+                        let urgent_alerts = notifications.filter(n => n.url === '#URGENTE_SENS' && !n.is_read);
+                        if (urgent_alerts.length > 0) {
+                            if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
+                                let combinedMessage = urgent_alerts.map(n => `<div style="margin-bottom: 10px; padding: 10px; background: #fff3f3; border-left: 4px solid #d33; border-radius: 4px; text-align: left; font-size: 0.95em;">${n.message}</div>`).join('');
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '🚨 AULAS DESMARCADAS! 🚨',
+                                    html: `<div style="max-height: 400px; overflow-y: auto;">${combinedMessage}</div>`,
+                                    confirmButtonText: 'Ciente (Marcar todas como lidas)',
+                                    confirmButtonColor: '#d33',
+                                    allowOutsideClick: false,
+                                    allowEscapeKey: false,
+                                    backdrop: `rgba(0,0,0,0.85)`,
+                                    width: '600px'
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        // Marcar todas as urgentes como lidas
+                                        let fetchPromises = urgent_alerts.map(n => fetch(`/notifications/mark-as-read/${n.id}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } }));
+                                        Promise.all(fetchPromises).then(() => fetchNotifications());
+                                    }
+                                });
                             }
-                            
+                            // Marcar localmente para não disparar no forEach de formatação do menu
+                            urgent_alerts.forEach(n => n.is_read = true);
+                        }
+                        
+                        notifications.forEach(n => {
                             const item = document.createElement('li');
                             const itemClass = n.is_read ? 'read' : 'unread';
                             const markAsReadButton = n.is_read ? '' : `<button class="btn btn-sm btn-outline-primary mark-one-read-btn" data-id="${n.id}" title="Marcar como lida">✓</button>`;
