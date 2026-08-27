@@ -805,10 +805,18 @@ class HorarioService:
             from ..models.user_school import UserSchool
             from ..models.notification import Notification
             
-            sens_users = db.session.query(User).join(UserSchool).filter(
-                UserSchool.school_id == alert_info["escola_id"],
-                UserSchool.role.in_(['admin_sens', 'admin_escola'])
+            # Busca todos os usuários vinculados à escola + super admins globais
+            users_in_school = db.session.query(User).join(UserSchool).filter(
+                UserSchool.school_id == alert_info["escola_id"]
             ).all()
+            super_admins = db.session.query(User).filter(User.role == 'super_admin').all()
+            
+            # Filtra apenas quem REALMENTE tem permissão SENS para esta escola,
+            # usando a mesma função que o frontend usa para mostrar o pop-up
+            sens_users = []
+            for u in set(users_in_school + super_admins):
+                if u.is_sens_in_school(alert_info["escola_id"]):
+                    sens_users.append(u)
             
             mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
             
