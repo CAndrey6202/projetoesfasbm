@@ -360,15 +360,3 @@ def limpar_alertas():
     db.session.commit()
     return f"<h1>{count} alertas de teste foram limpos com sucesso!</h1><br><a href='/dashboard'>Voltar para o sistema</a>"
 
-@main_bp.route('/api/limpar-alertas-urgentes', methods=['GET', 'POST'])
-@login_required
-def api_limpar_alertas_urgentes():
-    from ..models.notification import Notification
-    from ..models.database import db
-    from flask import jsonify
-    
-    notifs = db.session.query(Notification).filter_by(user_id=current_user.id, url='#URGENTE_SENS', is_read=False).all()
-    for n in notifs:
-        n.is_read = True
-    db.session.commit()
-    return jsonify({"success": True})

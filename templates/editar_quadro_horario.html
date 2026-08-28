@@ -568,12 +568,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(r => r.json())
         .then(result => {
-            if (result.success) {
-                alert(result.message);
-                location.reload();
-            } else {
-                alert(result.message);
-            }
+            if (result.success) location.reload();
+            else alert(result.message);
         });
     });
 });

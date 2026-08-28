@@ -891,47 +891,12 @@
                     list.innerHTML = '';
                     if (notifications && notifications.length > 0) {
                         
-                        // --- CHECK FOR URGENT SENS ALERTS ---
-                        let urgent_alerts = notifications.filter(n => n.url === '#URGENTE_SENS' && !n.is_read);
-                        if (urgent_alerts.length > 0) {
-                            if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
-                                let combinedMessage = urgent_alerts.map(n => `<div style="margin-bottom: 10px; padding: 10px; background: #fff3f3; border-left: 4px solid #d33; border-radius: 4px; text-align: left; font-size: 0.95em;">${n.message}</div>`).join('');
-                                Swal.fire({
-                                    icon: 'warning',
-                                    title: '🚨 AULAS DESMARCADAS! 🚨',
-                                    html: `<div style="max-height: 400px; overflow-y: auto;">${combinedMessage}</div>`,
-                                    confirmButtonText: 'Ciente (Marcar todas como lidas)',
-                                    confirmButtonColor: '#d33',
-                                    allowOutsideClick: false,
-                                    allowEscapeKey: false,
-                                    backdrop: `rgba(0,0,0,0.85)`,
-                                    width: '600px'
-                                }).then((result) => {
-                                    if (result.isConfirmed) {
-                                        // Marcar todas as urgentes como lidas sequencialmente ou em bloco
-                                        // Usa a API dedicada para limpar tudo de uma vez sem erro de CSRF
-                                        fetch('/api/limpar-alertas-urgentes')
-                                        .then(() => {
-                                            setTimeout(() => {
-                                                window.location.reload();
-                                            }, 300);
-                                        })
-                                        .catch(() => {
-                                            window.location.reload();
-                                        });
-                                    }
-                                });
-                            }
-                            // Marcar localmente para não disparar no forEach de formatação do menu
-                            urgent_alerts.forEach(n => n.is_read = true);
-                        }
-                        
+
                         notifications.forEach(n => {
                             const item = document.createElement('li');
                             const itemClass = n.is_read ? 'read' : 'unread';
                             const markAsReadButton = n.is_read ? '' : `<button class="btn btn-sm btn-outline-primary mark-one-read-btn" data-id="${n.id}" title="Marcar como lida">✓</button>`;
-                            const displayUrl = n.url === '#URGENTE_SENS' ? '#' : n.url;
-                            item.innerHTML = `<div class="dropdown-item notification-item ${itemClass}"><a href="${displayUrl}" class="notification-link-main"><p class="notification-message">${n.message}</p><small class="notification-date">${n.created_at}</small></a>${markAsReadButton}</div>`;
+                            item.innerHTML = `<div class="dropdown-item notification-item ${itemClass}"><a href="${n.url}" class="notification-link-main"><p class="notification-message">${n.message}</p><small class="notification-date">${n.created_at}</small></a>${markAsReadButton}</div>`;
                             list.appendChild(item);
                         });
                         list.innerHTML += '<li><hr class="dropdown-divider" style="margin: 0;"></li>';
@@ -964,13 +929,8 @@
 
             if ({{ current_user.is_authenticated | tojson }} && "{{ request.endpoint }}" !== "auth.configurar_2fa" && "{{ request.endpoint }}" !== "auth.recuperar_senha") {
                 fetchNotifications();
-                {% if current_user.is_sens %}
-                // Polling acelerado (60s) para SENS poder receber pop-ups urgentes de desmarcação
-                notificationInterval = setInterval(fetchNotifications, 60000);
-                {% else %}
                 // O usuário solicitou verificação a cada 30 minutos (1.800.000 ms) para economizar banda e CPU
                 notificationInterval = setInterval(fetchNotifications, 1800000); 
-                {% endif %}
             }
         });
     </script>
@@ -1025,6 +985,5 @@
 </div>
 {% endif %}
 {% block scripts %}{% endblock %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

@@ -755,94 +755,17 @@ class HorarioService:
 
     @staticmethod
     def remove_aula(horario_id, user):
-        debug_msg = "Iniciou." 
-            
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
             
-        # --- VERIFICAÇÃO PARA ALERTA URGENTE (SENS) ---
-        alert_info = None
-        
-        try:
-            if aula.group_id:
-                aulas_grupo = db.session.query(Horario).filter(Horario.group_id == aula.group_id).order_by(Horario.periodo).all()
-                periodos = [str(a.periodo) for a in aulas_grupo]
-                if len(periodos) > 1:
-                    periodos_str = ", ".join(periodos[:-1]) + f" e {periodos[-1]}º períodos"
-                elif len(periodos) == 1:
-                    periodos_str = f"{periodos[0]}º período"
-                else:
-                    periodos_str = "períodos desconhecidos"
-            else:
-                periodos_str = f"{aula.periodo}º período"
-                
-            instrutor_nome = aula.instrutor.user.nome_de_guerra if (aula.instrutor and aula.instrutor.user) else "Desconhecido"
-            turma_nome = aula.pelotao
-            disciplina_nome = aula.disciplina.materia if aula.disciplina else "Desconhecida"
-            escola_id = aula.semana.ciclo.school_id
-            
-            # Restaura a checagem correta: apenas gerar alerta se a aula já estava confirmada/aprovada.
-            # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
-            if aula.status == 'confirmado' and escola_id:
-                debug_msg += " Status confirmado! "
-                    
-                alert_info = {
-                    "instrutor": instrutor_nome,
-                    "turma": turma_nome,
-                    "disciplina": disciplina_nome,
-                    "periodos": periodos_str,
-                    "escola_id": escola_id
-                }
-        except Exception as e:
-            debug_msg += f" ERRO: {e} " 
-        # ----------------------------------------------
-
         if aula.group_id:
             db.session.query(Horario).filter(Horario.group_id == aula.group_id).delete()
         else:
             db.session.delete(aula)
 
         db.session.commit()
-        
-        # --- DISPARO DE NOTIFICAÇÃO URGENTE PARA SENS ---
-        if alert_info:
-            from ..models.user import User
-            from ..models.user_school import UserSchool
-            from ..models.notification import Notification
-            
-            # A função u.is_sens_in_school() depende da SESSÃO do usuário atual.
-            # Como a exclusão é feita pelo instrutor, a sessão não terá o modo DEC ativado.
-            # Portanto, precisamos buscar os usuários diretamente pelo banco de dados.
-            # Usuários com vínculo de SENS nesta escola específica
-            sens_users_escola = db.session.query(User).join(UserSchool).filter(
-                UserSchool.school_id == alert_info["escola_id"],
-                UserSchool.role.in_(['admin_sens', 'admin_escola'])
-            ).all()
-            
-            # Usuários com cargo GLOBAL de SENS (que não precisam de vínculo específico na tabela UserSchool)
-            sens_users_globais = db.session.query(User).filter(
-                User.role.in_(['super_admin', 'admin_sens', 'admin_escola'])
-            ).all()
-            
-            # Combina sem duplicatas
-            sens_users = list(set(sens_users_escola + sens_users_globais))
-            
-            mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
-            
-            for su in sens_users:
-                # Removida temporariamente a checagem (su.id != user.id) 
-                # para que o proprio usuario testando receba o alerta e veja funcionando.
-                notif = Notification(
-                    user_id=su.id,
-                    message=mensagem_alerta,
-                    url="#URGENTE_SENS"
-                )
-                db.session.add(notif)
-            db.session.commit()
-        # ------------------------------------------------
-
-        return True, f'Aula removida com sucesso! DEBUG: {debug_msg}'
+        return True, 'Aula removida com sucesso!'
 
     @staticmethod
     def get_aulas_pendentes():
