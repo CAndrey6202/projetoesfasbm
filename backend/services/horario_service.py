@@ -756,7 +756,7 @@ class HorarioService:
     @staticmethod
     def remove_aula(horario_id, user):
         import traceback, os
-        with open(os.path.join(os.getcwd(), 'DEBUG_ALERT.txt'), 'a', encoding='utf-8') as df:
+        with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
             df.write("\n=== REMOVE_AULA CHAMADA ===\n")
             traceback.print_stack(file=df)
             df.write("========================\n")
@@ -790,7 +790,7 @@ class HorarioService:
             # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
             if aula.status == 'confirmado' and escola_id:
                 import traceback, os
-                with open(os.path.join(os.getcwd(), 'DEBUG_ALERT.txt'), 'a', encoding='utf-8') as df:
+                with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
                     df.write("\n=== ALERTA DISPARADO ===\n")
                     df.write(f"Aula status: {aula.status}, Horario_id: {horario_id}\n")
                     traceback.print_stack(file=df)
@@ -823,16 +823,19 @@ class HorarioService:
             # A função u.is_sens_in_school() depende da SESSÃO do usuário atual.
             # Como a exclusão é feita pelo instrutor, a sessão não terá o modo DEC ativado.
             # Portanto, precisamos buscar os usuários diretamente pelo banco de dados.
-            sens_users = db.session.query(User).join(UserSchool).filter(
+            # Usuários com vínculo de SENS nesta escola específica
+            sens_users_escola = db.session.query(User).join(UserSchool).filter(
                 UserSchool.school_id == alert_info["escola_id"],
                 UserSchool.role.in_(['admin_sens', 'admin_escola'])
             ).all()
             
-            # Inclui TODOS os super admins globais, pois eles têm acesso de SENS no sistema todo
-            super_admins = db.session.query(User).filter(User.role == 'super_admin').all()
+            # Usuários com cargo GLOBAL de SENS (que não precisam de vínculo específico na tabela UserSchool)
+            sens_users_globais = db.session.query(User).filter(
+                User.role.in_(['super_admin', 'admin_sens', 'admin_escola'])
+            ).all()
             
             # Combina sem duplicatas
-            sens_users = list(set(sens_users + super_admins))
+            sens_users = list(set(sens_users_escola + sens_users_globais))
             
             mensagem_alerta = f"O instrutor {alert_info['instrutor']} acabou de desmarcar a aula de {alert_info['disciplina']} para o {alert_info['turma']} ({alert_info['periodos']})."
             
