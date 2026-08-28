@@ -780,7 +780,9 @@ class HorarioService:
             disciplina_nome = aula.disciplina.materia if aula.disciplina else "Desconhecida"
             escola_id = aula.semana.ciclo.school_id
             
-            if escola_id:
+            # Restaura a checagem correta: apenas gerar alerta se a aula já estava confirmada/aprovada.
+            # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
+            if aula.status == 'confirmado' and escola_id:
                 alert_info = {
                     "instrutor": instrutor_nome,
                     "turma": turma_nome,
