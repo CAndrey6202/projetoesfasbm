@@ -755,6 +755,7 @@ class HorarioService:
 
     @staticmethod
     def remove_aula(horario_id, user):
+        debug_msg = "Iniciou." 
         import traceback, os
         with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
             df.write("\n=== REMOVE_AULA CHAMADA ===\n")
@@ -789,6 +790,7 @@ class HorarioService:
             # Restaura a checagem correta: apenas gerar alerta se a aula já estava confirmada/aprovada.
             # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
             if aula.status == 'confirmado' and escola_id:
+                debug_msg += " Status confirmado! "
                 import traceback, os
                 with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
                     df.write("\n=== ALERTA DISPARADO ===\n")
@@ -851,7 +853,7 @@ class HorarioService:
             db.session.commit()
         # ------------------------------------------------
 
-        return True, 'Aula removida com sucesso!'
+        return True, f'Aula removida com sucesso! DEBUG: {debug_msg}'
 
     @staticmethod
     def get_aulas_pendentes():
