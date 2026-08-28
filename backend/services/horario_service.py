@@ -756,11 +756,6 @@ class HorarioService:
     @staticmethod
     def remove_aula(horario_id, user):
         debug_msg = "Iniciou." 
-        import traceback, os
-        with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
-            df.write("\n=== REMOVE_AULA CHAMADA ===\n")
-            traceback.print_stack(file=df)
-            df.write("========================\n")
             
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
@@ -791,12 +786,6 @@ class HorarioService:
             # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
             if aula.status == 'confirmado' and escola_id:
                 debug_msg += " Status confirmado! "
-                import traceback, os
-                with open(r'C:\Users\bm5036321\Documents\GitHub\projetoesfasbm\DEBUG_ALERT_123.txt', 'a', encoding='utf-8') as df:
-                    df.write("\n=== ALERTA DISPARADO ===\n")
-                    df.write(f"Aula status: {aula.status}, Horario_id: {horario_id}\n")
-                    traceback.print_stack(file=df)
-                    df.write("========================\n")
                     
                 alert_info = {
                     "instrutor": instrutor_nome,
@@ -806,7 +795,7 @@ class HorarioService:
                     "escola_id": escola_id
                 }
         except Exception as e:
-            pass
+            debug_msg += f" ERRO: {e} " 
         # ----------------------------------------------
 
         if aula.group_id:
