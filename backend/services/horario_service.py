@@ -755,6 +755,12 @@ class HorarioService:
 
     @staticmethod
     def remove_aula(horario_id, user):
+        import traceback, os
+        with open(os.path.join(os.getcwd(), 'DEBUG_ALERT.txt'), 'a', encoding='utf-8') as df:
+            df.write("\n=== REMOVE_AULA CHAMADA ===\n")
+            traceback.print_stack(file=df)
+            df.write("========================\n")
+            
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
@@ -783,6 +789,13 @@ class HorarioService:
             # Restaura a checagem correta: apenas gerar alerta se a aula já estava confirmada/aprovada.
             # Se a aula for pendente, o instrutor está apenas corrigindo um erro de marcação!
             if aula.status == 'confirmado' and escola_id:
+                import traceback, os
+                with open(os.path.join(os.getcwd(), 'DEBUG_ALERT.txt'), 'a', encoding='utf-8') as df:
+                    df.write("\n=== ALERTA DISPARADO ===\n")
+                    df.write(f"Aula status: {aula.status}, Horario_id: {horario_id}\n")
+                    traceback.print_stack(file=df)
+                    df.write("========================\n")
+                    
                 alert_info = {
                     "instrutor": instrutor_nome,
                     "turma": turma_nome,
