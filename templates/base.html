@@ -909,11 +909,15 @@
                                 }).then((result) => {
                                     if (result.isConfirmed) {
                                         // Marcar todas as urgentes como lidas sequencialmente ou em bloco
-                                        let fetchPromises = urgent_alerts.map(n => fetch(`/notifications/mark-as-read/${n.id}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } }));
-                                        Promise.allSettled(fetchPromises).then(() => {
+                                        // Usa a API dedicada para limpar tudo de uma vez sem erro de CSRF
+                                        fetch('/api/limpar-alertas-urgentes')
+                                        .then(() => {
                                             setTimeout(() => {
                                                 window.location.reload();
-                                            }, 500);
+                                            }, 300);
+                                        })
+                                        .catch(() => {
+                                            window.location.reload();
                                         });
                                     }
                                 });
