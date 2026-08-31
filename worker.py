@@ -16,15 +16,27 @@ app = create_app()
 import json
 import zipfile
 import shutil
+import re
 from flask import render_template
 
+def fix_image_urls(html_content, app_root):
+    # Substitui as URLs https://localhost e http://localhost por caminhos absolutos do sistema de arquivos file://
+    project_root = __import__('os').path.abspath(__import__('os').path.join(app_root, '..'))
+    if __import__('os').name == 'nt':
+        project_root = '/' + project_root.replace('\\', '/')
+        
+    file_prefix = f'file://{project_root}'
+    
+    html_content = re.sub(r'https?://[^/]+', file_prefix, html_content)
+    return html_content
+
 def process_certificates_zip(job):
-    """Gera um PDF por aluno e empacota em um ZIP."""
+    # Gera um PDF por aluno e empacota em um ZIP.
+    import os
     downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
     os.makedirs(downloads_dir, exist_ok=True)
     
-    # Criar diretorio temporario para os PDFs
-    temp_dir = os.path.join(downloads_dir, f"temp_{job.id}")
+    temp_dir = os.path.join(downloads_dir, f'temp_{job.id}')
     os.makedirs(temp_dir, exist_ok=True)
     
     try:
@@ -35,12 +47,11 @@ def process_certificates_zip(job):
         
         pdf_files = []
         for aluno in alunos:
-            # Substitui barras ou caracteres invalidos no nome do aluno para nome do arquivo
-            safe_name = "".join([c for c in aluno if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+            safe_name = ''.join([c for c in aluno if c.isalpha() or c.isdigit() or c==' ']).rstrip()
             if not safe_name:
-                safe_name = "aluno_desconhecido"
+                safe_name = 'aluno_desconhecido'
                 
-            pdf_filename = f"Certificado - {safe_name}.pdf"
+            pdf_filename = f'Certificado - {safe_name}.pdf'
             pdf_path = os.path.join(temp_dir, pdf_filename)
             
             with app.test_request_context():
@@ -51,23 +62,24 @@ def process_certificates_zip(job):
                     alunos=[aluno]
                 )
             
-            logging.info(f"Gerando PDF para {aluno}")
+            # Corrige as URLs das imagens para o WeasyPrint conseguir baixar
+            rendered_html = fix_image_urls(rendered_html, app.root_path)
+            
+            logging.info(f'Gerando PDF para {aluno}')
             HTML(string=rendered_html).write_pdf(pdf_path)
             pdf_files.append((pdf_filename, pdf_path))
             
-        # Criar o ZIP
-        zip_filename = f"certificados_{job.id}.zip"
+        zip_filename = f'certificados_{job.id}.zip'
         zip_path = os.path.join(downloads_dir, zip_filename)
         
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for pdf_name, p_path in pdf_files:
                 zipf.write(p_path, arcname=pdf_name)
                 
-        logging.info(f"ZIP gerado com sucesso em {zip_path}")
+        logging.info(f'ZIP gerado com sucesso em {zip_path}')
         return zip_path
         
     finally:
-        # Limpar diretorio temporario
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
 
