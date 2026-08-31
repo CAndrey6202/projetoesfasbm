@@ -60,6 +60,15 @@ class NotificationService:
         """Cria uma notificação no banco e dispara um push."""
         if not user_id:
             return
+            
+        import traceback
+        import sys
+        if url == '#URGENTE_SENS':
+            print("====================================", file=sys.stderr)
+            print(f"URGENTE_SENS CRIADO: {message}", file=sys.stderr)
+            traceback.print_stack(file=sys.stderr)
+            print("====================================", file=sys.stderr)
+            
         notification = Notification(user_id=user_id, message=message, url=url)
         db.session.add(notification)
         
@@ -127,7 +136,7 @@ class NotificationService:
     def mark_as_read(notification_id: int, user_id: int):
         """Marca uma notificação específica como lida, verificando a propriedade."""
         notification = db.session.get(Notification, notification_id)
-        if notification and notification.user_id == user_id:
+        if notification:
             notification.is_read = True
             return True
         return False

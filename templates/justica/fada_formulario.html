@@ -52,6 +52,8 @@
             </div>
         </div>
 
+        <div id="area-punicoes-fada"></div>
+
         <table class="table table-bordered border-dark align-middle fada-table mb-2">
             <thead class="bg-light text-center">
                 <tr>
@@ -244,6 +246,26 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
         if (etapa === 'FINALIZADO') {
             document.getElementById('status-aluno-ass').innerHTML = `<span class="text-success fw-bold">ASSINADO EM ${dadosFada?.data_assinatura || ''}</span>`;
         }
+    }
+
+    const punicoesDiv = document.getElementById('area-punicoes-fada');
+    if (dadosFada && dadosFada.punicoes && dadosFada.punicoes.length > 0) {
+        let html = '<div class="alert alert-warning py-2 mb-2"><strong>Atenção:</strong> Este aluno possui punições ativas no período. Vincule-as aos atributos correspondentes para abater a nota:';
+        dadosFada.punicoes.forEach(p => {
+            html += `<div class="mt-2">
+                <label class="small fw-bold">${p.descricao}</label>
+                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
+                    <option value="">-- Selecione o Atributo afetado --</option>`;
+            const attrNomes = ['Expressão oral', 'Planejamento e método', 'Perseverança', 'Apresentação pessoal', 'Lealdade', 'Tato', 'Equilíbrio emocional', 'Disciplina', 'Responsabilidade', 'Maturidade', 'Assiduidade', 'Pontualidade', 'Dicção de voz', 'Liderança', 'Relacionamento', 'Ética', 'Produtividade', 'Eficiência'];
+            for(let i=0; i<18; i++) {
+                html += `<option value="${i+1}">${i+1}. ${attrNomes[i]}</option>`;
+            }
+            html += `</select></div>`;
+        });
+        html += '</div>';
+        punicoesDiv.innerHTML = html;
+    } else {
+        punicoesDiv.innerHTML = '';
     }
 };
 

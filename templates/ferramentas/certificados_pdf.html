@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Certificados</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+        @page verso {
+            size: A4 portrait;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            color: #000;
+        }
+        .page-front {
+            width: 297mm;
+            height: 209mm;
+            page-break-after: always;
+            background-image: url('{{ url_for("static", filename="img/certificado_frente.png", _external=True) }}');
+            background-size: 100% 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-back {
+            page: verso;
+            width: 210mm;
+            height: 296mm;
+            page-break-after: always;
+            background-image: url('{{ url_for("static", filename="img/certificado_verso.png", _external=True) }}');
+            background-size: 100% 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* FRONT CSS */
+        .front-content {
+            position: absolute;
+            top: 28%;
+            left: 10%;
+            width: 80%;
+            text-align: center;
+        }
+        .cert-title {
+            font-size: 42px;
+            font-weight: bold;
+            color: #1a365d;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        .cert-text {
+            font-size: 20px;
+            line-height: 1.6;
+            text-align: justify;
+            margin-bottom: 30px;
+        }
+        .cert-name {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 30px 0;
+            text-transform: uppercase;
+        }
+        .cert-date {
+            text-align: right;
+            font-size: 18px;
+            margin-top: 40px;
+            margin-bottom: 50px;
+        }
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            padding: 0 50px;
+        }
+        .signature-block {
+            width: 40%;
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-bottom: 5px;
+        }
+        
+        /* BACK CSS */
+        .back-content {
+            position: absolute;
+            top: 15%;
+            left: 10%;
+            width: 80%;
+            height: 70%;
+        }
+        
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            background-color: white;
+        }
+        
+        .main-table th, .main-table td {
+            border: 1px solid #000;
+            padding: 4px;
+        }
+        
+        .header-cell {
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 10px !important;
+        }
+        
+        .header-logo {
+            width: 60px;
+            margin-bottom: 5px;
+        }
+        
+        .col-header {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .legislacao-cell {
+            vertical-align: top;
+            text-align: justify;
+            padding: 15px !important;
+            font-size: 12px;
+            position: relative;
+        }
+        
+        .seal-logo {
+            display: block;
+            margin: 0 auto 15px auto;
+            width: 120px;
+        }
+        
+        .signature-container {
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-bottom: 5px;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    {% for aluno in alunos %}
+    <!-- FRENTE -->
+
+    <div class="page-front">
+        <div class="front-content">
+            <div class="cert-title">CERTIFICADO</div>
+            
+            <div class="cert-text">
+                O Diretor de Educação e Cultura, no uso de suas atribuições e de acordo com o Regimento Interno do Departamento de Educação e Cultura, outorga o presente certificado à (ao)
+            </div>
+            
+            <div class="cert-name">{{ aluno }}</div>
+            
+            <div class="cert-text">
+                tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de {{ dados.data_duracao }}, com um total de {{ dados.carga_horaria }}, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
+            </div>
+            
+            <div class="cert-date">
+                {{ dados.data_local }}
+            </div>
+            
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div>{{ dados.nome_comandante }}</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div>{{ dados.nome_diretor }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- VERSO -->
+    <div class="page-back">
+        <div class="back-content">
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th colspan="4" class="header-cell">
+                            <img src="{{ url_for('static', filename='img/brasao.png', _external=True) }}" class="header-logo"><br>
+                            ESTADO DO RIO GRANDE DO SUL<br>
+                            SECRETARIA DA SEGURANÇA PÚBLICA<br>
+                            BRIGADA MILITAR<br>
+                            DEPARTAMENTO DE EDUCAÇÃO E CULTURA
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="col-header" style="width: 5%">Nr</th>
+                        <th class="col-header" style="width: 40%">DISCIPLINAS</th>
+                        <th class="col-header" style="width: 10%">CH</th>
+                        <th class="col-header" style="width: 45%">LEGISLAÇÃO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for disc in disciplinas %}
+                    <tr>
+                        <td class="text-center">{{ disc.nr }}</td>
+                        <td>{{ disc.nome }}</td>
+                        <td class="text-center">{{ disc.ch }}</td>
+                        
+                        {% if loop.first %}
+                        <td rowspan="{{ disciplinas|length + 1 }}" class="legislacao-cell">
+                            <img src="{{ url_for('static', filename='img/brasao.png', _external=True) }}" class="seal-logo">
+                            
+                            {{ dados.ementa | replace('\n', '<br>') | safe }}
+                            
+                            <br><br>
+                            <div class="text-center">
+                                {{ dados.data_local }}
+                            </div>
+                            
+                            <div class="signature-container">
+                                <div class="signature-line"></div>
+                                <div>{{ dados.nome_chefe_ensino }}</div>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="2" class="text-center" style="font-weight: bold;">CARGA HORÁRIA TOTAL DO CURSO</td>
+                        <td class="text-center" style="font-weight: bold;">{{ dados.carga_horaria }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</body>
+</html>

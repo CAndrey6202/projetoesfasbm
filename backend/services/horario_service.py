@@ -758,6 +758,7 @@ class HorarioService:
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
+            
         if aula.group_id:
             db.session.query(Horario).filter(Horario.group_id == aula.group_id).delete()
         else:

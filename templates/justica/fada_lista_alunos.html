@@ -50,7 +50,12 @@
                     {% for item in dados %}
                     {% set status = item.fada_obj.etapa_atual if item.fada_obj else 'RASCUNHO' %}
                     {% set fada_id = item.fada_obj.id if item.fada_obj else 'null' %}
-                    
+
+                    {% set punicoes_dict = [] %}
+                    {% for p in item.punicoes_pendentes %}
+                        {% set _ = punicoes_dict.append({'id': p.id, 'descricao': p.origem_punicao ~ ' - ' ~ p.pontos ~ ' pts (' ~ p.data_ocorrencia.strftime('%d/%m/%Y') ~ ')' }) %}
+                    {% endfor %}
+
                     {% set fada_data = {
                         'presidente_id': item.fada_obj.presidente_id if item.fada_obj else '',
                         'membro1_id': item.fada_obj.membro1_id if item.fada_obj else '',
@@ -59,7 +64,8 @@
                         'hash_m1': item.fada_obj.hash_m1 if item.fada_obj else '',
                         'hash_m2': item.fada_obj.hash_m2 if item.fada_obj else '',
                         'data_ass_pres': item.fada_obj.data_ass_pres.strftime('%d/%m') if (item.fada_obj and item.fada_obj.data_ass_pres) else '',
-                        'etapa_atual': status
+                        'etapa_atual': status,
+                        'punicoes': punicoes_dict
                     } %}
                     
                     <tr class="text-center">
@@ -69,8 +75,8 @@
                             <small class="text-muted">{{ item.turma }}</small>
                         </td>
                         <td class="fw-bold text-primary">{{ "{:.2f}".format(item.ndisc) }}</td>
-                        <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) }}</td>
-                        <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) }}</td>
+                        <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) if item.fada is not none else "Pendente"}}</td>
+                        <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary" 

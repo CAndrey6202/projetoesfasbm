@@ -856,7 +856,7 @@
             function fetchNotifications() {
                 if (document.hidden) return; // Não bombardear o servidor se a aba estiver oculta
 
-                fetch("{{ url_for('notification.get_dropdown_data') }}", {
+                fetch("{{ url_for('notification.get_dropdown_data') }}?_t=" + new Date().getTime(), {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -890,6 +890,8 @@
                 if (list) {
                     list.innerHTML = '';
                     if (notifications && notifications.length > 0) {
+                        
+
                         notifications.forEach(n => {
                             const item = document.createElement('li');
                             const itemClass = n.is_read ? 'read' : 'unread';
