@@ -12,7 +12,7 @@
     <div class="col-lg-8 mx-auto">
         <div class="card card-esfasbm mb-4">
             <div class="card-body">
-                <form id="certificadoForm" enctype="multipart/form-data">
+                <form id="certificadoForm" enctype="multipart/form-data" method="POST" onsubmit="submitCertificados(event); return false;">
                     <h5 class="mb-3 border-bottom pb-2">Informações Gerais</h5>
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const form = document.getElementById("certificadoForm");
     const btnGerar = document.getElementById("btnGerarCertificados");
 
-    form.addEventListener("submit", function(e) {
+    window.submitCertificados = function(e) {
         e.preventDefault();
         const originalHtml = btnGerar.innerHTML;
         btnGerar.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Enviando para Fila...";
@@ -163,7 +163,7 @@ document.addEventListener("DOMContentLoaded", function() {
             btnGerar.innerHTML = originalHtml;
             btnGerar.disabled = false;
         });
-    });
+    };
 
     function pollJobStatus(jobId, btnElement, originalHtml) {
         btnElement.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Gerando Certificados...";
