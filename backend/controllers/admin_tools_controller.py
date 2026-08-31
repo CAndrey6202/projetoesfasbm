@@ -289,27 +289,18 @@ def certificados():
                     'ch': disciplinas_ch[i] if i < len(disciplinas_ch) else ''
                 })
 
-        planilha_alunos = request.files.get('planilha_alunos')
+        lista_alunos_texto = request.form.get('lista_alunos', '')
         
-        if not planilha_alunos:
-            return jsonify({'success': False, 'error': 'A planilha de alunos e obrigatoria.'})
+        if not lista_alunos_texto.strip():
+            return jsonify({'success': False, 'error': 'A lista de alunos e obrigatoria.'})
 
         try:
-            # Le a planilha de alunos (assumindo que a primeira coluna tem os nomes)
-            df = pd.read_excel(planilha_alunos)
+            # Processa o texto separando por vírgula ou quebra de linha
+            alunos_raw = lista_alunos_texto.replace('\n', ',').split(',')
+            alunos = [a.strip() for a in alunos_raw if a.strip()]
             
-            # Se a planilha tiver uma coluna específica, pode ser procurada, senão pega a primeira
-            if 'Nome do Aluno' in df.columns:
-                alunos = df['Nome do Aluno'].dropna().astype(str).tolist()
-            elif 'Nome' in df.columns:
-                alunos = df['Nome'].dropna().astype(str).tolist()
-            elif 'Aluno' in df.columns:
-                alunos = df['Aluno'].dropna().astype(str).tolist()
-            else:
-                alunos = df.iloc[:, 0].dropna().astype(str).tolist()
-                
             if not alunos:
-                return jsonify({'success': False, 'error': 'Nenhum aluno encontrado na planilha.'})
+                return jsonify({'success': False, 'error': 'Nenhum aluno encontrado na lista.'})
                 
             # Renderiza o HTML com todos os certificados
             rendered_html = render_template(

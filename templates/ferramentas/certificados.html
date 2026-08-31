@@ -5,15 +5,17 @@
 {% block content %}
 <div class="content-header">
     <h1>Gerador de Certificados</h1>
-    <p>Gere certificados em lote a partir de uma planilha de alunos e dos dados do curso.</p>
+    <p>Gere certificados em lote a partir de uma lista de nomes e dos dados do curso.</p>
 </div>
 
 <div class="row">
     <div class="col-lg-8 mx-auto">
         <div class="card card-esfasbm mb-4">
             <div class="card-body">
-                <form id="certificadoForm" enctype="multipart/form-data" method="POST" onsubmit="submitCertificados(event); return false;">
-                    <h5 class="mb-3 border-bottom pb-2">Informações Gerais</h5>
+                <form id="certificadoForm" method="POST" onsubmit="submitCertificados(event); return false;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <h5 class="mb-3 border-bottom pb-2">Informacoes Gerais</h5>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Nome do Curso (Frente e Verso)</label>
@@ -24,11 +26,11 @@
                             <input type="text" class="form-control" name="nome_escola" value="EsFHEP - SM - CTSP" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Período de Duração (Ex: 01 de Jan a 02 de Fev de 2026)</label>
+                            <label class="form-label">Periodo de Duracao (Ex: 01 de Jan a 02 de Fev de 2026)</label>
                             <input type="text" class="form-control" name="data_duracao" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Carga Horária Total (Ex: 120 horas-aula)</label>
+                            <label class="form-label">Carga Horaria Total (Ex: 120 horas-aula)</label>
                             <input type="text" class="form-control" name="carga_horaria" required>
                         </div>
                         <div class="col-md-12">
@@ -48,7 +50,7 @@
                             <input type="text" class="form-control" name="nome_diretor" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Chefe Divisão de Ensino (Verso)</label>
+                            <label class="form-label">Chefe Divisao de Ensino (Verso)</label>
                             <input type="text" class="form-control" name="nome_chefe_ensino" required>
                         </div>
                     </div>
@@ -67,7 +69,7 @@
                                 <th width="15%">NR</th>
                                 <th width="60%">DISCIPLINAS</th>
                                 <th width="15%">CH</th>
-                                <th width="10%">Ação</th>
+                                <th width="10%">Acao</th>
                             </tr>
                         </thead>
                         <tbody id="disciplinasBody">
@@ -75,17 +77,17 @@
                                 <td><input type="text" name="disc_nr[]" class="form-control form-control-sm"></td>
                                 <td><input type="text" name="disc_nome[]" class="form-control form-control-sm"></td>
                                 <td><input type="text" name="disc_ch[]" class="form-control form-control-sm"></td>
-                                <td><button type="button" class="btn btn-sm btn-danger btn-remover-linha"><i class="fas fa-trash"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-danger btn-remover-linha" onclick="removerLinha(this)"><i class="fas fa-trash"></i></button></td>
                             </tr>
                         </tbody>
                     </table>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mb-4" id="btnAdicionarLinha"><i class="fas fa-plus"></i> Adicionar Disciplina</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mb-4" onclick="adicionarLinha()"><i class="fas fa-plus"></i> Adicionar Disciplina</button>
 
                     <h5 class="mt-4 mb-3 border-bottom pb-2">Alunos</h5>
                     <div class="mb-4">
-                        <label class="form-label">Planilha de Alunos (.xlsx)</label>
-                        <p class="text-muted small">A planilha deve conter uma coluna com o nome dos alunos (pode ser "Nome do Aluno", "Nome", ou simplesmente a primeira coluna).</p>
-                        <input type="file" name="planilha_alunos" class="form-control" accept=".xlsx" required>
+                        <label class="form-label">Lista de Alunos (um por linha ou separados por virgula)</label>
+                        <p class="text-muted small">Digite ou cole os nomes dos alunos que receberao o certificado.</p>
+                        <textarea name="lista_alunos" class="form-control" rows="6" required></textarea>
                     </div>
 
                     <div class="d-grid gap-2">
@@ -103,42 +105,37 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const btnAdicionarLinha = document.getElementById("btnAdicionarLinha");
-    const disciplinasBody = document.getElementById("disciplinasBody");
-    
-    btnAdicionarLinha.addEventListener("click", function() {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td><input type="text" name="disc_nr[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="disc_nome[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="disc_ch[]" class="form-control form-control-sm"></td>
-            <td><button type="button" class="btn btn-sm btn-danger btn-remover-linha"><i class="fas fa-trash"></i></button></td>
-        `;
+    function adicionarLinha() {
+        var disciplinasBody = document.getElementById("disciplinasBody");
+        var tr = document.createElement("tr");
+        tr.innerHTML = "<td><input type='text' name='disc_nr[]' class='form-control form-control-sm'></td>" +
+                       "<td><input type='text' name='disc_nome[]' class='form-control form-control-sm'></td>" +
+                       "<td><input type='text' name='disc_ch[]' class='form-control form-control-sm'></td>" +
+                       "<td><button type='button' class='btn btn-sm btn-danger btn-remover-linha' onclick='removerLinha(this)'><i class='fas fa-trash'></i></button></td>";
         disciplinasBody.appendChild(tr);
-    });
+    }
 
-    disciplinasBody.addEventListener("click", function(e) {
-        if(e.target.closest(".btn-remover-linha")) {
-            const tr = e.target.closest("tr");
-            if(disciplinasBody.children.length > 1) {
-                tr.remove();
-            } else {
-                tr.querySelectorAll("input").forEach(input => input.value = "");
-            }
+    function removerLinha(btn) {
+        var tr = btn.closest("tr");
+        var tbody = tr.parentElement;
+        if(tbody.children.length > 1) {
+            tr.remove();
+        } else {
+            tr.querySelectorAll("input").forEach(function(input) { input.value = ""; });
         }
-    });
-
-    const form = document.getElementById("certificadoForm");
-    const btnGerar = document.getElementById("btnGerarCertificados");
+    }
 
     window.submitCertificados = function(e) {
         e.preventDefault();
-        const originalHtml = btnGerar.innerHTML;
+        
+        var form = document.getElementById("certificadoForm");
+        var btnGerar = document.getElementById("btnGerarCertificados");
+        var originalHtml = btnGerar.innerHTML;
+        
         btnGerar.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Enviando para Fila...";
         btnGerar.disabled = true;
 
-        const formData = new FormData(form);
+        var formData = new FormData(form);
 
         fetch("{{ url_for('tools.certificados') }}", {
             method: "POST",
@@ -147,8 +144,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 "X-CSRFToken": "{{ csrf_token() }}"
             }
         })
-        .then(res => res.json())
-        .then(data => {
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
             if(data.success && data.job_id) {
                 pollJobStatus(data.job_id, btnGerar, originalHtml);
             } else {
@@ -157,21 +154,23 @@ document.addEventListener("DOMContentLoaded", function() {
                 btnGerar.disabled = false;
             }
         })
-        .catch(err => {
+        .catch(function(err) {
             console.error(err);
-            alert("Erro de comunicação.");
+            alert("Erro de comunicacao com o servidor.");
             btnGerar.innerHTML = originalHtml;
             btnGerar.disabled = false;
         });
+        
+        return false;
     };
 
     function pollJobStatus(jobId, btnElement, originalHtml) {
         btnElement.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Gerando Certificados...";
-        const statusUrl = "/api/jobs/" + jobId + "/status";
-        const interval = setInterval(() => {
+        var statusUrl = "/api/jobs/" + jobId + "/status";
+        var interval = setInterval(function() {
             fetch(statusUrl)
-                .then(res => res.json())
-                .then(data => {
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
                     if(data.error) {
                         clearInterval(interval);
                         alert("Erro no Processamento: " + data.error);
@@ -179,20 +178,20 @@ document.addEventListener("DOMContentLoaded", function() {
                         btnElement.disabled = false;
                     } else if(data.status === "completed") {
                         clearInterval(interval);
-                        btnElement.innerHTML = "<i class='fas fa-check me-2'></i> Concluído";
+                        btnElement.innerHTML = "<i class='fas fa-check me-2'></i> Concluido";
                         window.location.href = "/api/jobs/" + jobId + "/download";
-                        setTimeout(() => {
+                        setTimeout(function() {
                             btnElement.innerHTML = originalHtml;
                             btnElement.disabled = false;
                         }, 3000);
                     } else if(data.status === "failed") {
                         clearInterval(interval);
-                        alert("A geração falhou no servidor: " + (data.error_message || "Erro desconhecido."));
+                        alert("A geracao falhou no servidor: " + (data.error_message || "Erro desconhecido."));
                         btnElement.innerHTML = originalHtml;
                         btnElement.disabled = false;
                     }
                 })
-                .catch(err => {
+                .catch(function(err) {
                     clearInterval(interval);
                     alert("Erro ao checar status do PDF.");
                     btnElement.innerHTML = originalHtml;
@@ -200,6 +199,5 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
         }, 3000);
     }
-});
 </script>
 {% endblock %}
