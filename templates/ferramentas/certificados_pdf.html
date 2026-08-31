@@ -198,7 +198,7 @@
                 <thead>
                     <tr>
                         <th colspan="4" class="header-cell">
-                            <img src="{{ url_for('static', filename='img/brasao.png', _external=True) }}" class="header-logo"><br>
+                            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" class="header-logo"><br>
                             ESTADO DO RIO GRANDE DO SUL<br>
                             SECRETARIA DA SEGURANÇA PÚBLICA<br>
                             BRIGADA MILITAR<br>
@@ -221,7 +221,7 @@
                         
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 1 }}" class="legislacao-cell">
-                            <img src="{{ url_for('static', filename='img/brasao.png', _external=True) }}" class="seal-logo">
+                            <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" class="seal-logo">
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                             

@@ -302,26 +302,25 @@ def certificados():
             if not alunos:
                 return jsonify({'success': False, 'error': 'Nenhum aluno encontrado na lista.'})
                 
-            # Renderiza o HTML com todos os certificados
-            rendered_html = render_template(
-                'ferramentas/certificados_pdf.html',
-                dados=dados,
-                disciplinas=disciplinas,
-                alunos=alunos
-            )
-            
-            # Cria o job
+            # Cria o job para gerar um ZIP com um PDF por aluno
             from backend.models.database import db
             from backend.models.background_job import BackgroundJob
             
             job_id = str(uuid.uuid4())
-            pdf_filename = f"certificados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            zip_filename = f"certificados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            
+            # Guardamos os dados no payload como JSON
+            payload_data = {
+                'dados': dados,
+                'disciplinas': disciplinas,
+                'alunos': alunos
+            }
             
             job = BackgroundJob(
                 id=job_id,
-                task_type='generate_pdf',
-                payload=rendered_html,
-                meta_data=json.dumps({"filename": pdf_filename}),
+                task_type='generate_certificates_zip',
+                payload=json.dumps(payload_data),
+                meta_data=json.dumps({"filename": zip_filename}),
                 user_id=current_user.id
             )
             db.session.add(job)
