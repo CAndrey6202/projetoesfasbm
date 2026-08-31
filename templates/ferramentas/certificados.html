@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Gerador de Certificados{% endblock %}
 
@@ -64,10 +64,9 @@
                     <table class="table table-bordered table-sm" id="disciplinasTable">
                         <thead class="table-light">
                             <tr>
-                                <th width="10%">NR</th>
-                                <th width="45%">DISCIPLINAS</th>
+                                <th width="15%">NR</th>
+                                <th width="60%">DISCIPLINAS</th>
                                 <th width="15%">CH</th>
-                                <th width="20%">LEGISLAÇÃO</th>
                                 <th width="10%">Ação</th>
                             </tr>
                         </thead>
@@ -76,7 +75,6 @@
                                 <td><input type="text" name="disc_nr[]" class="form-control form-control-sm"></td>
                                 <td><input type="text" name="disc_nome[]" class="form-control form-control-sm"></td>
                                 <td><input type="text" name="disc_ch[]" class="form-control form-control-sm"></td>
-                                <td><input type="text" name="disc_leg[]" class="form-control form-control-sm"></td>
                                 <td><button type="button" class="btn btn-sm btn-danger btn-remover-linha"><i class="fas fa-trash"></i></button></td>
                             </tr>
                         </tbody>
@@ -105,49 +103,48 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const btnAdicionarLinha = document.getElementById('btnAdicionarLinha');
-    const disciplinasBody = document.getElementById('disciplinasBody');
+document.addEventListener("DOMContentLoaded", function() {
+    const btnAdicionarLinha = document.getElementById("btnAdicionarLinha");
+    const disciplinasBody = document.getElementById("disciplinasBody");
     
-    btnAdicionarLinha.addEventListener('click', function() {
-        const tr = document.createElement('tr');
-        tr.innerHTML = 
+    btnAdicionarLinha.addEventListener("click", function() {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
             <td><input type="text" name="disc_nr[]" class="form-control form-control-sm"></td>
             <td><input type="text" name="disc_nome[]" class="form-control form-control-sm"></td>
             <td><input type="text" name="disc_ch[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="disc_leg[]" class="form-control form-control-sm"></td>
             <td><button type="button" class="btn btn-sm btn-danger btn-remover-linha"><i class="fas fa-trash"></i></button></td>
-        ;
+        `;
         disciplinasBody.appendChild(tr);
     });
 
-    disciplinasBody.addEventListener('click', function(e) {
-        if(e.target.closest('.btn-remover-linha')) {
-            const tr = e.target.closest('tr');
+    disciplinasBody.addEventListener("click", function(e) {
+        if(e.target.closest(".btn-remover-linha")) {
+            const tr = e.target.closest("tr");
             if(disciplinasBody.children.length > 1) {
                 tr.remove();
             } else {
-                tr.querySelectorAll('input').forEach(input => input.value = '');
+                tr.querySelectorAll("input").forEach(input => input.value = "");
             }
         }
     });
 
-    const form = document.getElementById('certificadoForm');
-    const btnGerar = document.getElementById('btnGerarCertificados');
+    const form = document.getElementById("certificadoForm");
+    const btnGerar = document.getElementById("btnGerarCertificados");
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener("submit", function(e) {
         e.preventDefault();
         const originalHtml = btnGerar.innerHTML;
-        btnGerar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Enviando para Fila...';
+        btnGerar.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Enviando para Fila...";
         btnGerar.disabled = true;
 
         const formData = new FormData(form);
 
         fetch("{{ url_for('tools.certificados') }}", {
-            method: 'POST',
+            method: "POST",
             body: formData,
             headers: {
-                'X-CSRFToken': '{{ csrf_token() }}'
+                "X-CSRFToken": "{{ csrf_token() }}"
             }
         })
         .then(res => res.json())
@@ -169,8 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function pollJobStatus(jobId, btnElement, originalHtml) {
-        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Gerando Certificados...';
-        const statusUrl = /api/jobs//status;
+        btnElement.innerHTML = "<i class='fas fa-spinner fa-spin me-2'></i> Gerando Certificados...";
+        const statusUrl = "/api/jobs/" + jobId + "/status";
         const interval = setInterval(() => {
             fetch(statusUrl)
                 .then(res => res.json())
@@ -180,15 +177,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert("Erro no Processamento: " + data.error);
                         btnElement.innerHTML = originalHtml;
                         btnElement.disabled = false;
-                    } else if(data.status === 'completed') {
+                    } else if(data.status === "completed") {
                         clearInterval(interval);
-                        btnElement.innerHTML = '<i class="fas fa-check me-2"></i> Concluído';
-                        window.location.href = /api/jobs//download;
+                        btnElement.innerHTML = "<i class='fas fa-check me-2'></i> Concluído";
+                        window.location.href = "/api/jobs/" + jobId + "/download";
                         setTimeout(() => {
                             btnElement.innerHTML = originalHtml;
                             btnElement.disabled = false;
                         }, 3000);
-                    } else if(data.status === 'failed') {
+                    } else if(data.status === "failed") {
                         clearInterval(interval);
                         alert("A geração falhou no servidor: " + (data.error_message || "Erro desconhecido."));
                         btnElement.innerHTML = originalHtml;

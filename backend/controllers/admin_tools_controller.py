@@ -1,4 +1,4 @@
-﻿# backend/controllers/admin_tools_controller.py
+# backend/controllers/admin_tools_controller.py
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify
 from flask_login import login_required, current_user
@@ -279,7 +279,6 @@ def certificados():
         disciplinas_nr = request.form.getlist('disc_nr[]')
         disciplinas_nome = request.form.getlist('disc_nome[]')
         disciplinas_ch = request.form.getlist('disc_ch[]')
-        disciplinas_leg = request.form.getlist('disc_leg[]')
         
         disciplinas = []
         for i in range(len(disciplinas_nr)):
@@ -287,17 +286,16 @@ def certificados():
                 disciplinas.append({
                     'nr': disciplinas_nr[i],
                     'nome': disciplinas_nome[i],
-                    'ch': disciplinas_ch[i] if i < len(disciplinas_ch) else '',
-                    'leg': disciplinas_leg[i] if i < len(disciplinas_leg) else ''
+                    'ch': disciplinas_ch[i] if i < len(disciplinas_ch) else ''
                 })
 
         planilha_alunos = request.files.get('planilha_alunos')
         
         if not planilha_alunos:
-            return jsonify({'success': False, 'error': 'A planilha de alunos é obrigatória.'})
+            return jsonify({'success': False, 'error': 'A planilha de alunos e obrigatoria.'})
 
         try:
-            # Lê a planilha de alunos (assumindo que a primeira coluna tem os nomes)
+            # Le a planilha de alunos (assumindo que a primeira coluna tem os nomes)
             df = pd.read_excel(planilha_alunos)
             
             # Se a planilha tiver uma coluna específica, pode ser procurada, senão pega a primeira
@@ -338,10 +336,10 @@ def certificados():
             db.session.add(job)
             db.session.commit()
             
-            # Log de geração
+            # Log de geracao
             LogService.log(
-                action="Geração de Certificados",
-                details=f"O administrador enviou uma solicitação para gerar certificados para {len(alunos)} alunos do curso '{dados['nome_curso']}'.",
+                action="Geracao de Certificados",
+                details=f"O administrador enviou uma solicitacao para gerar certificados para {len(alunos)} alunos do curso '{dados['nome_curso']}'.",
                 school_id=UserService.get_current_school_id()
             )
             
