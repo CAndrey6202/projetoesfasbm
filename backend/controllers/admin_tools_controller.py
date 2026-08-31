@@ -1,9 +1,11 @@
 # backend/controllers/admin_tools_controller.py
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file
+from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify
 from flask_login import login_required, current_user
 import io
 import json
+import uuid
+import pandas as pd
 from datetime import datetime, timedelta
 
 from utils.decorators import admin_or_programmer_required, admin_escola_required
@@ -255,3 +257,99 @@ def preview_backup():
         return redirect(request.url)
         
     return render_template('ferramentas/preview_backup.html', data=None)
+@tools_bp.route('/certificados', methods=['GET', 'POST'])
+@login_required
+@admin_or_programmer_required
+def certificados():
+    if request.method == 'POST':
+        # Recebe os dados do formulário
+        dados = {
+            'nome_curso': request.form.get('nome_curso', ''),
+            'nome_escola': request.form.get('nome_escola', ''),
+            'data_duracao': request.form.get('data_duracao', ''),
+            'carga_horaria': request.form.get('carga_horaria', ''),
+            'data_local': request.form.get('data_local', ''),
+            'nome_comandante': request.form.get('nome_comandante', ''),
+            'nome_diretor': request.form.get('nome_diretor', ''),
+            'nome_chefe_ensino': request.form.get('nome_chefe_ensino', ''),
+            'ementa': request.form.get('ementa', '')
+        }
+        
+        # Recebe as disciplinas
+        disciplinas_nr = request.form.getlist('disc_nr[]')
+        disciplinas_nome = request.form.getlist('disc_nome[]')
+        disciplinas_ch = request.form.getlist('disc_ch[]')
+        disciplinas_leg = request.form.getlist('disc_leg[]')
+        
+        disciplinas = []
+        for i in range(len(disciplinas_nr)):
+            if disciplinas_nome[i].strip() != '':
+                disciplinas.append({
+                    'nr': disciplinas_nr[i],
+                    'nome': disciplinas_nome[i],
+                    'ch': disciplinas_ch[i] if i < len(disciplinas_ch) else '',
+                    'leg': disciplinas_leg[i] if i < len(disciplinas_leg) else ''
+                })
+
+        planilha_alunos = request.files.get('planilha_alunos')
+        
+        if not planilha_alunos:
+            return jsonify({'success': False, 'error': 'A planilha de alunos é obrigatória.'})
+
+        try:
+            # Lê a planilha de alunos (assumindo que a primeira coluna tem os nomes)
+            df = pd.read_excel(planilha_alunos)
+            
+            # Se a planilha tiver uma coluna específica, pode ser procurada, senão pega a primeira
+            if 'Nome do Aluno' in df.columns:
+                alunos = df['Nome do Aluno'].dropna().astype(str).tolist()
+            elif 'Nome' in df.columns:
+                alunos = df['Nome'].dropna().astype(str).tolist()
+            elif 'Aluno' in df.columns:
+                alunos = df['Aluno'].dropna().astype(str).tolist()
+            else:
+                alunos = df.iloc[:, 0].dropna().astype(str).tolist()
+                
+            if not alunos:
+                return jsonify({'success': False, 'error': 'Nenhum aluno encontrado na planilha.'})
+                
+            # Renderiza o HTML com todos os certificados
+            rendered_html = render_template(
+                'ferramentas/certificados_pdf.html',
+                dados=dados,
+                disciplinas=disciplinas,
+                alunos=alunos
+            )
+            
+            # Cria o job
+            from backend.models.database import db
+            from backend.models.background_job import BackgroundJob
+            
+            job_id = str(uuid.uuid4())
+            pdf_filename = f"certificados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            
+            job = BackgroundJob(
+                id=job_id,
+                task_type='generate_pdf',
+                payload=rendered_html,
+                meta_data=json.dumps({"filename": pdf_filename}),
+                user_id=current_user.id
+            )
+            db.session.add(job)
+            db.session.commit()
+            
+            # Log de geração
+            LogService.log(
+                action="Geração de Certificados",
+                details=f"O administrador enviou uma solicitação para gerar certificados para {len(alunos)} alunos do curso '{dados['nome_curso']}'.",
+                school_id=UserService.get_current_school_id()
+            )
+            
+            return jsonify({'success': True, 'job_id': job_id})
+            
+        except Exception as e:
+            from backend.models.database import db
+            db.session.rollback()
+            return jsonify({'success': False, 'error': f'Erro ao processar a planilha: {str(e)}'})
+
+    return render_template('ferramentas/certificados.html')
