@@ -19,21 +19,23 @@
             color: #000;
         }
         .page-front {
-            width: 100%;
-            height: 100%;
+            width: 297mm;
+            height: 209mm;
             page-break-after: always;
             background-image: url('{{ url_for("static", filename="img/certificado_frente.png", _external=True) }}');
             background-size: 100% 100%;
             position: relative;
+            overflow: hidden;
         }
         .page-back {
             page: verso;
-            width: 100%;
-            height: 100%;
+            width: 210mm;
+            height: 296mm;
             page-break-after: always;
             background-image: url('{{ url_for("static", filename="img/certificado_verso.png", _external=True) }}');
             background-size: 100% 100%;
             position: relative;
+            overflow: hidden;
         }
         
         /* FRONT CSS */
