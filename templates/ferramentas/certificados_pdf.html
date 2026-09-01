@@ -78,10 +78,11 @@
             margin-top: 40px;
             margin-bottom: 50px;
         }
-        /* Assinaturas da frente (Otimizado para WeasyPrint) */
+        
+        /* AJUSTE 1: Assinaturas da frente mais para cima */
         .signatures {
             position: absolute;
-            bottom: -80px; /* Ajuste se necessário para alinhar no fundo da frente */
+            bottom: 30px; /* Estava -80px, mudei para 30px positivo para subir */
             left: 0;
             width: 100%;
         }
@@ -116,13 +117,13 @@
             overflow: hidden;
         }
         
-        /* O Container da Tabela (Limites rígidos) */
+        /* AJUSTE 2: Tabela um pouco mais para cima (reduzindo a altura total do container) */
         .box-container {
             position: absolute;
             top: 13%;
             left: 10%;
             width: 80%;
-            height: 230mm; /* Altura total fixa */
+            height: 210mm; /* Estava 230mm. Reduzi para desencostar da arte de fundo */
             border: 1px solid #000;
             background: transparent;
         }
@@ -182,7 +183,7 @@
             z-index: -1;
         }
 
-        /* Tabela real de disciplinas (Sem bordas laterais, usa as linhas de fundo) */
+        /* Tabela real de disciplinas */
         .table-disciplinas {
             width: 100%;
             border-collapse: collapse;
@@ -224,7 +225,7 @@
             border-right: 1px solid #000;
             text-align: center;
             font-weight: bold;
-            line-height: 10mm; /* Centraliza verticalmente */
+            line-height: 10mm; 
         }
         .footer-left-val {
             position: absolute;
@@ -327,7 +328,6 @@
                 
                 <!-- LADO ESQUERDO: Disciplinas -->
                 <div class="col-left">
-                    <!-- Linhas absolutas de fundo (criam as bordas das colunas vazias) -->
                     <div class="line-nr"></div>
                     <div class="line-ch"></div>
                     
@@ -367,7 +367,6 @@
                     <div class="right-header">LEGISLAÇÃO</div>
                     
                     <div class="right-content">
-                        <!-- Espaço transparente para mostrar o brasão do background -->
                         <div style="height: 170px; width: 100%;"></div>
                         
                         <div>
