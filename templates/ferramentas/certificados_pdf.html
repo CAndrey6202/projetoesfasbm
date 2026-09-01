@@ -109,6 +109,7 @@
         
         .main-table {
             width: 100%;
+            height: 100%;
             border-collapse: collapse;
             font-size: 11px;
             background-color: transparent;
@@ -157,6 +158,13 @@
         .signature-container {
             margin-top: 40px;
             text-align: center;
+        }
+        
+        .bottom-content {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
         }
         
         .signature-line {
@@ -243,14 +251,15 @@
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                             
-                            <br><br>
-                            <div class="text-center">
-                                {{ dados.data_local }}
-                            </div>
-                            
-                            <div class="signature-container">
-                                <div class="signature-line"></div>
-                                <div>{{ dados.nome_chefe_ensino }}</div>
+                            <div class="bottom-content">
+                                <div class="text-center">
+                                    {{ dados.data_local }}
+                                </div>
+                                
+                                <div class="signature-container">
+                                    <div class="signature-line"></div>
+                                    <div class="text-center">{{ dados.nome_chefe_ensino }}</div>
+                                </div>
                             </div>
                         </td>
                         {% endif %}
