@@ -38,7 +38,6 @@
             overflow: hidden;
         }
         
-        
         /* FRONT CSS */
         .front-header-text {
             position: absolute;
@@ -108,7 +107,7 @@
         
         .main-table {
             width: 100%;
-            height: 220mm;
+            height: 220mm; /* Mantem o tamanho fixo da tabela para esticar os espaçamentos */
             border-collapse: collapse;
             font-size: 11px;
             background-color: transparent;
@@ -144,22 +143,22 @@
             text-align: center;
         }
         
+        /* Modificações na célula da Legislação */
         .legislacao-cell {
             vertical-align: top;
-            text-align: justify;
-            padding: 15px !important;
-            font-size: 12px;
-            position: relative;
+            padding: 0 !important; 
         }
-        
-        .seal-logo {
-            display: block;
-            margin: 0 auto 15px auto;
-            width: 120px;
+
+        .legislacao-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 195mm; 
+            padding: 15px;
+            box-sizing: border-box;
         }
         
         .signature-container {
-            margin-top: 40px;
             text-align: center;
         }
         
@@ -170,7 +169,7 @@
             right: 15px;
         }
         
-        .signature-line {
+        .signature-line-back {
             border-top: 1px solid #000;
             margin-bottom: 5px;
             width: 80%;
@@ -182,7 +181,6 @@
 <body>
     {% for aluno in alunos %}
     <!-- FRENTE -->
-
     <div class="page-front">
         <div class="front-header-text">
             ESTADO DO RIO GRANDE DO SUL<br>
@@ -250,32 +248,49 @@
                         
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell">
-                            <div style="height: 140px; width: 100%;"></div>
                             
-                            {{ dados.ementa | replace('\n', '<br>') | safe }}
-                            
-                            <div class="bottom-content">
-                                <div class="text-center">
+                            <!-- Nova Div Container: controla os limites da coluna Legislação -->
+                            <div class="legislacao-wrapper">
+                                
+                                <!-- Espaço reservado para o Logo impresso ao fundo -->
+                                <div style="height: 170px; width: 100%;"></div>
+                                
+                                <!-- Texto da Ementa -->
+                                <div style="text-align: justify; font-size: 12px; line-height: 1.4;">
+                                    {{ dados.ementa | replace('\n', '<br>') | safe }}
+                                </div>
+                                
+                                <!-- Data da assinatura (Abaixo do Texto) -->
+                                <div style="text-align: right; margin-top: 20px; font-size: 12px;">
                                     {{ dados.data_local }}
                                 </div>
                                 
-                                <div class="signature-container">
-                                    <div class="signature-line"></div>
-                                    <div class="text-center">{{ dados.nome_chefe_ensino }}</div>
+                                <!-- Assinatura Ancorada absolutamente no fundo da coluna -->
+                                <div class="bottom-content">
+                                    <div class="signature-container">
+                                        <div class="signature-line-back"></div>
+                                        <div class="text-center" style="font-size: 11px;">
+                                            {{ dados.nome_chefe_ensino }}
+                                        </div>
+                                    </div>
                                 </div>
+                                
                             </div>
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
-                    <tr style="height: auto;">
+                    
+                    <!-- Linha expansível que joga o 'Total' para baixo -->
+                    <tr style="height: 100%;">
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                     </tr>
+                    
                     <tr>
-                        <td colspan="2" class="text-center" style="font-weight: bold;">CARGA HORÁRIA TOTAL DO CURSO</td>
-                        <td class="text-center" style="font-weight: bold;">{{ dados.carga_horaria }}</td>
+                        <td colspan="2" class="text-center" style="font-weight: bold; padding: 10px;">CARGA HORÁRIA TOTAL DO CURSO</td>
+                        <td class="text-center" style="font-weight: bold; padding: 10px;">{{ dados.carga_horaria }}</td>
                     </tr>
                 </tbody>
             </table>
