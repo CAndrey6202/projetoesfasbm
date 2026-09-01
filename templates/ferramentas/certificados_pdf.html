@@ -100,14 +100,15 @@
         /* BACK CSS */
         .back-content {
             position: absolute;
-            top: 15%;
+            top: 14%;
+            bottom: 12%; /* Fixa o limite inferior amarrado ao fundo da página */
             left: 10%;
             width: 80%;
         }
         
         .main-table {
             width: 100%;
-            height: 220mm; /* Fixa a altura total da tabela */
+            height: 100%; /* Tabela preenche todo o espaço do container */
             border-collapse: collapse;
             font-size: 11px;
             background-color: transparent;
@@ -143,16 +144,17 @@
         .legislacao-cell {
             padding: 0 !important;
             vertical-align: top;
+            height: 100%; 
         }
         
         .leg-table {
             width: 100%;
-            height: 100%; /* Força a tabela interna a usar 100% da célula externa */
+            height: 100%; 
             border-collapse: collapse;
         }
         
         .leg-table td {
-            border: none !important; /* Remove bordas internas */
+            border: none !important;
             padding: 15px;
         }
     </style>
@@ -204,7 +206,7 @@
                             DEPARTAMENTO DE EDUCAÇÃO E CULTURA
                         </th>
                     </tr>
-                    <tr>
+                    <tr style="height: 1%;">
                         <th class="col-header" style="width: 5%">Nr</th>
                         <th class="col-header" style="width: 40%">DISCIPLINAS</th>
                         <th class="col-header" style="width: 10%">CH</th>
@@ -213,7 +215,6 @@
                 </thead>
                 <tbody>
                     {% for disc in disciplinas %}
-                    <!-- height 1% força as linhas de conteúdo a ficarem pequenas -->
                     <tr style="height: 1%;">
                         <td class="text-center">{{ disc.nr }}</td>
                         <td>{{ disc.nome }}</td>
@@ -221,16 +222,14 @@
                         
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell">
-                            
-                            <!-- TABELA ANINHADA: Método mais seguro para PDF não sobrepor os itens -->
                             <table class="leg-table">
                                 <!-- Topo: Espaço para o brasão da BM -->
                                 <tr>
                                     <td style="height: 170px;"></td>
                                 </tr>
-                                <!-- Meio: Texto de legislação e data alinhada ao topo -->
+                                <!-- Meio: Texto de legislação e data (Estica para ocupar o espaço vazio) -->
                                 <tr>
-                                    <td style="vertical-align: top; text-align: justify; font-size: 12px;">
+                                    <td style="vertical-align: top; text-align: justify; font-size: 12px; height: 100%;">
                                         {{ dados.ementa | replace('\n', '<br>') | safe }}
                                         
                                         <div style="text-align: right; margin-top: 15px;">
@@ -238,7 +237,7 @@
                                         </div>
                                     </td>
                                 </tr>
-                                <!-- Base: Assinatura cravada no fundo (vertical-align: bottom) -->
+                                <!-- Base: Assinatura cravada no fundo -->
                                 <tr>
                                     <td style="vertical-align: bottom; height: 60px; text-align: center;">
                                         <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto;"></div>
@@ -246,20 +245,19 @@
                                     </td>
                                 </tr>
                             </table>
-                            
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
                     
-                    <!-- Linha Vazia: Absorve todo o espaço restante, empurrando o Total para baixo -->
-                    <tr>
-                        <td style="border-top: none; border-bottom: none;"></td>
-                        <td style="border-top: none; border-bottom: none;"></td>
-                        <td style="border-top: none; border-bottom: none;"></td>
+                    <!-- Linha Vazia (Mola): Empurra o Total para o fundo -->
+                    <tr style="height: 100%;">
+                        <td style="border-top: none; border-bottom: none; height: 100%;"></td>
+                        <td style="border-top: none; border-bottom: none; height: 100%;"></td>
+                        <td style="border-top: none; border-bottom: none; height: 100%;"></td>
                     </tr>
                     
-                    <!-- Linha Final da Carga Horária (fixa embaixo) -->
+                    <!-- Linha Final da Carga Horária -->
                     <tr style="height: 1%;">
                         <td colspan="2" class="text-center" style="font-weight: bold; padding: 10px;">CARGA HORÁRIA TOTAL DO CURSO</td>
                         <td class="text-center" style="font-weight: bold;">{{ dados.carga_horaria }}</td>
