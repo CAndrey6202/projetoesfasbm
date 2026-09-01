@@ -19,12 +19,12 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Times New Roman', Times, serif; /* Fonte principal da frente */
             color: #000;
         }
         
         /* ========================================= */
-        /* FRENTE CSS (Fontes reduzidas)             */
+        /* FRENTE CSS                                */
         /* ========================================= */
         .page-front {
             width: 297mm;
@@ -35,74 +35,99 @@
             position: relative;
             overflow: hidden;
         }
-        .front-header-text {
+        
+        /* Cabeçalho com 3 colunas para a Frente (Seguro no WeasyPrint) */
+        .front-header {
             position: absolute;
-            top: 20%;
+            top: 10%;
             left: 10%;
             width: 80%;
+            display: table;
+        }
+        .fh-left, .fh-center, .fh-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .fh-left {
+            width: 25%;
+            text-align: left;
+        }
+        .fh-center {
+            width: 50%;
             text-align: center;
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 11px; /* Reduzido de 14px */
+            font-family: Arial, sans-serif; /* Cabeçalho Arial */
+            font-size: 11px;
             font-weight: bold;
             line-height: 1.2;
         }
+        .fh-right {
+            width: 25%;
+            text-align: right;
+        }
+        .fh-center img { width: 50px; margin-bottom: 5px; }
+        .fh-left img { width: 100px; } /* Ajuste de tamanho do logo da esquerda */
+        .fh-right img { width: 100px; } /* Ajuste de tamanho do logo da direita */
+
         .front-content {
             position: absolute;
-            top: 30%;
+            top: 32%;
             left: 10%;
             width: 80%;
             text-align: center;
         }
         .cert-title {
-            font-size: 34px; /* Reduzido de 42px */
+            font-size: 46px; /* Maior, igual ao modelo */
             font-weight: bold;
-            color: #1a365d;
+            color: #1a4a79; /* Azul escuro */
             margin-bottom: 25px;
             letter-spacing: 2px;
         }
         .cert-text {
-            font-size: 15px; /* Reduzido de 20px para ficar igual a referência */
-            line-height: 1.5;
+            font-size: 16px;
+            line-height: 1.6;
             text-align: justify;
             margin-bottom: 20px;
         }
-        .cert-name {
-            font-size: 22px; /* Reduzido de 32px */
-            font-weight: bold;
-            margin: 20px 0;
-            text-transform: uppercase;
-        }
         .cert-date {
             text-align: right;
-            font-size: 14px; /* Reduzido de 18px */
-            margin-top: 30px;
-            margin-bottom: 50px;
+            font-size: 13px;
+            margin-top: 20px;
         }
         
         /* Assinaturas da frente */
         .signatures {
             position: absolute;
-            bottom: 45px; /* Subido mais um pouco para livrar a borda de baixo */
+            bottom: 30px; 
             left: 0;
             width: 100%;
+            font-family: Arial, sans-serif; /* Nome abaixo da linha em Arial */
         }
         .sig-left {
             position: absolute;
-            left: 10%;
-            width: 35%;
+            left: 5%;
+            width: 40%;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
         }
         .sig-right {
             position: absolute;
-            right: 10%;
-            width: 35%;
+            right: 5%;
+            width: 40%;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
         }
         .signature-line {
             border-top: 1px solid #000;
             margin-bottom: 5px;
+        }
+        
+        .via-text {
+            position: absolute;
+            bottom: 10px;
+            right: 15%;
+            font-size: 26px;
+            font-weight: bold;
+            font-style: italic;
         }
 
         /* ========================================= */
@@ -117,12 +142,13 @@
             background-size: 100% 100%;
             position: relative;
             overflow: hidden;
+            font-family: Arial, sans-serif; /* O Verso usa Arial na Tabela */
         }
         
         /* CAIXA PRINCIPAL DA TABELA */
         .box-container {
             position: absolute;
-            top: 9.5%; /* AQUI ESTÁ A MÁGICA: Subimos a tabela inteira. Assim a linha passa ACIMA do brasão, não cortando mais ele! */
+            top: 9.5%; 
             left: 10%;
             width: 80%;
             height: 220mm; 
@@ -140,12 +166,13 @@
             border-bottom: 1px solid #000;
             text-align: center;
             padding-top: 5px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
+            line-height: 1.2;
         }
         .header-logo {
-            width: 60px;
-            margin-bottom: 5px;
+            width: 45px;
+            margin-bottom: 3px;
         }
 
         /* Corpo Dividido em duas Colunas */
@@ -167,10 +194,11 @@
             border-right: 1px solid #000;
         }
         
+        /* Ajuste fino das bordas falsas para a esquerda */
         .line-nr {
             position: absolute;
             top: 0;
-            bottom: 10mm; 
+            bottom: 8mm; 
             left: 10%;
             border-left: 1px solid #000;
             z-index: -1;
@@ -178,8 +206,8 @@
         .line-ch {
             position: absolute;
             top: 0;
-            bottom: 10mm;
-            left: 85%;
+            bottom: 8mm;
+            left: 80%; /* Ajustado para a proporção do CH */
             border-left: 1px solid #000;
             z-index: -1;
         }
@@ -188,7 +216,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 11px;
+            font-size: 10px;
         }
         .table-disciplinas th {
             height: 8mm;
@@ -201,40 +229,36 @@
             border-bottom: 1px solid #000;
             text-align: center;
         }
-        .td-left {
-            text-align: left !important;
-            padding-left: 5px !important;
-        }
 
         .footer-left {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 10mm;
+            height: 8mm;
             border-top: 1px solid #000;
-            font-size: 11px;
+            font-size: 10px;
         }
         .footer-left-text {
             position: absolute;
             top: 0;
             left: 0;
-            width: 85%;
+            width: 80%;
             height: 100%;
             border-right: 1px solid #000;
             text-align: center;
             font-weight: bold;
-            line-height: 10mm; 
+            line-height: 8mm; 
         }
         .footer-left-val {
             position: absolute;
             top: 0;
             right: 0;
-            width: 15%;
+            width: 20%;
             height: 100%;
             text-align: center;
             font-weight: bold;
-            line-height: 10mm;
+            line-height: 8mm;
         }
 
         /* COLUNA DIREITA (45%) */
@@ -252,12 +276,14 @@
             text-align: center;
             font-weight: bold;
             line-height: 8mm;
-            font-size: 11px;
+            font-size: 10px;
         }
         .right-content {
             padding: 15px;
-            font-size: 11px;
+            font-size: 12px;
             text-align: justify;
+            line-height: 1.4;
+            font-family: 'Times New Roman', Times, serif; /* Texto do verso em Serif como no modelo */
         }
         .right-signature {
             position: absolute;
@@ -277,33 +303,47 @@
     {% for aluno in alunos %}
     <!-- FRENTE -->
     <div class="page-front">
-        <div class="front-header-text">
-            ESTADO DO RIO GRANDE DO SUL<br>
-            SECRETARIA DA SEGURANÇA PÚBLICA<br>
-            BRIGADA MILITAR<br>
-            DEPARTAMENTO DE EDUCAÇÃO E CULTURA
+        <div class="front-header">
+            <!-- ATENÇÃO: Confirme se os nomes dos arquivos dos novos logos conferem com os do seu sistema -->
+            <div class="fh-left"><img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}"></div>
+            <div class="fh-center">
+                <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}"><br>
+                ESTADO DO RIO GRANDE DO SUL<br>
+                SECRETARIA DA SEGURANÇA PÚBLICA<br>
+                BRIGADA MILITAR<br>
+                DEPARTAMENTO DE EDUCAÇÃO E CULTURA
+            </div>
+            <div class="fh-right"><img src="{{ url_for('static', filename='img/logo_dec.png', _external=True) }}"></div>
         </div>
+        
         <div class="front-content">
             <div class="cert-title">CERTIFICADO</div>
+            
             <div class="cert-text">
-                O Diretor de Educação e Cultura, no uso de suas atribuições e de acordo com o Regimento Interno do Departamento de Educação e Cultura, outorga o presente certificado à (ao)
+                O Diretor de Educação e Cultura, no uso de suas atribuições e de acordo com o Regimento Interno, outorga o presente certificado à (ao)
             </div>
+            
             <div class="cert-name">{{ aluno }}</div>
+            
             <div class="cert-text">
-                tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de {{ dados.data_duracao }}, com um total de {{ dados.carga_horaria }}, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
+                tendo em vista a conclusão do <strong>"{{ dados.nome_curso }}"</strong>. Realizado no período de <strong>{{ dados.data_duracao }}</strong>, com um total de <strong>{{ dados.carga_horaria }}</strong>; ficando-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
             </div>
+            
             <div class="cert-date">{{ dados.data_local }}</div>
             
             <div class="signatures">
                 <div class="sig-left">
                     <div class="signature-line"></div>
-                    <div>{{ dados.nome_comandante }}</div>
+                    <div>{{ dados.nome_comandante }}<br>Comandante</div>
                 </div>
                 <div class="sig-right">
                     <div class="signature-line"></div>
-                    <div>{{ dados.nome_diretor }}</div>
+                    <div>{{ dados.nome_diretor }}<br>Diretor de Educação e Cultura</div>
                 </div>
             </div>
+            
+            <!-- Adicionado marcador 2º VIA no canto da tela como solicitado -->
+            <div class="via-text">2º VIA</div>
         </div>
     </div>
     
@@ -331,12 +371,12 @@
                     <table class="table-disciplinas">
                         <colgroup>
                             <col style="width: 10%;">
-                            <col style="width: 75%;">
-                            <col style="width: 15%;">
+                            <col style="width: 70%;">
+                            <col style="width: 20%;">
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>Nr</th>
+                                <th>NR</th>
                                 <th>DISCIPLINAS</th>
                                 <th>CH</th>
                             </tr>
@@ -345,7 +385,7 @@
                             {% for disc in disciplinas %}
                             <tr>
                                 <td>{{ disc.nr }}</td>
-                                <td class="td-left">{{ disc.nome }}</td>
+                                <td style="text-align: center;">{{ disc.nome }}</td> <!-- O texto no modelo era centralizado -->
                                 <td>{{ disc.ch }}</td>
                             </tr>
                             {% endfor %}
@@ -353,7 +393,7 @@
                     </table>
                     
                     <div class="footer-left">
-                        <div class="footer-left-text">CARGA HORÁRIA TOTAL DO CURSO</div>
+                        <div class="footer-left-text">Carga horária total do curso</div>
                         <div class="footer-left-val">{{ dados.carga_horaria }}</div>
                     </div>
                 </div>
@@ -370,14 +410,14 @@
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                         </div>
                         
-                        <div style="text-align: right; margin-top: 15px;">
+                        <div style="text-align: right; margin-top: 30px; font-family: Arial, sans-serif; font-size: 10px;">
                             {{ dados.data_local }}
                         </div>
                     </div>
                     
                     <div class="right-signature">
                         <div class="sig-line-back"></div>
-                        <div style="font-size: 11px;">{{ dados.nome_chefe_ensino }}</div>
+                        <div style="font-size: 10px; line-height: 1.3;">{{ dados.nome_chefe_ensino }}</div>
                     </div>
                 </div>
                 
