@@ -19,7 +19,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Times New Roman', Times, serif; /* Fonte principal da frente */
+            font-family: Arial, sans-serif; /* Retornado para Arial (fonte original limpa) */
             color: #000;
         }
         
@@ -36,7 +36,7 @@
             overflow: hidden;
         }
         
-        /* Cabeçalho com 3 colunas para a Frente (Seguro no WeasyPrint) */
+        /* Cabeçalho com 3 colunas para a Frente */
         .front-header {
             position: absolute;
             top: 10%;
@@ -55,7 +55,6 @@
         .fh-center {
             width: 50%;
             text-align: center;
-            font-family: Arial, sans-serif; /* Cabeçalho Arial */
             font-size: 11px;
             font-weight: bold;
             line-height: 1.2;
@@ -65,8 +64,8 @@
             text-align: right;
         }
         .fh-center img { width: 50px; margin-bottom: 5px; }
-        .fh-left img { width: 100px; } /* Ajuste de tamanho do logo da esquerda */
-        .fh-right img { width: 100px; } /* Ajuste de tamanho do logo da direita */
+        .fh-left img { width: 100px; }
+        .fh-right img { width: 100px; }
 
         .front-content {
             position: absolute;
@@ -76,45 +75,52 @@
             text-align: center;
         }
         .cert-title {
-            font-size: 46px; /* Maior, igual ao modelo */
+            font-size: 34px; /* Tamanho ajustado/menor conforme versão anterior */
             font-weight: bold;
-            color: #1a4a79; /* Azul escuro */
+            color: #1a365d; 
             margin-bottom: 25px;
             letter-spacing: 2px;
         }
         .cert-text {
-            font-size: 16px;
+            font-size: 15px; /* Tamanho ajustado/menor */
             line-height: 1.6;
             text-align: justify;
             margin-bottom: 20px;
         }
+        .cert-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-transform: uppercase;
+        }
         .cert-date {
             text-align: right;
-            font-size: 13px;
+            font-size: 14px;
             margin-top: 20px;
         }
         
-        /* Assinaturas da frente */
+        /* Assinaturas da frente - Agora ancoradas na PÁGINA (não sobrepõe o texto) */
         .signatures {
             position: absolute;
-            bottom: 30px; 
+            bottom: 35px; /* Travado no fundo da folha */
             left: 0;
             width: 100%;
-            font-family: Arial, sans-serif; /* Nome abaixo da linha em Arial */
         }
         .sig-left {
             position: absolute;
-            left: 5%;
-            width: 40%;
+            left: 10%;
+            width: 35%;
             text-align: center;
             font-size: 11px;
+            line-height: 1.3;
         }
         .sig-right {
             position: absolute;
-            right: 5%;
-            width: 40%;
+            right: 10%;
+            width: 35%;
             text-align: center;
             font-size: 11px;
+            line-height: 1.3;
         }
         .signature-line {
             border-top: 1px solid #000;
@@ -124,8 +130,8 @@
         .via-text {
             position: absolute;
             bottom: 10px;
-            right: 15%;
-            font-size: 26px;
+            right: 10%;
+            font-size: 20px;
             font-weight: bold;
             font-style: italic;
         }
@@ -142,7 +148,6 @@
             background-size: 100% 100%;
             position: relative;
             overflow: hidden;
-            font-family: Arial, sans-serif; /* O Verso usa Arial na Tabela */
         }
         
         /* CAIXA PRINCIPAL DA TABELA */
@@ -194,7 +199,6 @@
             border-right: 1px solid #000;
         }
         
-        /* Ajuste fino das bordas falsas para a esquerda */
         .line-nr {
             position: absolute;
             top: 0;
@@ -207,7 +211,7 @@
             position: absolute;
             top: 0;
             bottom: 8mm;
-            left: 80%; /* Ajustado para a proporção do CH */
+            left: 80%; 
             border-left: 1px solid #000;
             z-index: -1;
         }
@@ -280,10 +284,9 @@
         }
         .right-content {
             padding: 15px;
-            font-size: 12px;
+            font-size: 11px;
             text-align: justify;
             line-height: 1.4;
-            font-family: 'Times New Roman', Times, serif; /* Texto do verso em Serif como no modelo */
         }
         .right-signature {
             position: absolute;
@@ -304,7 +307,6 @@
     <!-- FRENTE -->
     <div class="page-front">
         <div class="front-header">
-            <!-- ATENÇÃO: Confirme se os nomes dos arquivos dos novos logos conferem com os do seu sistema -->
             <div class="fh-left"><img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}"></div>
             <div class="fh-center">
                 <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}"><br>
@@ -330,21 +332,27 @@
             </div>
             
             <div class="cert-date">{{ dados.data_local }}</div>
-            
-            <div class="signatures">
-                <div class="sig-left">
-                    <div class="signature-line"></div>
-                    <div>{{ dados.nome_comandante }}<br>Comandante</div>
-                </div>
-                <div class="sig-right">
-                    <div class="signature-line"></div>
-                    <div>{{ dados.nome_diretor }}<br>Diretor de Educação e Cultura</div>
+        </div>
+
+        <!-- ASSINATURAS MOVIDAS PARA FORA DO CONTEÚDO (Não vão mais se sobrepor ao texto) -->
+        <div class="signatures">
+            <div class="sig-left">
+                <div class="signature-line"></div>
+                <div>
+                    {{ dados.nome_comandante }}<br>
+                    <strong>Comandante</strong>
                 </div>
             </div>
-            
-            <!-- Adicionado marcador 2º VIA no canto da tela como solicitado -->
-            <div class="via-text">2º VIA</div>
+            <div class="sig-right">
+                <div class="signature-line"></div>
+                <div>
+                    {{ dados.nome_diretor }}<br>
+                    <strong>Diretor de Educação e Cultura</strong>
+                </div>
+            </div>
         </div>
+        
+        <div class="via-text">2º VIA</div>
     </div>
     
     <!-- VERSO -->
@@ -385,7 +393,7 @@
                             {% for disc in disciplinas %}
                             <tr>
                                 <td>{{ disc.nr }}</td>
-                                <td style="text-align: center;">{{ disc.nome }}</td> <!-- O texto no modelo era centralizado -->
+                                <td style="text-align: center;">{{ disc.nome }}</td>
                                 <td>{{ disc.ch }}</td>
                             </tr>
                             {% endfor %}
@@ -410,14 +418,18 @@
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                         </div>
                         
-                        <div style="text-align: right; margin-top: 30px; font-family: Arial, sans-serif; font-size: 10px;">
+                        <div style="text-align: right; margin-top: 30px; font-size: 10px;">
                             {{ dados.data_local }}
                         </div>
                     </div>
                     
+                    <!-- Assinatura com Cargo na parte de trás -->
                     <div class="right-signature">
                         <div class="sig-line-back"></div>
-                        <div style="font-size: 10px; line-height: 1.3;">{{ dados.nome_chefe_ensino }}</div>
+                        <div style="font-size: 10px; line-height: 1.3;">
+                            {{ dados.nome_chefe_ensino }}<br>
+                            <strong>Chefe da Divisão de Ensino e Treinamento do DEC</strong>
+                        </div>
                     </div>
                 </div>
                 
