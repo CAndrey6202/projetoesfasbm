@@ -238,7 +238,7 @@
                         <td class="text-center">{{ disc.ch }}</td>
                         
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 1 }}" class="legislacao-cell">
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell">
                             <div style="height: 140px; width: 100%;"></div>
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
@@ -256,6 +256,11 @@
                         {% endif %}
                     </tr>
                     {% endfor %}
+                    <tr style="height: 100%;">
+                        <td style="border-bottom: none; border-top: none;"></td>
+                        <td style="border-bottom: none; border-top: none;"></td>
+                        <td style="border-bottom: none; border-top: none;"></td>
+                    </tr>
                     <tr>
                         <td colspan="2" class="text-center" style="font-weight: bold;">CARGA HORÁRIA TOTAL DO CURSO</td>
                         <td class="text-center" style="font-weight: bold;">{{ dados.carga_horaria }}</td>
