@@ -24,7 +24,7 @@
         }
         
         /* ========================================= */
-        /* FRENTE CSS                                */
+        /* FRENTE CSS (Fontes reduzidas)             */
         /* ========================================= */
         .page-front {
             width: 297mm;
@@ -42,47 +42,47 @@
             width: 80%;
             text-align: center;
             font-family: 'Times New Roman', Times, serif;
-            font-size: 14px;
+            font-size: 11px; /* Reduzido de 14px */
             font-weight: bold;
             line-height: 1.2;
         }
         .front-content {
             position: absolute;
-            top: 32%;
+            top: 30%;
             left: 10%;
             width: 80%;
             text-align: center;
         }
         .cert-title {
-            font-size: 42px;
+            font-size: 34px; /* Reduzido de 42px */
             font-weight: bold;
             color: #1a365d;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             letter-spacing: 2px;
         }
         .cert-text {
-            font-size: 20px;
-            line-height: 1.6;
+            font-size: 15px; /* Reduzido de 20px para ficar igual a referência */
+            line-height: 1.5;
             text-align: justify;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         .cert-name {
-            font-size: 32px;
+            font-size: 22px; /* Reduzido de 32px */
             font-weight: bold;
-            margin: 30px 0;
+            margin: 20px 0;
             text-transform: uppercase;
         }
         .cert-date {
             text-align: right;
-            font-size: 18px;
-            margin-top: 40px;
+            font-size: 14px; /* Reduzido de 18px */
+            margin-top: 30px;
             margin-bottom: 50px;
         }
         
-        /* AJUSTE 1: Assinaturas da frente mais para cima */
+        /* Assinaturas da frente */
         .signatures {
             position: absolute;
-            bottom: 30px; /* Estava -80px, mudei para 30px positivo para subir */
+            bottom: 45px; /* Subido mais um pouco para livrar a borda de baixo */
             left: 0;
             width: 100%;
         }
@@ -91,12 +91,14 @@
             left: 10%;
             width: 35%;
             text-align: center;
+            font-size: 12px;
         }
         .sig-right {
             position: absolute;
             right: 10%;
             width: 35%;
             text-align: center;
+            font-size: 12px;
         }
         .signature-line {
             border-top: 1px solid #000;
@@ -104,7 +106,7 @@
         }
 
         /* ========================================= */
-        /* VERSO CSS (Estrutura Absoluta Anti-Falhas)*/
+        /* VERSO CSS                                 */
         /* ========================================= */
         .page-back {
             page: verso;
@@ -117,13 +119,13 @@
             overflow: hidden;
         }
         
-        /* AJUSTE 2: Tabela um pouco mais para cima (reduzindo a altura total do container) */
+        /* CAIXA PRINCIPAL DA TABELA */
         .box-container {
             position: absolute;
-            top: 13%;
+            top: 9.5%; /* AQUI ESTÁ A MÁGICA: Subimos a tabela inteira. Assim a linha passa ACIMA do brasão, não cortando mais ele! */
             left: 10%;
             width: 80%;
-            height: 210mm; /* Estava 230mm. Reduzi para desencostar da arte de fundo */
+            height: 220mm; 
             border: 1px solid #000;
             background: transparent;
         }
@@ -134,7 +136,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 35mm;
+            height: 33mm;
             border-bottom: 1px solid #000;
             text-align: center;
             padding-top: 5px;
@@ -149,7 +151,7 @@
         /* Corpo Dividido em duas Colunas */
         .box-body {
             position: absolute;
-            top: 35mm;
+            top: 33mm;
             bottom: 0;
             left: 0;
             width: 100%;
@@ -165,11 +167,10 @@
             border-right: 1px solid #000;
         }
         
-        /* Linhas verticais desenhadas no fundo (Garante que vão até o final) */
         .line-nr {
             position: absolute;
             top: 0;
-            bottom: 10mm; /* Para antes do rodapé da carga horária */
+            bottom: 10mm; 
             left: 10%;
             border-left: 1px solid #000;
             z-index: -1;
@@ -183,7 +184,6 @@
             z-index: -1;
         }
 
-        /* Tabela real de disciplinas */
         .table-disciplinas {
             width: 100%;
             border-collapse: collapse;
@@ -206,7 +206,6 @@
             padding-left: 5px !important;
         }
 
-        /* Rodapé Fixo da Carga Horária */
         .footer-left {
             position: absolute;
             bottom: 0;
@@ -257,7 +256,7 @@
         }
         .right-content {
             padding: 15px;
-            font-size: 12px;
+            font-size: 11px;
             text-align: justify;
         }
         .right-signature {
@@ -314,7 +313,6 @@
         <!-- CAIXA PRINCIPAL DA TABELA -->
         <div class="box-container">
             
-            <!-- 1. Cabeçalho Maior -->
             <div class="box-header">
                 <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" class="header-logo"><br>
                 ESTADO DO RIO GRANDE DO SUL<br>
@@ -323,10 +321,9 @@
                 DEPARTAMENTO DE EDUCAÇÃO E CULTURA
             </div>
             
-            <!-- 2. Corpo Dividido -->
             <div class="box-body">
                 
-                <!-- LADO ESQUERDO: Disciplinas -->
+                <!-- ESQUERDA: Disciplinas -->
                 <div class="col-left">
                     <div class="line-nr"></div>
                     <div class="line-ch"></div>
@@ -355,19 +352,19 @@
                         </tbody>
                     </table>
                     
-                    <!-- Rodapé Fixo no final da Coluna Esquerda -->
                     <div class="footer-left">
                         <div class="footer-left-text">CARGA HORÁRIA TOTAL DO CURSO</div>
                         <div class="footer-left-val">{{ dados.carga_horaria }}</div>
                     </div>
                 </div>
                 
-                <!-- LADO DIREITO: Legislação -->
+                <!-- DIREITA: Legislação -->
                 <div class="col-right">
                     <div class="right-header">LEGISLAÇÃO</div>
                     
                     <div class="right-content">
-                        <div style="height: 170px; width: 100%;"></div>
+                        <!-- O espaço vazio aqui protege o brasão que ficou no fundo -->
+                        <div style="height: 160px; width: 100%;"></div>
                         
                         <div>
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
@@ -378,7 +375,6 @@
                         </div>
                     </div>
                     
-                    <!-- Assinatura Fixa no final da Coluna Direita -->
                     <div class="right-signature">
                         <div class="sig-line-back"></div>
                         <div style="font-size: 11px;">{{ dados.nome_chefe_ensino }}</div>
@@ -386,7 +382,6 @@
                 </div>
                 
             </div>
-            
         </div>
     </div>
     {% endfor %}
