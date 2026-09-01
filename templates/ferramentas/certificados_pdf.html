@@ -107,14 +107,10 @@
         
         .main-table {
             width: 100%;
-            height: 220mm; /* Mantem o tamanho fixo da tabela para esticar os espaçamentos */
+            height: 220mm; /* Fixa a altura total da tabela */
             border-collapse: collapse;
             font-size: 11px;
             background-color: transparent;
-        }
-        
-        .main-table tr {
-            height: 10px;
         }
         
         .main-table th, .main-table td {
@@ -143,38 +139,21 @@
             text-align: center;
         }
         
-        /* Modificações na célula da Legislação */
+        /* Célula da Legislação e Tabela Interna */
         .legislacao-cell {
+            padding: 0 !important;
             vertical-align: top;
-            padding: 0 !important; 
         }
-
-        .legislacao-wrapper {
-            position: relative;
+        
+        .leg-table {
             width: 100%;
-            height: 100%;
-            min-height: 195mm; 
+            height: 100%; /* Força a tabela interna a usar 100% da célula externa */
+            border-collapse: collapse;
+        }
+        
+        .leg-table td {
+            border: none !important; /* Remove bordas internas */
             padding: 15px;
-            box-sizing: border-box;
-        }
-        
-        .signature-container {
-            text-align: center;
-        }
-        
-        .bottom-content {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            right: 15px;
-        }
-        
-        .signature-line-back {
-            border-top: 1px solid #000;
-            margin-bottom: 5px;
-            width: 80%;
-            margin-left: auto;
-            margin-right: auto;
         }
     </style>
 </head>
@@ -190,21 +169,14 @@
         </div>
         <div class="front-content">
             <div class="cert-title">CERTIFICADO</div>
-            
             <div class="cert-text">
                 O Diretor de Educação e Cultura, no uso de suas atribuições e de acordo com o Regimento Interno do Departamento de Educação e Cultura, outorga o presente certificado à (ao)
             </div>
-            
             <div class="cert-name">{{ aluno }}</div>
-            
             <div class="cert-text">
                 tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de {{ dados.data_duracao }}, com um total de {{ dados.carga_horaria }}, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
             </div>
-            
-            <div class="cert-date">
-                {{ dados.data_local }}
-            </div>
-            
+            <div class="cert-date">{{ dados.data_local }}</div>
             <div class="signatures">
                 <div class="signature-block">
                     <div class="signature-line"></div>
@@ -241,7 +213,8 @@
                 </thead>
                 <tbody>
                     {% for disc in disciplinas %}
-                    <tr>
+                    <!-- height 1% força as linhas de conteúdo a ficarem pequenas -->
+                    <tr style="height: 1%;">
                         <td class="text-center">{{ disc.nr }}</td>
                         <td>{{ disc.nome }}</td>
                         <td class="text-center">{{ disc.ch }}</td>
@@ -249,48 +222,47 @@
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell">
                             
-                            <!-- Nova Div Container: controla os limites da coluna Legislação -->
-                            <div class="legislacao-wrapper">
-                                
-                                <!-- Espaço reservado para o Logo impresso ao fundo -->
-                                <div style="height: 170px; width: 100%;"></div>
-                                
-                                <!-- Texto da Ementa -->
-                                <div style="text-align: justify; font-size: 12px; line-height: 1.4;">
-                                    {{ dados.ementa | replace('\n', '<br>') | safe }}
-                                </div>
-                                
-                                <!-- Data da assinatura (Abaixo do Texto) -->
-                                <div style="text-align: right; margin-top: 20px; font-size: 12px;">
-                                    {{ dados.data_local }}
-                                </div>
-                                
-                                <!-- Assinatura Ancorada absolutamente no fundo da coluna -->
-                                <div class="bottom-content">
-                                    <div class="signature-container">
-                                        <div class="signature-line-back"></div>
-                                        <div class="text-center" style="font-size: 11px;">
-                                            {{ dados.nome_chefe_ensino }}
+                            <!-- TABELA ANINHADA: Método mais seguro para PDF não sobrepor os itens -->
+                            <table class="leg-table">
+                                <!-- Topo: Espaço para o brasão da BM -->
+                                <tr>
+                                    <td style="height: 170px;"></td>
+                                </tr>
+                                <!-- Meio: Texto de legislação e data alinhada ao topo -->
+                                <tr>
+                                    <td style="vertical-align: top; text-align: justify; font-size: 12px;">
+                                        {{ dados.ementa | replace('\n', '<br>') | safe }}
+                                        
+                                        <div style="text-align: right; margin-top: 15px;">
+                                            {{ dados.data_local }}
                                         </div>
-                                    </div>
-                                </div>
-                                
-                            </div>
+                                    </td>
+                                </tr>
+                                <!-- Base: Assinatura cravada no fundo (vertical-align: bottom) -->
+                                <tr>
+                                    <td style="vertical-align: bottom; height: 60px; text-align: center;">
+                                        <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto;"></div>
+                                        <div style="font-size: 11px;">{{ dados.nome_chefe_ensino }}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                            
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
                     
-                    <!-- Linha expansível que joga o 'Total' para baixo -->
-                    <tr style="height: 100%;">
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
+                    <!-- Linha Vazia: Absorve todo o espaço restante, empurrando o Total para baixo -->
+                    <tr>
+                        <td style="border-top: none; border-bottom: none;"></td>
+                        <td style="border-top: none; border-bottom: none;"></td>
+                        <td style="border-top: none; border-bottom: none;"></td>
                     </tr>
                     
-                    <tr>
+                    <!-- Linha Final da Carga Horária (fixa embaixo) -->
+                    <tr style="height: 1%;">
                         <td colspan="2" class="text-center" style="font-weight: bold; padding: 10px;">CARGA HORÁRIA TOTAL DO CURSO</td>
-                        <td class="text-center" style="font-weight: bold; padding: 10px;">{{ dados.carga_horaria }}</td>
+                        <td class="text-center" style="font-weight: bold;">{{ dados.carga_horaria }}</td>
                     </tr>
                 </tbody>
             </table>
