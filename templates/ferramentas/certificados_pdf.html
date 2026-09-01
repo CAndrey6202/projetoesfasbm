@@ -239,7 +239,7 @@
                         
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 1 }}" class="legislacao-cell">
-                            <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" class="seal-logo">
+                            <div style="height: 140px; width: 100%;"></div>
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                             
