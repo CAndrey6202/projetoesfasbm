@@ -127,7 +127,6 @@
             overflow: hidden;
         }
         
-        /* Brasão movido para FORA da tabela, como no original */
         .back-crest {
             position: absolute;
             top: 7%; 
@@ -136,7 +135,6 @@
             text-align: center;
         }
         
-        /* Tabela abaixada para dar espaço ao brasão de fora */
         .box-container {
             position: absolute;
             top: 15%; 
@@ -147,7 +145,6 @@
             background: transparent;
         }
         
-        /* Cabeçalho da Tabela agora só com texto */
         .box-header {
             position: absolute;
             top: 0;
@@ -162,7 +159,6 @@
             line-height: 1.3;
         }
 
-        /* Corpo da tabela inicia perfeitamente abaixo do cabeçalho */
         .box-body {
             position: absolute;
             top: 24mm; 
@@ -260,14 +256,6 @@
             padding: 0 15px;
         }
         
-        /* Container seguro do Brasão BM - Padding resolve o bug do WeasyPrint */
-        .bm-logo-container {
-            display: block;
-            text-align: center;
-            padding-top: 15px; 
-            padding-bottom: 25px;
-        }
-        
         .right-signature {
             position: absolute;
             bottom: 15px;
@@ -341,14 +329,12 @@
     <!-- VERSO -->
     <div class="page-back">
         
-        <!-- Brasão do Estado Isolado Fora da Tabela (Igual a primeira foto) -->
         <div class="back-crest">
             <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 60px;">
         </div>
         
         <div class="box-container">
             
-            <!-- Tabela apenas com os Textos -->
             <div class="box-header">
                 ESTADO DO RIO GRANDE DO SUL<br>
                 SECRETARIA DA SEGURANÇA PÚBLICA<br>
@@ -396,9 +382,10 @@
                     <div class="right-header">LEGISLAÇÃO</div>
                     
                     <div class="right-content">
-                        <!-- Brasão da BM Isolado usando preenchimento (padding). Impossível do texto subir -->
-                        <div class="bm-logo-container">
-                            <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="width: 120px;">
+                        
+                        <!-- AJUSTE FINAL: Altura estritamente fixada em 160px. O texto NUNCA MAIS vai subir! -->
+                        <div style="display: block; width: 100%; height: 160px; text-align: center; margin-top: 15px; margin-bottom: 15px;">
+                            <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 160px; max-width: 130px; margin: 0 auto;">
                         </div>
                         
                         <div style="text-align: justify; font-size: 12px; line-height: 1.5;">
