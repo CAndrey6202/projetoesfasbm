@@ -19,7 +19,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif; /* Retornado para Arial (fonte original limpa) */
+            font-family: Arial, sans-serif;
             color: #000;
         }
         
@@ -67,22 +67,23 @@
         .fh-left img { width: 100px; }
         .fh-right img { width: 100px; }
 
+        /* Container ajustado para a largura exata do quadro vermelho */
         .front-content {
             position: absolute;
             top: 32%;
-            left: 10%;
-            width: 80%;
+            left: 15%; /* Recuado para espremer o texto */
+            width: 70%; /* Largura reduzida para acompanhar a referência */
             text-align: center;
         }
         .cert-title {
-            font-size: 34px; /* Tamanho ajustado/menor conforme versão anterior */
+            font-size: 34px;
             font-weight: bold;
             color: #1a365d; 
             margin-bottom: 25px;
             letter-spacing: 2px;
         }
         .cert-text {
-            font-size: 15px; /* Tamanho ajustado/menor */
+            font-size: 15px;
             line-height: 1.6;
             text-align: justify;
             margin-bottom: 20px;
@@ -99,25 +100,25 @@
             margin-top: 20px;
         }
         
-        /* Assinaturas da frente - Agora ancoradas na PÁGINA (não sobrepõe o texto) */
+        /* Assinaturas movidas para cima da linha amarela e alinhadas ao texto */
         .signatures {
             position: absolute;
-            bottom: 35px; /* Travado no fundo da folha */
+            bottom: 80px; /* Puxa as assinaturas para cima dos grafismos */
             left: 0;
             width: 100%;
         }
         .sig-left {
             position: absolute;
-            left: 10%;
-            width: 35%;
+            left: 15%; /* Alinhado com o limite esquerdo do texto (15%) */
+            width: 30%;
             text-align: center;
             font-size: 11px;
             line-height: 1.3;
         }
         .sig-right {
             position: absolute;
-            right: 10%;
-            width: 35%;
+            right: 15%; /* Alinhado com o limite direito do texto (15%) */
+            width: 30%;
             text-align: center;
             font-size: 11px;
             line-height: 1.3;
@@ -125,15 +126,6 @@
         .signature-line {
             border-top: 1px solid #000;
             margin-bottom: 5px;
-        }
-        
-        .via-text {
-            position: absolute;
-            bottom: 10px;
-            right: 10%;
-            font-size: 20px;
-            font-weight: bold;
-            font-style: italic;
         }
 
         /* ========================================= */
@@ -334,7 +326,6 @@
             <div class="cert-date">{{ dados.data_local }}</div>
         </div>
 
-        <!-- ASSINATURAS MOVIDAS PARA FORA DO CONTEÚDO (Não vão mais se sobrepor ao texto) -->
         <div class="signatures">
             <div class="sig-left">
                 <div class="signature-line"></div>
@@ -351,8 +342,6 @@
                 </div>
             </div>
         </div>
-        
-        <div class="via-text">2º VIA</div>
     </div>
     
     <!-- VERSO -->
@@ -428,7 +417,7 @@
                         <div class="sig-line-back"></div>
                         <div style="font-size: 10px; line-height: 1.3;">
                             {{ dados.nome_chefe_ensino }}<br>
-                            <strong>Chefe da Divisão de Ensino e Treinamento do DEC</strong>
+                            <strong>Rsp p/ Chefe da Divisão de Ensino e Treinamento do DEC</strong>
                         </div>
                     </div>
                 </div>
