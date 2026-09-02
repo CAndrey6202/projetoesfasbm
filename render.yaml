@@ -1,9 +1,7 @@
 services:
   - type: web
     name: sisgen-bm
-    env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "FLASK_APP=backend.app flask db upgrade && python worker.py & gunicorn --workers 2 --threads 4 --timeout 120 --max-requests 500 --max-requests-jitter 50 'backend.app:create_app()'"
+    env: docker
     plan: starter
     envVars:
       - key: PYTHON_VERSION
