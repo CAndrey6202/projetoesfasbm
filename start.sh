@@ -8,4 +8,4 @@ echo "Iniciando worker de background..."
 PYTHONUNBUFFERED=1 python worker.py &
 
 echo "Iniciando Gunicorn..."
-exec gunicorn --workers 1 --threads 4 --timeout 120 --max-requests 500 --max-requests-jitter 50 "backend.app:create_app()"
+exec gunicorn --workers 2 --threads 4 --timeout 120 --max-requests 500 --max-requests-jitter 50 "backend.app:create_app()"
