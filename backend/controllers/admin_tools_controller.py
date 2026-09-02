@@ -270,8 +270,10 @@ def certificados():
             'carga_horaria': request.form.get('carga_horaria', ''),
             'data_local': request.form.get('data_local', ''),
             'nome_comandante': request.form.get('nome_comandante', ''),
+            'departamento_comandante': request.form.get('departamento_comandante', ''),
             'nome_diretor': request.form.get('nome_diretor', ''),
             'nome_chefe_ensino': request.form.get('nome_chefe_ensino', ''),
+            'funcao_chefe_ensino': request.form.get('funcao_chefe_ensino', 'Chefe do Departamento de Ensino e Treinamento'),
             'ementa': request.form.get('ementa', '')
         }
         

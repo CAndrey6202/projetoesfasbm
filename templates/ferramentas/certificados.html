@@ -40,20 +40,33 @@
                     </div>
 
                     <h5 class="mt-4 mb-3 border-bottom pb-2">Assinaturas</h5>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Comandante da Escola</label>
-                            <input type="text" class="form-control" name="nome_comandante" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Diretor do DEC</label>
-                            <input type="text" class="form-control" name="nome_diretor" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Chefe Divisao de Ensino (Verso)</label>
-                            <input type="text" class="form-control" name="nome_chefe_ensino" required>
-                        </div>
-                    </div>
+                      <div class="row g-3">
+                          <div class="col-md-4">
+                              <label class="form-label">Comandante da Escola</label>
+                              <input type="text" class="form-control" name="nome_comandante" required>
+                              <label class="form-label mt-2">Unidade/Departamento (Abaixo do nome)</label>
+                              <input type="text" class="form-control" name="departamento_comandante" placeholder="Ex: Comandante" required>
+                          </div>
+                          <div class="col-md-4">
+                              <label class="form-label">Diretor do DEC</label>
+                              <input type="text" class="form-control" name="nome_diretor" required>
+                          </div>
+                          <div class="col-md-4">
+                              <label class="form-label">Chefe Divisao de Ensino (Verso)</label>
+                              <input type="text" class="form-control" name="nome_chefe_ensino" required>
+                              <label class="form-label mt-2">Função</label>
+                              <div>
+                                  <div class="form-check form-check-inline">
+                                      <input class="form-check-input" type="radio" name="funcao_chefe_ensino" id="funcao_chefe" value="Chefe do Departamento de Ensino e Treinamento" checked>
+                                      <label class="form-check-label" for="funcao_chefe">CHEFE</label>
+                                  </div>
+                                  <div class="form-check form-check-inline">
+                                      <input class="form-check-input" type="radio" name="funcao_chefe_ensino" id="funcao_rsp" value="Rsp p/ Departamento de Ensino e Treinamento">
+                                      <label class="form-check-label" for="funcao_rsp">Rsp p/</label>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
 
                     <h5 class="mt-4 mb-3 border-bottom pb-2">Verso do Certificado</h5>
                     
