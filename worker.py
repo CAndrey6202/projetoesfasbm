@@ -13,6 +13,76 @@ from backend.models.background_job import BackgroundJob
 
 app = create_app()
 
+import json
+import zipfile
+import shutil
+import re
+from flask import render_template
+
+def fix_image_urls(html_content, app_root):
+    # Substitui as URLs https://localhost e http://localhost por caminhos absolutos do sistema de arquivos file://
+    project_root = __import__('os').path.abspath(__import__('os').path.join(app_root, '..'))
+    if __import__('os').name == 'nt':
+        project_root = '/' + project_root.replace('\\', '/')
+        
+    file_prefix = f'file://{project_root}'
+    
+    html_content = re.sub(r'https?://[^/]+', file_prefix, html_content)
+    return html_content
+
+def process_certificates_zip(job):
+    # Gera um PDF por aluno e empacota em um ZIP.
+    import os
+    downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
+    os.makedirs(downloads_dir, exist_ok=True)
+    
+    temp_dir = os.path.join(downloads_dir, f'temp_{job.id}')
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    try:
+        data = json.loads(job.payload)
+        alunos = data.get('alunos', [])
+        dados = data.get('dados', {})
+        disciplinas = data.get('disciplinas', [])
+        
+        pdf_files = []
+        for aluno in alunos:
+            safe_name = ''.join([c for c in aluno if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+            if not safe_name:
+                safe_name = 'aluno_desconhecido'
+                
+            pdf_filename = f'Certificado - {safe_name}.pdf'
+            pdf_path = os.path.join(temp_dir, pdf_filename)
+            
+            with app.test_request_context():
+                rendered_html = render_template(
+                    'ferramentas/certificados_pdf.html',
+                    dados=dados,
+                    disciplinas=disciplinas,
+                    alunos=[aluno]
+                )
+            
+            # Corrige as URLs das imagens para o WeasyPrint conseguir baixar
+            rendered_html = fix_image_urls(rendered_html, app.root_path)
+            
+            logging.info(f'Gerando PDF para {aluno}')
+            HTML(string=rendered_html).write_pdf(pdf_path)
+            pdf_files.append((pdf_filename, pdf_path))
+            
+        zip_filename = f'certificados_{job.id}.zip'
+        zip_path = os.path.join(downloads_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for pdf_name, p_path in pdf_files:
+                zipf.write(p_path, arcname=pdf_name)
+                
+        logging.info(f'ZIP gerado com sucesso em {zip_path}')
+        return zip_path
+        
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+
 def process_pdf_job(job):
     """Gera o PDF usando Weasyprint a partir do HTML salvo no payload."""
     downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
@@ -101,6 +171,9 @@ def run_worker():
                     try:
                         if job.task_type == 'generate_pdf':
                             result_path = process_pdf_job(job)
+                            job.result_path = result_path
+                        elif job.task_type == 'generate_certificates_zip':
+                            result_path = process_certificates_zip(job)
                             job.result_path = result_path
                         else:
                             raise ValueError(f"Task type desconhecido: {job.task_type}")

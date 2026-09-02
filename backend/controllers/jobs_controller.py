@@ -46,9 +46,11 @@ def download_job_result(job_id):
         except Exception:
             pass
 
+    mimetype = 'application/zip' if download_filename.endswith('.zip') else 'application/pdf'
+
     return send_file(
         job.result_path,
         as_attachment=True,
         download_name=download_filename,
-        mimetype='application/pdf'
+        mimetype=mimetype
     )
