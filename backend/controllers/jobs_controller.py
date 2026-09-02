@@ -54,3 +54,15 @@ def download_job_result(job_id):
         download_name=download_filename,
         mimetype=mimetype
     )
+
+@jobs_bp.route('/debug/worker-log', methods=['GET'])
+def debug_worker_log():
+    try:
+        log_path = '/opt/render/project/src/worker.log'
+        if not os.path.exists(log_path):
+            return "O arquivo worker.log não existe ainda."
+        with open(log_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return f"<pre>{content}</pre>"
+    except Exception as e:
+        return f"Erro ao ler log: {e}"
