@@ -22,8 +22,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante do codigo da aplicacao
+# Copia o restante do código da aplicação
 COPY . .
+RUN chmod +x start.sh
 
-# Comando de inicializacao: roda as migracoes, inicia o worker em background e o gunicorn
-CMD FLASK_APP=backend.app flask db upgrade && python worker.py & gunicorn --workers 2 --threads 4 --timeout 120 --max-requests 500 --max-requests-jitter 50 "backend.app:create_app()"
+# Comando de inicialização
+CMD ["./start.sh"]
