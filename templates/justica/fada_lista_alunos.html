@@ -53,7 +53,12 @@
 
                     {% set punicoes_dict = [] %}
                     {% for p in item.punicoes_pendentes %}
-                        {% set _ = punicoes_dict.append({'id': p.id, 'descricao': p.origem_punicao ~ ' - ' ~ p.pontos ~ ' pts (' ~ p.data_ocorrencia.strftime('%d/%m/%Y') ~ ')' }) %}
+                        {% set _ = punicoes_dict.append({
+                            'id': p.id, 
+                            'descricao': p.origem_punicao ~ ' - ' ~ p.pontos ~ ' pts (' ~ p.data_ocorrencia.strftime('%d/%m/%Y') ~ ')',
+                            'fato': p.fato_constatado,
+                            'pontos': p.pontos
+                        }) %}
                     {% endfor %}
 
                     {% set fada_data = {

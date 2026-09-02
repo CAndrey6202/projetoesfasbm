@@ -252,9 +252,10 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     if (dadosFada && dadosFada.punicoes && dadosFada.punicoes.length > 0) {
         let html = '<div class="alert alert-warning py-2 mb-2"><strong>Atenção:</strong> Este aluno possui punições ativas no período. Vincule-as aos atributos correspondentes para abater a nota:';
         dadosFada.punicoes.forEach(p => {
-            html += `<div class="mt-2">
+            html += `<div class="mt-2 border-bottom border-dark pb-2">
                 <label class="small fw-bold">${p.descricao}</label>
-                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
+                <div class="text-muted fst-italic mb-1" style="font-size: 0.75rem;">Fato: ${p.fato}</div>
+                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required data-pontos="${p.pontos}" data-prev-val="" onchange="aplicarDesconto(this)" ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
                     <option value="">-- Selecione o Atributo afetado --</option>`;
             const attrNomes = ['Expressão oral', 'Planejamento e método', 'Perseverança', 'Apresentação pessoal', 'Lealdade', 'Tato', 'Equilíbrio emocional', 'Disciplina', 'Responsabilidade', 'Maturidade', 'Assiduidade', 'Pontualidade', 'Dicção de voz', 'Liderança', 'Relacionamento', 'Ética', 'Produtividade', 'Eficiência'];
             for(let i=0; i<18; i++) {
@@ -333,5 +334,31 @@ function atualizarConceito(idx) {
 function calcularMediaFada() {
     let s = 0; document.querySelectorAll('.fada-input').forEach(i => s += parseFloat(i.value||0));
     document.getElementById('displayMediaFada').innerText = (s/18.0).toFixed(2);
+}
+
+function aplicarDesconto(selectEl) {
+    const pontos = parseFloat(selectEl.getAttribute('data-pontos'));
+    const oldIdx = selectEl.getAttribute('data-prev-val');
+    const newIdx = selectEl.value;
+
+    if (oldIdx !== "") {
+        const inputAntigo = document.getElementById(`attr_${oldIdx - 1}`);
+        if(inputAntigo) {
+            let val = parseFloat(inputAntigo.value || 8.0);
+            inputAntigo.value = (val + pontos).toFixed(2);
+            atualizarConceito(oldIdx - 1);
+        }
+    }
+
+    if (newIdx !== "") {
+        const inputNovo = document.getElementById(`attr_${newIdx - 1}`);
+        if(inputNovo) {
+            let val = parseFloat(inputNovo.value || 8.0);
+            inputNovo.value = Math.max(0, val - pontos).toFixed(2);
+            atualizarConceito(newIdx - 1);
+        }
+    }
+    
+    selectEl.setAttribute('data-prev-val', newIdx);
 }
 </script>

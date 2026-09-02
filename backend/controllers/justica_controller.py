@@ -884,12 +884,12 @@ def salvar_fada():
         media = sum(notas_float) / 18.0
 
         if fada:
-            fada.media_final = media; fada.observacoes = obs; fada.data_avaliacao = datetime.now().astimezone()
+            fada.media_final = media; fada.observacao = obs; fada.data_avaliacao = datetime.now().astimezone()
             fada.presidente_id = pres_id; fada.membro1_id = m1_id; fada.membro2_id = m2_id
             attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
             for idx, attr in enumerate(attrs): setattr(fada, attr, notas_float[idx])
         else:
-            nova = FadaAvaliacao(aluno_id=int(aluno_id), lancador_id=current_user.id, media_final=media, observacoes=obs, status='RASCUNHO', presidente_id=pres_id, membro1_id=m1_id, membro2_id=m2_id)
+            nova = FadaAvaliacao(aluno_id=int(aluno_id), lancador_id=current_user.id, media_final=media, observacao=obs, status='RASCUNHO', presidente_id=pres_id, membro1_id=m1_id, membro2_id=m2_id)
             attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
             for idx, attr in enumerate(attrs): setattr(nova, attr, notas_float[idx])
             db.session.add(nova)
@@ -942,46 +942,49 @@ def enviar_fada_comissao(fada_id):
 @login_required
 def assinar_fada_membro(fada_id):
     fada = db.session.get(FadaAvaliacao, fada_id)
-    # UNIFICAÇÃO: A verificação agora é feita na coluna 'status'
     if not fada or fada.status != 'COMISSAO':
-        return jsonify({'error': 'Avaliação não encontrada ou não está na etapa da comissão.'}), 404
+        flash('Avaliação não encontrada ou não está na etapa da comissão.', 'danger')
+        return redirect(url_for('justica.fada_boletim'))
 
     uid = current_user.id
-    hash_assinatura = request.json.get('hash')
-    if not hash_assinatura:
-        return jsonify({'error': 'Hash de assinatura não fornecido.'}), 400
+    import hashlib, uuid
+    hash_assinatura = hashlib.sha256(f"MEMBRO-{uid}-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
 
     agora = datetime.now().astimezone()
 
-    # Lógica de assinatura com trava anti-duplicidade
     if fada.presidente_id == uid:
-        if fada.hash_pres: return jsonify({'error': 'Presidente já assinou.'}), 400
+        if fada.hash_pres:
+            flash('Presidente já assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
     elif fada.membro1_id == uid:
-        if fada.hash_m1: return jsonify({'error': 'Membro 1 já assinou.'}), 400
+        if fada.hash_m1:
+            flash('Membro 1 já assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_m1 = hash_assinatura; fada.data_ass_m1 = agora
     elif fada.membro2_id == uid:
-        if fada.hash_m2: return jsonify({'error': 'Membro 2 já assinou.'}), 400
+        if fada.hash_m2:
+            flash('Membro 2 já assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_m2 = hash_assinatura; fada.data_ass_m2 = agora
     else:
-        return jsonify({'error': 'Não autorizado. O usuário não faz parte da comissão.'}), 403
+        flash('Não autorizado. O usuário não faz parte da comissão.', 'danger')
+        return redirect(url_for('justica.fada_boletim'))
 
-    # UNIFICAÇÃO: Máquina de estados avança o 'status'
     if fada.hash_pres and fada.hash_m1 and fada.hash_m2:
         fada.status = 'ALUNO'
 
     db.session.commit()
     
-    # --- ESPIÃO: MEMBRO ASSINOU FADA ---
     school_id = UserService.get_current_school_id()
     LogService.log(
         action="Assinou FADA (Comissão)",
         details=f"Um membro da comissão registrou sua assinatura digital na FADA ID {fada_id}.",
         school_id=school_id
     )
-    # -----------------------------------
     
-    return jsonify({'success': True, 'message': 'Assinatura registrada.', 'status_atual': fada.status}), 200
+    flash('Assinatura registrada com sucesso.', 'success')
+    return redirect(url_for('justica.fada_boletim'))
 
 @justica_bp.route('/fada/assinar-aluno/<int:fada_id>', methods=['POST'])
 @login_required
