@@ -2,7 +2,7 @@ import os
 import time
 import logging
 from datetime import datetime, timedelta
-from weasyprint import HTML
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,6 +32,7 @@ def fix_image_urls(html_content, app_root):
 
 def process_certificates_zip(job):
     # Gera um PDF por aluno e empacota em um ZIP.
+    from weasyprint import HTML
     import os
     downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
     os.makedirs(downloads_dir, exist_ok=True)
@@ -85,6 +86,7 @@ def process_certificates_zip(job):
 
 def process_pdf_job(job):
     """Gera o PDF usando Weasyprint a partir do HTML salvo no payload."""
+    from weasyprint import HTML
     downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
     os.makedirs(downloads_dir, exist_ok=True)
     
