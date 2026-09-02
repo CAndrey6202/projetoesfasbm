@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     shared-mime-info \
     fonts-liberation \
     fonts-dejavu \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia e instala as dependencias do Python
@@ -27,6 +28,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia o restante do código da aplicação
 COPY . .
 RUN chmod +x start.sh
+
+# Copia o arquivo do supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Comando de inicialização
 CMD ["./start.sh"]
