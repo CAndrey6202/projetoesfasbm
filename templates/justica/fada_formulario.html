@@ -344,8 +344,11 @@ function aplicarDesconto(selectEl) {
     if (oldIdx !== "") {
         const inputAntigo = document.getElementById(`attr_${oldIdx - 1}`);
         if(inputAntigo) {
+            let maxAtual = parseFloat(inputAntigo.getAttribute('max') || 10.0);
+            inputAntigo.setAttribute('max', (maxAtual + pontos).toFixed(2));
+            
             let val = parseFloat(inputAntigo.value || 8.0);
-            inputAntigo.value = (val + pontos).toFixed(2);
+            inputAntigo.value = Math.min(parseFloat(inputAntigo.getAttribute('max')), val + pontos).toFixed(2);
             atualizarConceito(oldIdx - 1);
         }
     }
@@ -353,12 +356,28 @@ function aplicarDesconto(selectEl) {
     if (newIdx !== "") {
         const inputNovo = document.getElementById(`attr_${newIdx - 1}`);
         if(inputNovo) {
+            let maxAtual = parseFloat(inputNovo.getAttribute('max') || 10.0);
+            let novoMax = Math.max(0, maxAtual - pontos);
+            inputNovo.setAttribute('max', novoMax.toFixed(2));
+            
             let val = parseFloat(inputNovo.value || 8.0);
-            inputNovo.value = Math.max(0, val - pontos).toFixed(2);
+            inputNovo.value = Math.min(novoMax, Math.max(0, val - pontos)).toFixed(2);
             atualizarConceito(newIdx - 1);
         }
     }
     
     selectEl.setAttribute('data-prev-val', newIdx);
 }
+
+// Garante que o usuário não consiga digitar um valor acima do teto permitido
+document.querySelectorAll('.fada-input').forEach(input => {
+    input.addEventListener('input', function() {
+        let maxVal = parseFloat(this.getAttribute('max') || 10.0);
+        let val = parseFloat(this.value);
+        if (val > maxVal) {
+            this.value = maxVal.toFixed(2);
+            atualizarConceito(this.id.split('_')[1]);
+        }
+    });
+});
 </script>
