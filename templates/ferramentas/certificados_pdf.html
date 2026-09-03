@@ -275,14 +275,18 @@
                         {% endif %}
                     </tr>
                     {% endfor %}
-                    <tr style="height: 400px;">
-                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
-                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
-                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
-                    </tr>
-                    <tr style="height: 1px;">
-                        <td colspan="2" class="text-center" style="font-weight: bold; padding: 4px;">Carga horária total do curso</td>
-                        <td class="text-center" style="font-weight: bold; padding: 4px;">{{ dados.carga_horaria }}</td>
+                    <tr>
+                        <td style="border-top: none; padding: 0;"></td>
+                        <td style="border-top: none; vertical-align: bottom; padding: 0;">
+                            <div style="border-top: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">
+                                Carga horária total do curso
+                            </div>
+                        </td>
+                        <td style="border-top: none; vertical-align: bottom; padding: 0;">
+                            <div style="border-top: 1px solid #000; padding: 4px; text-align: center; font-weight: bold;">
+                                {{ dados.carga_horaria }}
+                            </div>
+                        </td>
                     </tr>
                 </tbody>
             </table>
