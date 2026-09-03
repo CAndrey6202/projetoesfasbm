@@ -90,3 +90,5 @@ ESTRUTURA_COMPLETA_ATUALIZADA.txt
 plano-reset2fa.prompt.md
 iniciar_sisgen.bat
 DIRETRIZES.md
+
+.temp_venv/
