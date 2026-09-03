@@ -212,6 +212,19 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     renderHash('box_ass_m1', dadosFada?.hash_m1);
     renderHash('box_ass_m2', dadosFada?.hash_m2);
 
+    if (dadosFada && dadosFada.notas) {
+        for(let i=0; i<18; i++) {
+            const input = document.getElementById(ttr_);
+            if(input && dadosFada.notas[i] !== undefined) {
+                input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
+                atualizarConceito(i);
+            }
+        }
+    }
+    if (dadosFada && dadosFada.observacao) {
+        document.getElementById('obs_justificativa').value = dadosFada.observacao;
+    }
+
     if (etapa === 'RASCUNHO' || !etapa) {
         pComissao.style.display = 'block';
         btnSalvar.style.display = 'inline-block';
@@ -319,6 +332,24 @@ function enviarParaComissao() {
 }
 
 function assinarAluno(acao) {
+    if (acao === 'recorrer') {
+        const motivo = prompt("Por favor, informe detalhadamente o motivo do seu recurso (mínimo 10 caracteres):");
+        if (!motivo) return; // Cancelou
+        if (motivo.length < 10) {
+            alert("O motivo deve ter pelo menos 10 caracteres.");
+            return;
+        }
+        // Cria um input hidden dinâmico para enviar o motivo
+        const inputMotivo = document.createElement('input');
+        inputMotivo.type = 'hidden';
+        inputMotivo.name = 'motivo_recurso';
+        inputMotivo.value = motivo;
+        document.getElementById('formAssAluno').appendChild(inputMotivo);
+    } else {
+        if (!confirm("Ao assinar, você concorda com a avaliação e a nota será lançada no seu boletim. Deseja prosseguir?")) {
+            return;
+        }
+    }
     document.getElementById('acao_aluno_input').value = acao;
     document.getElementById('formAssAluno').submit();
 }

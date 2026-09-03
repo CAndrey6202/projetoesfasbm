@@ -69,6 +69,14 @@
                         'hash_m1': item.fada_obj.hash_m1 if item.fada_obj else '',
                         'hash_m2': item.fada_obj.hash_m2 if item.fada_obj else '',
                         'data_ass_pres': item.fada_obj.data_ass_pres.strftime('%d/%m') if (item.fada_obj and item.fada_obj.data_ass_pres) else '',
+                        'notas': [
+                            item.fada_obj.expressao, item.fada_obj.planejamento, item.fada_obj.perseveranca, item.fada_obj.apresentacao,
+                            item.fada_obj.lealdade, item.fada_obj.tato, item.fada_obj.equilibrio, item.fada_obj.disciplina,
+                            item.fada_obj.responsabilidade, item.fada_obj.maturidade, item.fada_obj.assiduidade, item.fada_obj.pontualidade,
+                            item.fada_obj.diccao, item.fada_obj.lideranca, item.fada_obj.relacionamento, item.fada_obj.etica,
+                            item.fada_obj.produtividade, item.fada_obj.eficiencia
+                        ] if item.fada_obj else [],
+                        'observacao': item.fada_obj.observacao if item.fada_obj else '',
                         'etapa_atual': status,
                         'punicoes': punicoes_dict
                     } %}

@@ -104,6 +104,13 @@ def index():
                 stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
+        
+        fadas_aluno = db.session.scalars(
+            select(FadaAvaliacao).where(
+                FadaAvaliacao.aluno_id == aluno_id,
+                FadaAvaliacao.status.in_(['ALUNO', 'FINALIZADO', 'RECURSO'])
+            ).order_by(FadaAvaliacao.data_avaliacao.desc())
+        ).all()
 
     else:
         if not school_id:
@@ -206,7 +213,8 @@ def index():
                            hoje=hoje,
                            agora=agora_dt,
                            meus_elogios=meus_elogios,
-                           meus_elogios_paginados=meus_elogios_paginados)
+                           meus_elogios_paginados=meus_elogios_paginados,
+                           fadas_aluno=locals().get('fadas_aluno', []))
 
 @justica_bp.route('/registrar-em-massa', methods=['POST'])
 @login_required
