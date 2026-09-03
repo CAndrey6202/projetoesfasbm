@@ -256,7 +256,7 @@
                         <td class="text-center">{{ disc.ch }}</td>
                         
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 120px !important;">
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 20px !important;">
                             <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
                                 <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto;">
                             </div>
@@ -267,22 +267,20 @@
                                 {{ dados.data_local }}
                             </div>
                             
-                            <div class="bottom-content" style="position: absolute; bottom: 30px; left: 15px; right: 15px;">
-                                <div class="signature-container" style="margin-top: 0;">
+                            <div class="signature-container" style="margin-top: 50px;">
                                     <div class="signature-line"></div>
                                     <div class="text-center">{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
                                 </div>
-                            </div>
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
-                    <tr>
-                        <td style="border-bottom: none; border-top: none; height: 100%;">&nbsp;</td>
-                        <td style="border-bottom: none; border-top: none; height: 100%;">&nbsp;</td>
-                        <td style="border-bottom: none; border-top: none; height: 100%;">&nbsp;</td>
+                    <tr style="height: 400px;">
+                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
+                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
+                        <td style="border-bottom: none; border-top: none;">&nbsp;</td>
                     </tr>
-                    <tr style="height: 20px;">
+                    <tr style="height: 1px;">
                         <td colspan="2" class="text-center" style="font-weight: bold; padding: 4px;">Carga horária total do curso</td>
                         <td class="text-center" style="font-weight: bold; padding: 4px;">{{ dados.carga_horaria }}</td>
                     </tr>
@@ -293,3 +291,4 @@
     {% endfor %}
 </body>
 </html>
+
