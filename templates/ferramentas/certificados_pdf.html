@@ -114,7 +114,6 @@
         
         .main-table {
             width: 100%;
-            height: 100%;
             border-collapse: collapse;
             font-family: Arial, sans-serif;
             font-size: 11px;
@@ -269,11 +268,14 @@
                     </tr>
                     {% endfor %}
                     
-                    <!-- Linha elástica que puxa todo o espaço restante -->
-                    <tr style="height: 100%;">
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
+                    {% set spacer_height = 630 - (disciplinas|length * 20) %}
+                    {% if spacer_height < 0 %}{% set spacer_height = 0 %}{% endif %}
+                    
+                    <!-- Linha elástica calculada matematicamente -->
+                    <tr style="height: {{ spacer_height }}px;">
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
                     </tr>
                     
                     <!-- Linha do Rodapé: Carga Horária (esquerda) e Assinatura (direita) -->
