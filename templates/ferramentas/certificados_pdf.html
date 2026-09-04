@@ -38,7 +38,6 @@
             overflow: hidden;
         }
         
-        
         /* FRONT CSS */
         .front-header-text {
             position: absolute;
@@ -110,13 +109,13 @@
             top: 15%;
             left: 10%;
             width: 80%;
-            height: 56%;
+            height: 56%; /* Altura fixada em 56% conforme solicitado */
             overflow: hidden;
         }
         
         .main-table {
             width: 100%;
-            height: 100%;
+            height: 100%; /* Permite que a tabela preencha os 56% */
             border-collapse: collapse;
             font-family: Arial, sans-serif;
             font-size: 11px;
@@ -155,7 +154,7 @@
             text-align: justify;
             padding: 15px !important;
             font-size: 12px;
-            position: relative;
+            position: relative; /* Essencial para a assinatura ser fixada no fundo */
         }
         
         .seal-logo {
@@ -175,20 +174,11 @@
             left: 15px;
             right: 15px;
         }
-        
-        .signature-line {
-            border-top: 1px solid #000;
-            margin-bottom: 5px;
-            width: 80%;
-            margin-left: auto;
-            margin-right: auto;
-        }
     </style>
 </head>
 <body>
     {% for aluno in alunos %}
     <!-- FRENTE -->
-
     <div class="page-front">
         <!-- Brasões Superiores -->
         <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="position: absolute; left: 14%; top: 10.8%; width: 16.7%; z-index: 10; object-fit: contain;">
@@ -223,11 +213,11 @@
         
         <div class="signatures">
             <div class="signature-block">
-                <div class="signature-line"></div>
+                <div class="signature-line" style="width: 100%;"></div>
                 <div>{{ dados.nome_comandante | replace('\n', '<br>') | safe }}<br>{{ dados.departamento_comandante }}</div>
             </div>
             <div class="signature-block">
-                <div class="signature-line"></div>
+                <div class="signature-line" style="width: 100%;"></div>
                 <div>{{ dados.nome_diretor | replace('\n', '<br>') | safe }}<br>Diretor de Educação e Cultura</div>
             </div>
         </div>
@@ -264,33 +254,42 @@
                         <td class="text-center">{{ disc.ch }}</td>
                         
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 20px !important;">
-                            <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
-                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto; object-fit: contain;">
+                        <!-- O rowspan absorve as linhas das disciplinas, a linha elástica e a linha final de carga horária -->
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell">
+                            
+                            <!-- Div encapsulando o conteúdo com margem para não encostar na assinatura -->
+                            <div style="padding-bottom: 120px;">
+                                <div style="display: block; width: 100%; text-align: center; margin: 10px 0 20px 0;">
+                                    <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 120px; object-fit: contain;">
+                                </div>
+                                {{ dados.ementa | replace('\n', '<br>') | safe }}
                             </div>
                             
-                            {{ dados.ementa | replace('\n', '<br>') | safe }}
-                            
-                            <div class="text-center" style="margin-top: 50px;">
-                                {{ dados.data_local }}
+                            <!-- Container da assinatura afixado na base da célula (absoluto) -->
+                            <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;">
+                                <div style="margin-bottom: 25px; font-size: 12px;">
+                                    {{ dados.data_local }}
+                                </div>
+                                <div class="signature-line" style="width: 80%; margin: 0 auto 5px auto; border-top: 1px solid #000;"></div>
+                                <div>{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
                             </div>
-                            
-                            <div class="signature-container" style="margin-top: 50px;">
-                                <div class="signature-line"></div>
-                                <div class="text-center">{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
-                            </div>
+
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
-                    <tr style="height: auto;">
+                    
+                    <!-- Linha elástica para empurrar a "Carga horária total" pro fundo da tabela -->
+                    <tr style="height: 100%;">
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                     </tr>
+                    
+                    <!-- Linha final fixada embaixo com a carga horária total -->
                     <tr>
-                        <td colspan="2" class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">Carga horária total do curso</td>
-                        <td class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">{{ dados.carga_horaria }}</td>
+                        <td colspan="2" class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 6px;">Carga horária total do curso</td>
+                        <td class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 6px;">{{ dados.carga_horaria }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -299,4 +298,3 @@
     {% endfor %}
 </body>
 </html>
-
