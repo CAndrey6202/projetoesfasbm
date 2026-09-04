@@ -111,6 +111,7 @@
             left: 10%;
             width: 80%;
             height: 56%;
+            overflow: hidden;
         }
         
         .main-table {
@@ -164,7 +165,10 @@
         }
         
         .signature-container {
-            margin-top: 20px;
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            width: 100%;
             text-align: center;
         }
         
@@ -189,6 +193,7 @@
     <!-- FRENTE -->
 
     <div class="page-front">
+        <img src="{{ url_for('static', filename='img/brasao_dec.jpg', _external=True) }}" style="position: absolute; left: 71.09%; top: 10.5%; width: 14.84%; z-index: 10;">
         <div class="front-header-text">
             ESTADO DO RIO GRANDE DO SUL<br>
             SECRETARIA DA SEGURANÇA PÚBLICA<br>
@@ -256,21 +261,23 @@
                         <td class="text-center">{{ disc.ch }}</td>
                         
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 20px !important;">
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 150px !important;">
                             <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
                                 <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto;">
                             </div>
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
                             
-                            <div class="text-center" style="margin-top: 50px;">
-                                {{ dados.data_local }}
-                            </div>
-                            
-                            <div class="signature-container" style="margin-top: 50px;">
+                            <div style="position: absolute; bottom: 20px; left: 0; width: 100%;">
+                                <div class="text-center" style="margin-bottom: 40px;">
+                                    {{ dados.data_local }}
+                                </div>
+                                
+                                <div class="signature-container" style="position: static; margin-top: 0;">
                                     <div class="signature-line"></div>
                                     <div class="text-center">{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
                                 </div>
+                            </div>
                         </td>
                         {% endif %}
                     </tr>
