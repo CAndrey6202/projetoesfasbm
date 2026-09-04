@@ -83,7 +83,7 @@
             font-family: 'Cambria', serif;
             text-align: right;
             font-size: 11pt;
-            margin-top: 40px;
+            margin-top: 20px;
             margin-bottom: 20px;
         }
         .signatures {
@@ -109,8 +109,7 @@
             top: 15%;
             left: 10%;
             width: 80%;
-            height: 56%; /* Altura fixada em 56% conforme solicitado */
-            overflow: hidden;
+            height: 56%;
         }
         
         .main-table {
@@ -203,7 +202,7 @@
             <div class="cert-name">{{ aluno }}</div>
             
             <div class="cert-text">
-                tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de {{ dados.data_duracao }}, com um total de {{ dados.carga_horaria }}, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
+                tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de <strong>{{ dados.data_duracao }}</strong>, com um total de <strong>{{ dados.carga_horaria }}</strong>, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
             </div>
             
             <div class="cert-date">
@@ -254,40 +253,33 @@
                         <td class="text-center">{{ disc.ch }}</td>
 
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="position: relative;">
-                            
-                            <div style="display: block; width: 100%; text-align: center; margin: 15px 0;">
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 20px !important;">
+                            <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
                                 <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto;">
                             </div>
 
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
-                            
-                            <!-- Espaçador invisível para proteger o texto de sobrepor a assinatura -->
-                            <div style="height: 120px;"></div>
 
-                            <!-- Assinatura fixada no canto inferior direito (sua caixa vermelha) -->
-                            <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;">
-                                <div style="margin-bottom: 25px; font-size: 12px;">
-                                    {{ dados.data_local }}
-                                </div>
-                                <div class="signature-line" style="width: 80%; margin: 0 auto 5px auto; border-top: 1px solid #000;"></div>
-                                <div class="text-center">{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
+                            <div class="text-center" style="margin-top: 50px;">
+                                {{ dados.data_local }}
                             </div>
+
+                            <div class="signature-container" style="margin-top: 50px;">
+                                    <div class="signature-line"></div>
+                                    <div class="text-center">{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
+                                </div>
                         </td>
                         {% endif %}
                     </tr>
                     {% endfor %}
-                    
-                    <!-- tr com height 100% força a tabela a esticar até os 56% do limite -->
                     <tr style="height: 100%;">
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                     </tr>
-                    
                     <tr>
-                        <td colspan="2" class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 6px;">Carga horária total do curso</td>
-                        <td class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 6px;">{{ dados.carga_horaria }}</td>
+                        <td colspan="2" class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">Carga horária total do curso</td>
+                        <td class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">{{ dados.carga_horaria }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -296,3 +288,4 @@
     {% endfor %}
 </body>
 </html>
+~
