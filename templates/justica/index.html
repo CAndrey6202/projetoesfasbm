@@ -16,9 +16,19 @@
         <div class="justice-main-content">
             <div class="justice-container">
 
-                <div class="justice-options mb-4">
+                {% set has_justice = current_user.is_cal_in_school(g.active_school.id if g.active_school else None) or current_user.is_sens_in_school(g.active_school.id if g.active_school else None) or current_user.is_admin_escola_in_school(g.active_school.id if g.active_school else None) or g.get('dec_mode_active', False) %}
+
+<div class="justice-options mb-4">
+                    {% if has_justice %}
                     <button class="btn btn-primary justice-option-btn {% if active_tab == 'andamento' %}active{% endif %}" data-target="inProgressContent">Em Andamento</button>
                     <button class="btn btn-warning justice-option-btn {% if active_tab == 'finalizados' %}active{% endif %}" data-target="finalizadosContent">Finalizados</button>
+                    {% endif %}
+                    
+                    {% if fadas_comissao %}
+                    <button class="btn btn-success justice-option-btn {% if active_tab == 'aAvaliarContent' or (not has_justice and current_user.role != 'aluno') %}active{% endif %}" data-target="aAvaliarContent">
+                        <i class="fas fa-edit me-1"></i> A Avaliar (Comissão)
+                    </button>
+                    {% endif %}
 
                     {% if current_user.role == 'aluno' %}
                     <button class="btn btn-info text-white justice-option-btn {% if active_tab == 'fadaContent' %}active{% endif %}" data-target="fadaContent">
@@ -692,6 +702,55 @@
                     {% endif %}
                 </div>
 
+
+
+                {% if fadas_comissao %}
+                <div class="justice-content {% if active_tab == 'aAvaliarContent' or (not has_justice and current_user.role != 'aluno') %}active{% endif %}" id="aAvaliarContent">
+                    <h3 class="justice-content-title mb-3">FADAs Aguardando Sua Assinatura</h3>
+                    <div class="card shadow-sm border-success">
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-striped mb-0 justice-table align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Aluno</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fada in fadas_comissao %}
+                                    <tr>
+                                        <td>{{ fada.data_avaliacao.strftime('%d/%m/%Y %H:%M') if fada.data_avaliacao else '-' }}</td>
+                                        <td>{{ fada.aluno.user.nome_completo }}</td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">Aguardando Comissão</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {% set fada_data = {
+                                                'data_assinatura': fada.data_assinatura.strftime('%d/%m/%Y %H:%M') if fada.data_assinatura else '',
+                                                'presidente_id': fada.presidente_id,
+                                                'membro1_id': fada.membro1_id,
+                                                'membro2_id': fada.membro2_id,
+                                                'hash_pres': fada.hash_pres,
+                                                'hash_m1': fada.hash_m1,
+                                                'hash_m2': fada.hash_m2,
+                                                'data_ass_pres': fada.data_ass_pres.strftime('%d/%m') if fada.data_ass_pres else '',
+                                                'notas': [fada.expressao, fada.planejamento, fada.perseveranca, fada.apresentacao, fada.lealdade, fada.tato, fada.equilibrio, fada.disciplina, fada.responsabilidade, fada.maturidade, fada.assiduidade, fada.pontualidade, fada.diccao, fada.lideranca, fada.relacionamento, fada.etica, fada.produtividade, fada.eficiencia],
+                                                'observacao': fada.observacao,
+                                                'etapa_atual': fada.status,
+                                                'punicoes': []
+                                            } %}
+                                            <button class="btn btn-sm btn-success fw-bold" onclick='abrirFadaModalInterno({{ fada.aluno.id }}, "{{ fada.aluno.user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})' data-bs-toggle="modal" data-bs-target="#fadaModal">Assinar</button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="justice-content {% if active_tab == 'fadaContent' %}active{% endif %}" id="fadaContent">
                     <h3 class="justice-content-title mb-3">Minhas Avaliações FADA</h3>

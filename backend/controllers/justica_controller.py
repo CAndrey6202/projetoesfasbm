@@ -111,8 +111,19 @@ def index():
                 FadaAvaliacao.status.in_(['ALUNO', 'FINALIZADO', 'RECURSO'])
             ).order_by(FadaAvaliacao.data_avaliacao.desc())
         ).all()
-
+        fadas_comissao = []
     else:
+        fadas_comissao = db.session.scalars(
+            select(FadaAvaliacao).where(
+                or_(
+                    FadaAvaliacao.presidente_id == current_user.id,
+                    FadaAvaliacao.membro1_id == current_user.id,
+                    FadaAvaliacao.membro2_id == current_user.id
+                ),
+                FadaAvaliacao.status == 'COMISSAO'
+            ).order_by(FadaAvaliacao.data_avaliacao.desc())
+        ).all()
+        fadas_aluno = []
         if not school_id:
             flash("Nenhuma escola selecionada.", "warning")
             return redirect(url_for('main.dashboard'))
@@ -824,7 +835,8 @@ def fada_boletim():
         try:
             if hasattr(u, 'schools'):
                 if any(str(s.id) == str(school_id) for s in u.schools):
-                    staff_users.append(u)
+                    if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id):
+                        staff_users.append(u)
         except: continue
 
     if current_user not in staff_users:
