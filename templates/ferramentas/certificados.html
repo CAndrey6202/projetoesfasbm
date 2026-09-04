@@ -67,8 +67,13 @@
                     <h5 class="mt-4 mb-3 border-bottom pb-2">Verso do Certificado</h5>
                     
                     <div class="mb-3">
-                        <label class="form-label">Ementa do Curso</label>
-                        <textarea class="form-control" name="ementa" rows="4"></textarea>
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span>Ementa do Curso</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatarTexto('ementa', 'bold')" title="Deixar texto selecionado em negrito" style="padding: 0px 10px; font-weight: bold;">
+                                B
+                            </button>
+                        </label>
+                        <textarea class="form-control" name="ementa" id="ementa" rows="4" placeholder="Selecione o texto e clique no botão 'B' para negrito."></textarea>
                     </div>
 
                     <label class="form-label">Disciplinas (Tabela do Verso)</label>
@@ -114,6 +119,35 @@
 
 {% block scripts %}
 <script>
+    function formatarTexto(elementId, tag) {
+        var el = document.getElementById(elementId);
+        if (!el) return;
+        
+        var start = el.selectionStart;
+        var end = el.selectionEnd;
+        var text = el.value;
+        
+        if (start !== end) {
+            var selectedText = text.substring(start, end);
+            var replacement = "";
+            if (tag === 'bold') {
+                replacement = "<b>" + selectedText + "</b>";
+            }
+            el.value = text.substring(0, start) + replacement + text.substring(end);
+            el.selectionStart = start;
+            el.selectionEnd = start + replacement.length;
+        } else {
+            var replacement = "";
+            if (tag === 'bold') {
+                replacement = "<b></b>";
+            }
+            el.value = text.substring(0, start) + replacement + text.substring(end);
+            el.selectionStart = start + 3;
+            el.selectionEnd = start + 3;
+        }
+        el.focus();
+    }
+
     function adicionarLinha() {
         var disciplinasBody = document.getElementById("disciplinasBody");
         var tr = document.createElement("tr");
