@@ -114,7 +114,6 @@
         
         .main-table {
             width: 100%;
-            height: 820px !important; /* Força WeasyPrint a esticar a tabela até o final */
             border-collapse: collapse;
             font-family: Arial, sans-serif;
             font-size: 11px;
@@ -275,11 +274,11 @@
                     </tr>
                     {% endfor %}
                     
-                    <!-- Linha elástica -->
-                    <tr style="height: auto;">
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
-                        <td style="border-bottom: none; border-top: none;"></td>
+                    <!-- Linha elástica forçada em pixels para bater exatamente na sua linha vermelha -->
+                    <tr>
+                        <td style="height: 600px; border-bottom: none; border-top: none;"></td>
+                        <td style="height: 600px; border-bottom: none; border-top: none;"></td>
+                        <td style="height: 600px; border-bottom: none; border-top: none;"></td>
                     </tr>
                     
                     <!-- Célula da Carga Horária bem pequena e fixada -->
