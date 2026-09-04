@@ -297,8 +297,8 @@ def certificados():
             return jsonify({'success': False, 'error': 'A lista de alunos e obrigatoria.'})
 
         try:
-            # Processa o texto separando por vírgula ou quebra de linha
-            alunos_raw = lista_alunos_texto.replace('\n', ',').split(',')
+            # Processa o texto separando apenas por quebra de linha
+            alunos_raw = lista_alunos_texto.split('\n')
             alunos = [a.strip() for a in alunos_raw if a.strip()]
             
             if not alunos:
