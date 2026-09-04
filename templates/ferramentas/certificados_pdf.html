@@ -232,8 +232,8 @@
     
     <!-- VERSO -->
     <div class="page-back">
-        <div style="position: absolute; top: 6%; width: 100%; text-align: center;">
-            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 70px;">
+        <div style="position: absolute; top: 5%; width: 100%; text-align: center;">
+            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 110px; width: auto; object-fit: contain;">
         </div>
         <div class="back-content">
             <table class="main-table">
@@ -263,7 +263,7 @@
                         {% if loop.first %}
                         <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 150px !important;">
                             <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
-                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto;">
+                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="height: 150px; width: auto; display: block; margin: 0 auto; object-fit: contain;">
                             </div>
                             
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
