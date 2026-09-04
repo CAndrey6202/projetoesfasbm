@@ -214,7 +214,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
 
     if (dadosFada && dadosFada.notas) {
         for(let i=0; i<18; i++) {
-            const input = document.getElementById(ttr_);
+            const input = document.getElementById(`attr_${i}`);
             if(input && dadosFada.notas[i] !== undefined) {
                 input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
                 atualizarConceito(i);
