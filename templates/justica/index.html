@@ -709,7 +709,7 @@
                                     {% if fadas_aluno %}
                                         {% for fada in fadas_aluno %}
                                         <tr>
-                                            <td>{{ fada.data_avaliacao | format_datetime }}</td>
+                                            <td>{{ fada.data_avaliacao.strftime('%d/%m/%Y %H:%M') if fada.data_avaliacao else '-' }}</td>
                                             <td>
                                                 {% if fada.status == 'ALUNO' %}
                                                     <span class="badge bg-warning text-dark">Aguardando Assinatura</span>
