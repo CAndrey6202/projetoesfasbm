@@ -254,13 +254,16 @@
                         <td class="text-center">{{ disc.ch }}</td>
 
                         {% if loop.first %}
-                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="padding-bottom: 120px !important; position: relative;">
+                        <td rowspan="{{ disciplinas|length + 2 }}" class="legislacao-cell" style="position: relative;">
                             
-                            <div style="display: block; width: 100%; text-align: center; margin: 10px 0 20px 0;">
-                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 120px; object-fit: contain;">
+                            <div style="display: block; width: 100%; text-align: center; margin: 15px 0;">
+                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 140px; max-width: 130px; display: block; margin: 0 auto;">
                             </div>
 
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
+                            
+                            <!-- Espaçador invisível para proteger o texto de sobrepor a assinatura -->
+                            <div style="height: 120px;"></div>
 
                             <!-- Assinatura fixada no canto inferior direito (sua caixa vermelha) -->
                             <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;">
@@ -275,7 +278,8 @@
                     </tr>
                     {% endfor %}
                     
-                    <tr style="height: auto;">
+                    <!-- tr com height 100% força a tabela a esticar até os 56% do limite -->
+                    <tr style="height: 100%;">
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
                         <td style="border-bottom: none; border-top: none;"></td>
