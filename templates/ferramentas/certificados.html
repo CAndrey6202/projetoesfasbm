@@ -44,13 +44,17 @@
                               <input type="text" class="form-control" name="departamento_comandante" placeholder="Ex: Comandante" required>
                           </div>
                           <div class="col-md-4">
-                              <label class="form-label">Diretor do DEC</label>
-                              <input type="text" class="form-control" name="nome_diretor" required>
-                          </div>
-                          <div class="col-md-4">
-                              <label class="form-label">Chefe Divisao de Ensino (Verso)</label>
-                              <input type="text" class="form-control" name="nome_chefe_ensino" required>
-                              <label class="form-label mt-2">Função</label>
+                            <label class="form-label">Diretor do DEC</label>
+                            <input type="text" class="form-control mb-2" name="nome_diretor" required>
+                            <label class="form-label text-muted" style="font-size: 0.85em;"><i class="fas fa-upload"></i> Imagem da Assinatura (Opcional)</label>
+                            <input type="file" class="form-control form-control-sm" name="assinatura_diretor" accept="image/png, image/jpeg">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Chefe Divisao de Ensino (Verso)</label>
+                            <input type="text" class="form-control mb-2" name="nome_chefe_ensino" required>
+                            <label class="form-label text-muted" style="font-size: 0.85em;"><i class="fas fa-upload"></i> Imagem da Assinatura (Opcional)</label>
+                            <input type="file" class="form-control form-control-sm mb-2" name="assinatura_chefe" accept="image/png, image/jpeg">
+                            <label class="form-label mt-1">Função</label>
                               <div>
                                   <div class="form-check form-check-inline">
                                       <input class="form-check-input" type="radio" name="funcao_chefe_ensino" id="funcao_chefe" value="Chefe do Departamento de Ensino e Treinamento" checked>

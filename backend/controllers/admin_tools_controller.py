@@ -277,6 +277,18 @@ def certificados():
             'ementa': request.form.get('ementa', '')
         }
         
+        # Processa uploads de assinatura, se existirem
+        import base64
+        file_dir = request.files.get('assinatura_diretor')
+        if file_dir and file_dir.filename:
+            img_bytes = file_dir.read()
+            dados['assinatura_diretor_b64'] = "data:" + file_dir.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
+            
+        file_chefe = request.files.get('assinatura_chefe')
+        if file_chefe and file_chefe.filename:
+            img_bytes = file_chefe.read()
+            dados['assinatura_chefe_b64'] = "data:" + file_chefe.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
+        
         # Recebe as disciplinas
         disciplinas_nr = request.form.getlist('disc_nr[]')
         disciplinas_nome = request.form.getlist('disc_nome[]')
