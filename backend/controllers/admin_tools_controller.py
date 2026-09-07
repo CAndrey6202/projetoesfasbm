@@ -279,6 +279,12 @@ def certificados():
         
         # Processa uploads de assinatura, se existirem
         import base64
+        
+        file_com = request.files.get('assinatura_comandante')
+        if file_com and file_com.filename:
+            img_bytes = file_com.read()
+            dados['assinatura_comandante_b64'] = "data:" + file_com.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
+
         file_dir = request.files.get('assinatura_diretor')
         if file_dir and file_dir.filename:
             img_bytes = file_dir.read()

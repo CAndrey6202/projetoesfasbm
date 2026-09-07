@@ -213,13 +213,18 @@
             <div class="signature-block">
                 <div class="signature-line" style="width: 100%;"></div>
                 <div>{{ dados.nome_comandante | replace('\n', '<br>') | safe }}<br>{{ dados.departamento_comandante }}</div>
+                {% if dados.assinatura_comandante_b64 %}
+                <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                    <img src="{{ dados.assinatura_comandante_b64 }}" style="max-height: 100px;">
+                </div>
+                {% endif %}
             </div>
             <div class="signature-block">
                 <div class="signature-line" style="width: 100%;"></div>
                 <div>{{ dados.nome_diretor | replace('\n', '<br>') | safe }}<br>Diretor de Educação e Cultura</div>
                 {% if dados.assinatura_diretor_b64 %}
-                <div style="text-align: center; margin-top: -55px; position: relative; z-index: 10;">
-                    <img src="{{ dados.assinatura_diretor_b64 }}" style="max-height: 70px;">
+                <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                    <img src="{{ dados.assinatura_diretor_b64 }}" style="max-height: 100px;">
                 </div>
                 {% endif %}
             </div>
@@ -293,8 +298,8 @@
                             <div class="signature-line" style="width: 80%; margin: 0 auto 5px auto; border-top: 1px solid #000;"></div>
                             <div>{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
                             {% if dados.assinatura_chefe_b64 %}
-                            <div style="text-align: center; margin-top: -55px; position: relative; z-index: 10;">
-                                <img src="{{ dados.assinatura_chefe_b64 }}" style="max-height: 70px;">
+                            <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                                <img src="{{ dados.assinatura_chefe_b64 }}" style="max-height: 100px;">
                             </div>
                             {% endif %}
                         </td>
