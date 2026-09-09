@@ -119,12 +119,19 @@
                                                                 <i class="fas fa-bell"></i> Cobrar Ciência
                                                             </button>
                                                         </form>
+                                                        
+                                                        <form action="{{ url_for('justica.dar_ciente', processo_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja REGISTRAR CIÊNCIA manualmente em nome do aluno?');">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <button type="submit" class="btn btn-sm btn-success fw-bold text-white mt-1 mt-md-0" title="Registrar Ciência Manualmente (Offline)">
+                                                                <i class="fas fa-check-double"></i> Dar Ciência
+                                                            </button>
+                                                        </form>
 
-                                                        <button type="button" class="btn btn-sm btn-info text-white fw-bold" onclick="toggleEditar('{{ p.id }}')" title="Editar Processo">
+                                                        <button type="button" class="btn btn-sm btn-info text-white fw-bold mt-1 mt-md-0" onclick="toggleEditar('{{ p.id }}')" title="Editar Processo">
                                                             <i class="fas fa-pencil-alt"></i> Editar
                                                         </button>
                                                         
-                                                        <form action="{{ url_for('justica.deletar_processo', pid=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir DEFINITIVAMENTE este processo? Como o aluno ainda não deu ciente, ele será apagado do banco de dados.');">
+                                                        <form action="{{ url_for('justica.deletar_processo', pid=p.id) }}" method="POST" class="d-inline mt-1 mt-md-0" onsubmit="return confirm('Tem certeza que deseja excluir DEFINITIVAMENTE este processo? Como o aluno ainda não deu ciente, ele será apagado do banco de dados.');">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                             <button type="submit" class="btn btn-sm btn-danger fw-bold" title="Excluir Processo Permanentemente">
                                                                 <i class="fas fa-trash-alt"></i> Excluir
