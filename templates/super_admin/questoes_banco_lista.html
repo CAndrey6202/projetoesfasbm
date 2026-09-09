@@ -30,9 +30,25 @@
                     </div>
                 </div>
 
+                <!-- Filtros do Banco -->
+                <div class="card shadow-sm mb-4 border-0 bg-light">
+                    <div class="card-body py-3">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="filtroData" class="form-label fw-bold small text-muted mb-1"><i class="fas fa-calendar-alt"></i> Filtrar por Data</label>
+                                <input type="date" class="form-control form-control-sm" id="filtroData">
+                            </div>
+                            <div class="col-md-9">
+                                <label for="filtroEnunciado" class="form-label fw-bold small text-muted mb-1"><i class="fas fa-search"></i> Buscar no Enunciado</label>
+                                <input type="text" class="form-control form-control-sm" id="filtroEnunciado" placeholder="Digite um trecho da questão para localizar...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="lista-questoes-banco">
                     {% for q in questoes %}
-                    <div class="card shadow-sm mb-4 border-start border-4 {% if q.ativo %}border-primary{% else %}border-danger{% endif %}">
+                    <div class="card questao-card shadow-sm mb-4 border-start border-4 {% if q.ativo %}border-primary{% else %}border-danger{% endif %}" data-data="{{ q.criado_em.strftime('%Y-%m-%d') }}">
                         <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                             <div>
                                 <span class="badge bg-dark">ID: #{{ q.id }}</span>
@@ -235,5 +251,45 @@
             .catch(err => alert('Erro na comunicação com o servidor.'));
         }
     }
+
+    // Lógica de Filtros do Banco (Data e Enunciado)
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputData = document.getElementById('filtroData');
+        const inputEnunciado = document.getElementById('filtroEnunciado');
+        const questoes = document.querySelectorAll('.questao-card');
+
+        function removeAcentos(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function filtrarQuestoes() {
+            const dataBusca = inputData.value;
+            const textoBusca = removeAcentos(inputEnunciado.value.toLowerCase().trim());
+
+            questoes.forEach(card => {
+                const cardData = card.getAttribute('data-data');
+                const cardEnunciado = removeAcentos(card.querySelector('.card-title').innerText.toLowerCase());
+
+                let mostrarPorData = true;
+                if (dataBusca && cardData !== dataBusca) {
+                    mostrarPorData = false;
+                }
+
+                let mostrarPorTexto = true;
+                if (textoBusca && !cardEnunciado.includes(textoBusca)) {
+                    mostrarPorTexto = false;
+                }
+
+                if (mostrarPorData && mostrarPorTexto) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        inputData.addEventListener('change', filtrarQuestoes);
+        inputEnunciado.addEventListener('input', filtrarQuestoes);
+    });
 </script>
 {% endblock %}
