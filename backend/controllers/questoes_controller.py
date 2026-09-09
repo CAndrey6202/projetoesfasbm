@@ -346,6 +346,8 @@ def editar_questao_banco(id):
     if alternativas and isinstance(alternativas, dict):
         # Limpar espaços e padronizar chaves para string
         questao.alternativas = {str(k).upper().strip(): str(v).strip() for k, v in alternativas.items()}
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(questao, "alternativas")
     if resposta_correta and isinstance(resposta_correta, str):
         questao.resposta_correta = resposta_correta.upper().strip()
     if assunto is not None:
