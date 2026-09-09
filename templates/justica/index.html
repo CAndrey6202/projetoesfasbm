@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Justiça e Disciplina{% endblock %}
+{% block title %}JustiÃ§a e Disciplina{% endblock %}
 
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
@@ -8,8 +8,8 @@
 
 <div class="container-xl">
     <div class="content-header mt-4">
-        <h1>Justiça e Disciplina</h1>
-        <p>Gestão de processos disciplinares e avaliação atitudinal.</p>
+        <h1>JustiÃ§a e Disciplina</h1>
+        <p>GestÃ£o de processos disciplinares e avaliaÃ§Ã£o atitudinal.</p>
     </div>
 
     <div class="justice-page-layout">
@@ -20,9 +20,9 @@
                     <button class="btn btn-primary justice-option-btn {% if active_tab == 'andamento' %}active{% endif %}" data-target="inProgressContent">Em Andamento</button>
                     <button class="btn btn-warning justice-option-btn {% if active_tab == 'finalizados' %}active{% endif %}" data-target="finalizadosContent">Finalizados</button>
 
-                    {% if current_user.role != 'aluno' %}
+                    {% if not is_aluno_view %}
                         <button class="btn btn-danger justice-option-btn {% if active_tab == 'newInfracaoContent' %}active{% endif %}" data-target="newInfracaoContent">
-                            <i class="fas fa-exclamation-triangle me-1"></i>Nova Infração
+                            <i class="fas fa-exclamation-triangle me-1"></i>Nova InfraÃ§Ã£o
                         </button>
                         <button class="btn btn-success justice-option-btn {% if active_tab == 'newElogioContent' %}active{% endif %}" data-target="newElogioContent">
                             <i class="fas fa-star me-1"></i>Novo Elogio
@@ -62,7 +62,7 @@
                             {% set ano_proc = p.data_ocorrencia.strftime('%Y') if p.data_ocorrencia else '2026' %}
                             {% set is_atrasado = p.is_atrasado %}
 
-                            <div class="card mb-3 shadow-sm border-start border-4 {{ 'border-danger bg-danger bg-opacity-10' if current_user.role == 'aluno' and is_atrasado else 'border-primary' }}">
+                            <div class="card mb-3 shadow-sm border-start border-4 {{ 'border-danger bg-danger bg-opacity-10' if is_aluno_view and is_atrasado else 'border-primary' }}">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-md-2 col-sm-4">
@@ -72,7 +72,7 @@
                                         <div class="col-md-3 col-sm-8">
                                             <small class="text-muted d-block small text-uppercase fw-bold">Aluno</small>
                                             <span class="fw-bold">{{ p.aluno.user.nome_completo }}</span>
-                                            <span class="text-muted small d-block" style="font-size: 0.75rem;">(PD Nº {{ p.id }}/{{ ano_proc }})</span>
+                                            <span class="text-muted small d-block" style="font-size: 0.75rem;">(PD NÂº {{ p.id }}/{{ ano_proc }})</span>
                                         </div>
                                         <div class="col-md-4 col-sm-12 mt-2 mt-md-0">
                                             <small class="text-muted d-block small text-uppercase fw-bold">Fato/Status</small>
@@ -86,21 +86,21 @@
                                         <div class="col-md-3 text-md-end text-start mt-3 mt-md-0">
                                             <div class="d-flex justify-content-md-end justify-content-start gap-2 flex-wrap">
 
-                                                {% if current_user.role != 'aluno' %}
+                                                {% if not is_aluno_view %}
                                                     {% if p.status == 'EM_RECURSO' %}
                                                         <button type="button" class="btn btn-sm btn-primary fw-bold text-white" onclick="toggleJulgarRecurso('{{ p.id }}')" title="Julgar Recurso">
                                                             <i class="fas fa-balance-scale"></i> Julgar Recurso
                                                         </button>
                                                     {% elif p.status == 'AGUARDANDO_CIENCIA' %}
-                                                        <button type="button" class="btn btn-sm btn-secondary text-white" disabled title="Aguardando ciência do aluno">
-                                                            <i class="fas fa-clock"></i> Notificado há:
+                                                        <button type="button" class="btn btn-sm btn-secondary text-white" disabled title="Aguardando ciÃªncia do aluno">
+                                                            <i class="fas fa-clock"></i> Notificado hÃ¡:
                                                             <br><small class="cronometro-progressivo badge bg-dark mt-1" data-inicio="{{ p.data_registro.isoformat() if p.data_registro else p.data_ocorrencia.isoformat() }}"></small>
                                                         </button>
 
                                                         <form action="{{ url_for('justica.cobrar_ciencia', pid=p.id) }}" method="POST" class="d-inline">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                            <button type="submit" class="btn btn-sm btn-warning d-none btn-cobrar-ciencia mt-1 mt-md-0 fw-bold" data-inicio="{{ p.data_registro.isoformat() if p.data_registro else p.data_ocorrencia.isoformat() }}" title="Notificar Urgência ao Aluno">
-                                                                <i class="fas fa-bell"></i> Cobrar Ciência
+                                                            <button type="submit" class="btn btn-sm btn-warning d-none btn-cobrar-ciencia mt-1 mt-md-0 fw-bold" data-inicio="{{ p.data_registro.isoformat() if p.data_registro else p.data_ocorrencia.isoformat() }}" title="Notificar UrgÃªncia ao Aluno">
+                                                                <i class="fas fa-bell"></i> Cobrar CiÃªncia
                                                             </button>
                                                         </form>
 
@@ -108,7 +108,7 @@
                                                             <i class="fas fa-pencil-alt"></i> Editar
                                                         </button>
                                                         
-                                                        <form action="{{ url_for('justica.deletar_processo', pid=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir DEFINITIVAMENTE este processo? Como o aluno ainda não deu ciente, ele será apagado do banco de dados.');">
+                                                        <form action="{{ url_for('justica.deletar_processo', pid=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir DEFINITIVAMENTE este processo? Como o aluno ainda nÃ£o deu ciente, ele serÃ¡ apagado do banco de dados.');">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                             <button type="submit" class="btn btn-sm btn-danger fw-bold" title="Excluir Processo Permanentemente">
                                                                 <i class="fas fa-trash-alt"></i> Excluir
@@ -123,7 +123,7 @@
                                                     {% elif p.status in ['DEFESA_ENVIADA', 'EM_ANALISE'] %}
                                                         <button type="button" class="btn btn-sm btn-info text-white" onclick="toggleAnalise('{{ p.id }}')" title="Analisar/Decidir">
                                                             <i class="fas fa-gavel"></i> Analisar
-                                                            {% if p.is_revelia %}<span class="badge bg-danger ms-1">À REVELIA</span>{% endif %}
+                                                            {% if p.is_revelia %}<span class="badge bg-danger ms-1">Ã€ REVELIA</span>{% endif %}
                                                         </button>
                                                     {% elif p.status == 'DECISAO_EMITIDA' %}
                                                         <button type="button" class="btn btn-sm btn-secondary text-white" disabled title="Aguardando Recurso do Aluno">
@@ -134,7 +134,7 @@
 
                                                 {% endif %}
 
-                                                {% if current_user.role == 'aluno' %}
+                                                {% if is_aluno_view %}
                                                     {% if p.status == 'AGUARDANDO_CIENCIA' %}
                                                         <div class="text-end">
                                                             {% if is_atrasado %}
@@ -158,7 +158,7 @@
                                                             <span class="cronometro-prazo badge bg-dark ms-1" data-prazo="{{ p.prazo_recurso.isoformat() if p.prazo_recurso else '' }}"></span>
                                                         </button>
                                                     {% elif p.status == 'EM_RECURSO' %}
-                                                        <span class="badge bg-primary py-2"><i class="fas fa-clock"></i> Recurso em Análise</span>
+                                                        <span class="badge bg-primary py-2"><i class="fas fa-clock"></i> Recurso em AnÃ¡lise</span>
                                                     {% elif p.defesa %}
                                                         <span class="badge bg-success py-2"><i class="fas fa-check"></i> Defesa Enviada</span>
                                                     {% endif %}
@@ -168,7 +168,7 @@
                                         </div>
                                     </div>
 
-                                    {% if current_user.role != 'aluno' and p.status == 'AGUARDANDO_CIENCIA' %}
+                                    {% if not is_aluno_view and p.status == 'AGUARDANDO_CIENCIA' %}
                                     <div id="collapseEditar{{ p.id }}" class="mt-3 pt-3 border-top bg-light p-3 rounded border border-info shadow-sm" style="display: none;">
                                         <h5 class="text-info fw-bold mb-3"><i class="fas fa-pencil-alt me-2"></i>Editar Processo Original</h5>
                                         <form action="{{ url_for('justica.editar_processo', pid=p.id) }}" method="POST">
@@ -188,20 +188,20 @@
                                                 </div>
                                                 <div class="col-md-12 text-end">
                                                     <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEditar('{{ p.id }}')">Cancelar</button>
-                                                    <button type="submit" class="btn btn-info text-white btn-sm fw-bold px-3">Salvar Alterações</button>
+                                                    <button type="submit" class="btn btn-info text-white btn-sm fw-bold px-3">Salvar AlteraÃ§Ãµes</button>
                                                 </div>
                                             </div>
                                         </form>
                                     </div>
                                     {% endif %}
 
-                                    {% if current_user.role == 'aluno' and p.status == 'ALUNO_NOTIFICADO' and not p.defesa %}
+                                    {% if is_aluno_view and p.status == 'ALUNO_NOTIFICADO' and not p.defesa %}
                                     <div id="collapseDefesa{{ p.id }}" class="mt-3 pt-3 border-top bg-light p-3 rounded" style="display: none;">
                                         <div class="row">
                                             <div class="col-md-12">
                                                 <h5 class="text-warning fw-bold"><i class="fas fa-shield-alt me-2"></i>Registrar Defesa</h5>
                                                 <p class="small text-muted mb-2">
-                                                    Submeta a sua justificativa abaixo. **Esta ação é única e não poderá ser editada.**
+                                                    Submeta a sua justificativa abaixo. **Esta aÃ§Ã£o Ã© Ãºnica e nÃ£o poderÃ¡ ser editada.**
                                                 </p>
 
                                                 <form action="{{ url_for('justica.enviar_defesa', processo_id=p.id) }}" method="POST">
@@ -229,7 +229,7 @@
                                     </div>
                                     {% endif %}
 
-                                    {% if current_user.role == 'aluno' and p.status == 'DECISAO_EMITIDA' %}
+                                    {% if is_aluno_view and p.status == 'DECISAO_EMITIDA' %}
                                     <div id="collapseRecurso{{ p.id }}" class="mt-3 pt-3 border-top bg-white p-3 rounded border border-warning shadow-sm" style="display: none;">
                                         <h5 class="text-primary fw-bold"><i class="fas fa-gavel me-2"></i>Interpor Recurso ao Comandante</h5>
 
@@ -239,11 +239,11 @@
                                         </div>
 
                                         <div class="mb-3 p-3 bg-danger bg-opacity-10 border border-danger rounded">
-                                            <h6 class="fw-bold text-danger mb-2">Decisão Emitida pelo Chefe CAL:</h6>
+                                            <h6 class="fw-bold text-danger mb-2">DecisÃ£o Emitida pelo Chefe CAL:</h6>
                                             <div class="row">
                                                 <div class="col-md-6">
                                                     <p class="mb-1 small"><strong>Veredito:</strong> {{ p.decisao_final }}
-                                                    {% if p.tipo_sancao == 'Sustação da Dispensa' and p.detalhes_sancao %}
+                                                    {% if p.tipo_sancao == 'SustaÃ§Ã£o da Dispensa' and p.detalhes_sancao %}
                                                         <span class="badge bg-danger ms-1">{{ p.detalhes_sancao }}</span>
                                                     {% endif %}
                                                     </p>
@@ -252,19 +252,19 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <p class="mb-0 small"><strong>Fundamentação do Chefe:</strong> <br>
-                                                    <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">Não informada.</em>{% endif %}</span>
+                                                    <p class="mb-0 small"><strong>FundamentaÃ§Ã£o do Chefe:</strong> <br>
+                                                    <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">NÃ£o informada.</em>{% endif %}</span>
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <p class="small text-muted mb-2">O prazo para interposição de recurso é de 48 horas após a emissão da decisão do Chefe.</p>
+                                        <p class="small text-muted mb-2">O prazo para interposiÃ§Ã£o de recurso Ã© de 48 horas apÃ³s a emissÃ£o da decisÃ£o do Chefe.</p>
                                         <form action="{{ url_for('justica.enviar_recurso', pid=p.id) }}" method="POST">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <div class="mb-3">
-                                                <label class="form-label fw-bold">Sua Argumentação do Recurso:</label>
-                                                <textarea name="texto_recurso" class="form-control" rows="6" placeholder="Justifique os motivos para anulação ou revisão da decisão..." required></textarea>
+                                                <label class="form-label fw-bold">Sua ArgumentaÃ§Ã£o do Recurso:</label>
+                                                <textarea name="texto_recurso" class="form-control" rows="6" placeholder="Justifique os motivos para anulaÃ§Ã£o ou revisÃ£o da decisÃ£o..." required></textarea>
                                             </div>
                                             <div class="text-end">
                                                 <button type="button" class="btn btn-secondary btn-sm" onclick="toggleRecurso('{{ p.id }}')">Cancelar</button>
@@ -274,7 +274,7 @@
                                     </div>
                                     {% endif %}
 
-                                    {% if current_user.role != 'aluno' and p.status == 'EM_RECURSO' %}
+                                    {% if not is_aluno_view and p.status == 'EM_RECURSO' %}
                                     <div id="collapseJulgarRecurso{{ p.id }}" class="mt-3 pt-3 border-top bg-light p-3 rounded border border-primary shadow-sm" style="display: none;">
                                         <h5 class="text-primary fw-bold mb-3"><i class="fas fa-balance-scale me-2"></i>Julgamento de Recurso (Comandante)</h5>
                                         <form action="{{ url_for('justica.julgar_recurso', pid=p.id) }}" method="POST">
@@ -282,7 +282,7 @@
 
                                             <div class="row">
                                                 <div class="col-md-7 border-end">
-                                                    <h6 class="fw-bold text-muted mb-2"><i class="fas fa-list-alt me-1"></i>Histórico Completo do Processo</h6>
+                                                    <h6 class="fw-bold text-muted mb-2"><i class="fas fa-list-alt me-1"></i>HistÃ³rico Completo do Processo</h6>
                                                     <div class="pe-2" style="max-height: 400px; overflow-y: auto;">
 
                                                         <div class="mb-3">
@@ -299,22 +299,22 @@
                                                             <div class="p-2 bg-white border rounded text-dark small fst-italic" style="white-space: pre-wrap;">{{ p.defesa }}</div>
                                                             <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Enviada em: {{ p.data_defesa.strftime('%d/%m/%Y %H:%M') if p.data_defesa else '-' }}</small>
                                                             {% else %}
-                                                            <div class="p-2 bg-white border border-danger rounded text-danger small fw-bold"><i class="fas fa-exclamation-triangle"></i> Julgado à Revelia (Não apresentou defesa)</div>
+                                                            <div class="p-2 bg-white border border-danger rounded text-danger small fw-bold"><i class="fas fa-exclamation-triangle"></i> Julgado Ã  Revelia (NÃ£o apresentou defesa)</div>
                                                             {% endif %}
                                                         </div>
 
                                                         <div class="mb-3">
-                                                            <span class="badge bg-danger mb-1">3. Decisão do Chefe CAL</span>
+                                                            <span class="badge bg-danger mb-1">3. DecisÃ£o do Chefe CAL</span>
                                                             <div class="p-2 bg-white border border-danger rounded text-dark small">
                                                                 <strong>Veredito:</strong> {{ p.decisao_final }}
-                                                                {% if p.tipo_sancao == 'Sustação da Dispensa' and p.detalhes_sancao %}
+                                                                {% if p.tipo_sancao == 'SustaÃ§Ã£o da Dispensa' and p.detalhes_sancao %}
                                                                     <span class="badge bg-danger ms-1">{{ p.detalhes_sancao }}</span>
                                                                 {% endif %}
                                                                 {% if p.pontos > 0 %}
                                                                     | <strong>Pontos Perdidos:</strong> -{{ p.pontos }} pts
                                                                 {% endif %}
                                                                 <hr class="my-1 border-danger border-opacity-50">
-                                                                <strong>Fundamentação do Chefe:</strong> <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">Não informada.</em>{% endif %}</span>
+                                                                <strong>FundamentaÃ§Ã£o do Chefe:</strong> <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">NÃ£o informada.</em>{% endif %}</span>
                                                             </div>
                                                         </div>
 
@@ -332,25 +332,25 @@
                                                         <label class="form-label small fw-bold">Parecer do Recurso</label>
                                                         <select name="decisao_recurso" class="form-select border-primary shadow-sm" required onchange="toggleOpcoesRecurso(this, '{{ p.id }}')">
                                                             <option value="">-- Selecione --</option>
-                                                            <option value="INDEFERIDO">INDEFERIDO (Manter Punição do Chefe)</option>
-                                                            <option value="DEFERIDO">DEFERIDO (Modificar / Anular Punição)</option>
+                                                            <option value="INDEFERIDO">INDEFERIDO (Manter PuniÃ§Ã£o do Chefe)</option>
+                                                            <option value="DEFERIDO">DEFERIDO (Modificar / Anular PuniÃ§Ã£o)</option>
                                                         </select>
                                                     </div>
 
                                                     <div id="divNovaSancao{{ p.id }}" style="display: none;" class="p-3 bg-light border border-success rounded mb-3">
                                                         <div class="mb-2">
-                                                            <label class="form-label small fw-bold text-success">Nova Decisão (Aplicada pelo Comandante)</label>
+                                                            <label class="form-label small fw-bold text-success">Nova DecisÃ£o (Aplicada pelo Comandante)</label>
                                                             <select name="nova_sancao" class="form-select" onchange="toggleInputsRecurso(this, '{{ p.id }}')">
                                                                 <option value="">-- Selecione --</option>
-                                                                <option value="Justificado">Justificado (Anular Punição)</option>
-                                                                <option value="Advertência">Advertência</option>
-                                                                <option value="Repreensão">Repreensão</option>
-                                                                <option value="Sustação da Dispensa">Sustação da Dispensa</option>
+                                                                <option value="Justificado">Justificado (Anular PuniÃ§Ã£o)</option>
+                                                                <option value="AdvertÃªncia">AdvertÃªncia</option>
+                                                                <option value="RepreensÃ£o">RepreensÃ£o</option>
+                                                                <option value="SustaÃ§Ã£o da Dispensa">SustaÃ§Ã£o da Dispensa</option>
                                                             </select>
                                                         </div>
 
                                                         <div class="mb-2" id="divTurnosRecurso{{ p.id }}" style="display:none;">
-                                                            <label class="form-label small text-danger fw-bold">Nova Sustação (1 Turno = 6 horas):</label>
+                                                            <label class="form-label small text-danger fw-bold">Nova SustaÃ§Ã£o (1 Turno = 6 horas):</label>
                                                             <select name="turnos_sustacao_recurso" class="form-select border-danger text-danger fw-bold">
                                                                 <option value="">Selecione...</option>
                                                                 {% for i in range(1, 9) %}
@@ -362,12 +362,12 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Fundamentação (Parecer do Comandante)</label>
-                                                        <textarea name="fundamentacao_recurso" class="form-control shadow-sm" rows="5" placeholder="Justifique a decisão do recurso..." required></textarea>
+                                                        <label class="form-label small fw-bold">FundamentaÃ§Ã£o (Parecer do Comandante)</label>
+                                                        <textarea name="fundamentacao_recurso" class="form-control shadow-sm" rows="5" placeholder="Justifique a decisÃ£o do recurso..." required></textarea>
                                                     </div>
                                                     <div class="text-end mt-4">
                                                         <button type="button" class="btn btn-secondary btn-sm" onclick="toggleJulgarRecurso('{{ p.id }}')">Cancelar</button>
-                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Publicar Decisão</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Publicar DecisÃ£o</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -375,14 +375,14 @@
                                     </div>
                                     {% endif %}
 
-                                    {% if current_user.role != 'aluno' and p.status in ['DEFESA_ENVIADA', 'EM_ANALISE'] %}
+                                    {% if not is_aluno_view and p.status in ['DEFESA_ENVIADA', 'EM_ANALISE'] %}
                                     <div id="collapseProcesso{{ p.id }}" class="mt-3 pt-3 border-top bg-light p-3 rounded" style="display: none;">
                                         <form action="{{ url_for('justica.finalizar_processo', pid=p.id) }}" method="POST">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                             <div class="row">
                                                 <div class="col-md-6 border-end">
-                                                    <h6 class="fw-bold text-muted"><i class="fas fa-file-alt me-1"></i>Descrição do Fato:</h6>
+                                                    <h6 class="fw-bold text-muted"><i class="fas fa-file-alt me-1"></i>DescriÃ§Ã£o do Fato:</h6>
                                                     <div class="p-2 bg-white border rounded text-dark fst-italic mb-3" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">{{ p.fato_constatado }}</div>
 
                                                     {% if p.observacao %}
@@ -397,27 +397,27 @@
                                                     </div>
                                                     {% else %}
                                                     <div class="alert alert-warning py-2 small">
-                                                        <i class="fas fa-exclamation-circle me-1"></i> O aluno ainda não enviou defesa{% if p.is_revelia %} (PRAZO ESGOTADO){% endif %}.
+                                                        <i class="fas fa-exclamation-circle me-1"></i> O aluno ainda nÃ£o enviou defesa{% if p.is_revelia %} (PRAZO ESGOTADO){% endif %}.
                                                     </div>
                                                     {% endif %}
                                                 </div>
 
                                                 <div class="col-md-6">
-                                                    <h6 class="fw-bold text-primary"><i class="fas fa-gavel me-1"></i>Decisão do Chefe</h6>
+                                                    <h6 class="fw-bold text-primary"><i class="fas fa-gavel me-1"></i>DecisÃ£o do Chefe</h6>
 
                                                     <div class="mb-3">
                                                         <label class="form-label small fw-bold">Veredito</label>
                                                         <select name="decisao" class="form-select" required onchange="toggleInputsInline(this, '{{ p.id }}')">
                                                             <option value="">-- Selecione --</option>
-                                                            <option value="Justificado">Justificado (Sem punição)</option>
-                                                            <option value="Advertência">Advertência</option>
-                                                            <option value="Repreensão">Repreensão</option>
-                                                            <option value="Sustação da Dispensa">Sustação da Dispensa</option>
+                                                            <option value="Justificado">Justificado (Sem puniÃ§Ã£o)</option>
+                                                            <option value="AdvertÃªncia">AdvertÃªncia</option>
+                                                            <option value="RepreensÃ£o">RepreensÃ£o</option>
+                                                            <option value="SustaÃ§Ã£o da Dispensa">SustaÃ§Ã£o da Dispensa</option>
                                                         </select>
                                                     </div>
 
                                                     <div class="mb-3" id="divTurnos{{ p.id }}" style="display:none;">
-                                                        <label class="form-label small text-danger fw-bold">Sustação (1 Turno = 6 horas):</label>
+                                                        <label class="form-label small text-danger fw-bold">SustaÃ§Ã£o (1 Turno = 6 horas):</label>
                                                         <select name="turnos_sustacao" class="form-select border-danger text-danger fw-bold">
                                                             <option value="">Selecione...</option>
                                                             <option value="1 Turno (6h)">1 Turno (6h)</option>
@@ -439,17 +439,17 @@
                                                             <option value="{{ regra.id }}">{{ regra.codigo }} - {{ regra.descricao }}</option>
                                                             {% endfor %}
                                                         </select>
-                                                        <small class="text-muted" style="font-size: 0.70rem;">A alteração constará na fundamentação da decisão.</small>
+                                                        <small class="text-muted" style="font-size: 0.70rem;">A alteraÃ§Ã£o constarÃ¡ na fundamentaÃ§Ã£o da decisÃ£o.</small>
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label small">Fundamentação / Observação</label>
-                                                        <textarea name="observacao_decisao" class="form-control" rows="4" placeholder="Justifique a decisão..." required></textarea>
+                                                        <label class="form-label small">FundamentaÃ§Ã£o / ObservaÃ§Ã£o</label>
+                                                        <textarea name="observacao_decisao" class="form-control" rows="4" placeholder="Justifique a decisÃ£o..." required></textarea>
                                                     </div>
 
                                                     <div class="text-end">
                                                         <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAnalise('{{ p.id }}')">Cancelar</button>
-                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold">Confirmar Decisão</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold">Confirmar DecisÃ£o</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -464,7 +464,7 @@
                     {% endif %}
 
                     {% if em_andamento_paginados and em_andamento_paginados.pages > 1 %}
-                    <nav aria-label="Navegação de processos em andamento">
+                    <nav aria-label="NavegaÃ§Ã£o de processos em andamento">
                         <ul class="pagination justify-content-center mt-4">
                             <li class="page-item {% if not em_andamento_paginados.has_prev %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('justica.index', page_andamento=em_andamento_paginados.prev_num, tab='andamento', q=request.args.get('q', '')) }}" tabindex="-1">Anterior</a>
@@ -481,7 +481,7 @@
                             {% endfor %}
 
                             <li class="page-item {% if not em_andamento_paginados.has_next %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('justica.index', page_andamento=em_andamento_paginados.next_num, tab='andamento', q=request.args.get('q', '')) }}">Próximo</a>
+                                <a class="page-link" href="{{ url_for('justica.index', page_andamento=em_andamento_paginados.next_num, tab='andamento', q=request.args.get('q', '')) }}">PrÃ³ximo</a>
                             </li>
                         </ul>
                     </nav>
@@ -495,7 +495,7 @@
                             <form action="{{ url_for('justica.index') }}" method="GET" class="d-flex align-items-center">
                                 <input type="hidden" name="tab" value="finalizados">
                                 <i class="fas fa-search text-primary ms-3 me-2"></i>
-                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato ou Nº do Processo..." value="{{ request.args.get('q', '') }}">
+                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato ou NÂº do Processo..." value="{{ request.args.get('q', '') }}">
                                 <button type="submit" class="btn btn-primary fw-bold px-4 rounded-pill">Buscar</button>
                                 {% if request.args.get('q') %}
                                     <a href="{{ url_for('justica.index', tab='finalizados') }}" class="btn btn-outline-secondary fw-bold rounded-pill ms-2 text-nowrap">Limpar</a>
@@ -504,13 +504,13 @@
                         </div>
                     </div>
 
-                    {% if current_user.role != 'aluno' %}
+                    {% if not is_aluno_view %}
                     <form action="{{ url_for('justica.imprimir_lote') }}" method="POST" target="_blank" id="formImpressaoLote">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white border border-dark rounded shadow-sm">
                             <div class="d-flex align-items-center gap-2">
                                 <input type="checkbox" class="form-check-input" id="checkAllFinalizados" onchange="toggleAllFinalizados(this)">
-                                <label for="checkAllFinalizados" class="fw-bold mb-0 text-primary">Selecionar Todos (Nesta Página)</label>
+                                <label for="checkAllFinalizados" class="fw-bold mb-0 text-primary">Selecionar Todos (Nesta PÃ¡gina)</label>
                             </div>
                             
                             <div id="loadingContainerLote" style="display: none; align-items: center; gap: 10px;">
@@ -521,7 +521,7 @@
                             </div>
 
                             <div class="d-flex align-items-center gap-2" id="actionButtonsLote">
-                                <input type="text" name="numero_boletim" class="form-control form-control-sm border-dark" placeholder="Nº do Boletim (Opcional)" style="width: 200px;">
+                                <input type="text" name="numero_boletim" class="form-control form-control-sm border-dark" placeholder="NÂº do Boletim (Opcional)" style="width: 200px;">
                                 <button type="submit" class="btn btn-sm btn-primary fw-bold" onclick="if(validarImpressaoLote()){ document.getElementById('actionButtonsLote').style.display='none'; document.getElementById('loadingContainerLote').style.display='flex'; setTimeout(()=> { document.getElementById('actionButtonsLote').style.display='flex'; document.getElementById('loadingContainerLote').style.display='none'; }, 3000); return true; } return false;">
                                     <i class="fas fa-print me-1"></i> Publicar e Imprimir
                                 </button>
@@ -537,7 +537,7 @@
                                 <div class="card-body py-2">
                                     <div class="row align-items-center">
 
-                                        {% if current_user.role != 'aluno' %}
+                                        {% if not is_aluno_view %}
                                         <div class="col-auto pe-1">
                                             {% if p.decisao_final != 'EXCLUIDO_ANULADO' %}
                                                 <input type="checkbox" name="processos_ids" value="{{ p.id }}" class="form-check-input check-finalizado border-dark" style="width: 18px; height: 18px;" form="formImpressaoLote">
@@ -548,18 +548,18 @@
                                         {% endif %}
 
                                         <div class="col-md-6 col-sm-9">
-                                            <strong>{{ p.aluno.user.nome_completo }}</strong> <span class="text-muted small ms-1">(PD Nº {{ p.id }}/{{ ano_proc }})</span>
+                                            <strong>{{ p.aluno.user.nome_completo }}</strong> <span class="text-muted small ms-1">(PD NÂº {{ p.id }}/{{ ano_proc }})</span>
                                             
-                                            {% if p.observacao_decisao and 'Publicado em Boletim Nº ' in p.observacao_decisao %}
-                                                {% set bol_extraido = p.observacao_decisao.split('Publicado em Boletim Nº ')[1].split(' em ')[0] %}
-                                                <span class="badge bg-primary ms-2" title="Documento vinculado ao boletim."><i class="fas fa-bullhorn"></i> Bol Nº {{ bol_extraido }}</span>
+                                            {% if p.observacao_decisao and 'Publicado em Boletim NÂº ' in p.observacao_decisao %}
+                                                {% set bol_extraido = p.observacao_decisao.split('Publicado em Boletim NÂº ')[1].split(' em ')[0] %}
+                                                <span class="badge bg-primary ms-2" title="Documento vinculado ao boletim."><i class="fas fa-bullhorn"></i> Bol NÂº {{ bol_extraido }}</span>
                                             {% elif p.observacao_decisao and 'Impresso em ' in p.observacao_decisao %}
                                                 <span class="badge bg-secondary ms-2" title="Documento apenas impresso."><i class="fas fa-print"></i> Impresso</span>
                                             {% endif %}
 
                                             <br>
                                             <span class="badge bg-dark mt-1">{{ p.decisao_final or 'Finalizado' }}</span>
-                                            {% if p.tipo_sancao == 'Sustação da Dispensa' %}
+                                            {% if p.tipo_sancao == 'SustaÃ§Ã£o da Dispensa' %}
                                                 <span class="badge bg-danger mt-1 ms-1">{{ p.detalhes_sancao }}</span>
                                             {% endif %}
                                             {% if p.decisao_recurso %}
@@ -574,11 +574,11 @@
                                                     <span class="badge bg-secondary">-{{ p.pontos }} pts</span>
                                                 {% endif %}
 
-                                                <span class="badge bg-success" style="cursor: pointer;" onclick="toggleDetalhesFinalizado('{{ p.id }}')" title="Ver todo o histórico do processo">
-                                                    Concluído <i class="fas fa-chevron-down ms-1"></i>
+                                                <span class="badge bg-success" style="cursor: pointer;" onclick="toggleDetalhesFinalizado('{{ p.id }}')" title="Ver todo o histÃ³rico do processo">
+                                                    ConcluÃ­do <i class="fas fa-chevron-down ms-1"></i>
                                                 </span>
 
-                                                {% if current_user.role != 'aluno' and p.decisao_final != 'EXCLUIDO_ANULADO' %}
+                                                {% if not is_aluno_view and p.decisao_final != 'EXCLUIDO_ANULADO' %}
                                                     <button type="button" class="btn btn-sm btn-danger ms-2 fw-bold" onclick="toggleAnular('{{ p.id }}')" title="Anular este processo devido a erro material">
                                                         <i class="fas fa-ban"></i> Anular
                                                     </button>
@@ -587,27 +587,27 @@
                                         </div>
                                     </div>
 
-                                    {% if current_user.role != 'aluno' and p.decisao_final != 'EXCLUIDO_ANULADO' %}
+                                    {% if not is_aluno_view and p.decisao_final != 'EXCLUIDO_ANULADO' %}
                                     <div id="collapseAnular{{ p.id }}" class="mt-3 pt-3 border-top bg-danger bg-opacity-10 p-3 rounded border border-danger shadow-sm" style="display: none;">
-                                        <h5 class="text-danger fw-bold mb-3"><i class="fas fa-exclamation-triangle me-2"></i> Anular Processo Nº {{ p.id }}</h5>
+                                        <h5 class="text-danger fw-bold mb-3"><i class="fas fa-exclamation-triangle me-2"></i> Anular Processo NÂº {{ p.id }}</h5>
                                         <form action="{{ url_for('justica.anular_processo', pid=p.id) }}" method="POST">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <p class="text-danger fw-bold mb-2">Atenção! Esta ação invalidará o processo permanentemente.</p>
-                                            <p class="small text-muted mb-3">A punição será removida, os pontos serão devolvidos ao aluno e o processo ficará arquivado com uma tarja de anulação para fins de auditoria.</p>
+                                            <p class="text-danger fw-bold mb-2">AtenÃ§Ã£o! Esta aÃ§Ã£o invalidarÃ¡ o processo permanentemente.</p>
+                                            <p class="small text-muted mb-3">A puniÃ§Ã£o serÃ¡ removida, os pontos serÃ£o devolvidos ao aluno e o processo ficarÃ¡ arquivado com uma tarja de anulaÃ§Ã£o para fins de auditoria.</p>
                                             <div class="mb-3">
-                                                <label class="form-label fw-bold">Motivo da Anulação (Obrigatório):</label>
+                                                <label class="form-label fw-bold">Motivo da AnulaÃ§Ã£o (ObrigatÃ³rio):</label>
                                                 <textarea name="motivo_anulacao" class="form-control border-danger" rows="3" placeholder="Ex: Processo duplicado, erro material na hora de publicar..." required minlength="10"></textarea>
                                             </div>
                                             <div class="text-end">
                                                 <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAnular('{{ p.id }}')">Cancelar</button>
-                                                <button type="submit" class="btn btn-danger fw-bold px-3"><i class="fas fa-ban"></i> Confirmar Anulação</button>
+                                                <button type="submit" class="btn btn-danger fw-bold px-3"><i class="fas fa-ban"></i> Confirmar AnulaÃ§Ã£o</button>
                                             </div>
                                         </form>
                                     </div>
                                     {% endif %}
 
                                     <div id="collapseFinalizado{{ p.id }}" class="mt-3 pt-3 border-top border-success" style="display: none;">
-                                        <h6 class="fw-bold text-success mb-2"><i class="fas fa-archive me-1"></i>Histórico do Processo Finalizado</h6>
+                                        <h6 class="fw-bold text-success mb-2"><i class="fas fa-archive me-1"></i>HistÃ³rico do Processo Finalizado</h6>
                                         <div class="bg-white p-3 rounded border">
                                             <div class="mb-3 border-bottom pb-2">
                                                 <span class="badge bg-secondary mb-1">1. Fato Constatado e Nota Original</span>
@@ -622,16 +622,16 @@
                                                 {% if p.defesa %}
                                                 <div class="text-dark small fst-italic" style="white-space: pre-wrap;">{{ p.defesa }}</div>
                                                 {% else %}
-                                                <div class="text-danger small fw-bold"><i class="fas fa-exclamation-triangle"></i> Julgado à Revelia (Não apresentou defesa)</div>
+                                                <div class="text-danger small fw-bold"><i class="fas fa-exclamation-triangle"></i> Julgado Ã  Revelia (NÃ£o apresentou defesa)</div>
                                                 {% endif %}
                                             </div>
 
                                             <div class="mb-3 border-bottom pb-2">
-                                                <span class="badge bg-danger mb-1">3. Decisão do Chefe CAL</span>
+                                                <span class="badge bg-danger mb-1">3. DecisÃ£o do Chefe CAL</span>
                                                 <div class="text-dark small">
                                                     <strong>Veredito:</strong> {{ p.decisao_final }}
-                                                    {% if p.tipo_sancao == 'Sustação da Dispensa' and p.detalhes_sancao %} <span class="badge bg-danger ms-1">{{ p.detalhes_sancao }}</span> {% endif %}
-                                                    <br><strong>Fundamentação:</strong> <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">Não informada.</em>{% endif %}</span>
+                                                    {% if p.tipo_sancao == 'SustaÃ§Ã£o da Dispensa' and p.detalhes_sancao %} <span class="badge bg-danger ms-1">{{ p.detalhes_sancao }}</span> {% endif %}
+                                                    <br><strong>FundamentaÃ§Ã£o:</strong> <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">NÃ£o informada.</em>{% endif %}</span>
                                                 </div>
                                             </div>
 
@@ -640,7 +640,7 @@
                                                 <span class="badge bg-primary mb-1">4. Recurso ao Comandante</span>
                                                 <div class="text-dark small fst-italic mb-2" style="white-space: pre-wrap;"><strong>Argumento:</strong> {{ p.texto_recurso }}</div>
                                                 <div class="text-dark small">
-                                                    <strong>Decisão do Comandante:</strong> {{ p.decisao_recurso }} <br>
+                                                    <strong>DecisÃ£o do Comandante:</strong> {{ p.decisao_recurso }} <br>
                                                     <strong>Parecer:</strong> <span style="white-space: pre-wrap;">{{ p.fundamentacao_recurso }}</span>
                                                 </div>
                                             </div>
@@ -662,7 +662,7 @@
                     {% endif %}
 
                     {% if finalizados.pages > 1 %}
-                    <nav aria-label="Navegação de processos finalizados">
+                    <nav aria-label="NavegaÃ§Ã£o de processos finalizados">
                         <ul class="pagination justify-content-center mt-4">
                             <li class="page-item {% if not finalizados.has_prev %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('justica.index', page=finalizados.prev_num, tab='finalizados', q=request.args.get('q', '')) }}" tabindex="-1">Anterior</a>
@@ -679,7 +679,7 @@
                             {% endfor %}
 
                             <li class="page-item {% if not finalizados.has_next %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('justica.index', page=finalizados.next_num, tab='finalizados', q=request.args.get('q', '')) }}">Próximo</a>
+                                <a class="page-link" href="{{ url_for('justica.index', page=finalizados.next_num, tab='finalizados', q=request.args.get('q', '')) }}">PrÃ³ximo</a>
                             </li>
                         </ul>
                     </nav>
@@ -688,7 +688,7 @@
 
                 <div class="justice-content {% if active_tab == 'newInfracaoContent' %}active{% endif %}" id="newInfracaoContent">
                     <div class="card border-danger shadow-sm">
-                        <div class="card-header bg-danger text-white"><h4 class="mb-0">Registrar Infração</h4></div>
+                        <div class="card-header bg-danger text-white"><h4 class="mb-0">Registrar InfraÃ§Ã£o</h4></div>
                         <div class="card-body">
                              <form method="POST" action="{{ url_for('justica.registrar_em_massa') }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -720,7 +720,7 @@
                                             </div>
                                             <div class="form-check form-check-inline">
                                                 <input class="form-check-input" type="radio" name="tipo_visual" id="rad_rdbm" value="RDBM" onchange="toggleTiposInfracao()">
-                                                <label class="form-check-label small text-warning fw-bold" for="rad_rdbm">Transgressão RDBM</label>
+                                                <label class="form-check-label small text-warning fw-bold" for="rad_rdbm">TransgressÃ£o RDBM</label>
                                             </div>
                                             <div class="form-check form-check-inline">
                                                 <input class="form-check-input" type="radio" name="tipo_visual" id="rad_crime" value="CRIME" onchange="toggleTiposInfracao()">
@@ -729,7 +729,7 @@
                                         </div>
 
                                         <div class="mb-2" id="box_regras_npccal">
-                                            <label class="small">Pesquisar Falta (Código ou Descrição)</label>
+                                            <label class="small">Pesquisar Falta (CÃ³digo ou DescriÃ§Ã£o)</label>
                                             <select id="regraSelect" name="regra_id" class="form-select" onchange="atualizarTextoInteligente()" placeholder="Digite para pesquisar a regra...">
                                                 <option value="">-- Selecione a Falta --</option>
                                                 {% for regra in fatos_predefinidos %}
@@ -739,7 +739,7 @@
                                         </div>
 
                                         <div class="mb-2" id="box_regras_manual" style="display: none;">
-                                            <label class="small">Descrição da Transgressão / Crime</label>
+                                            <label class="small">DescriÃ§Ã£o da TransgressÃ£o / Crime</label>
                                             <input type="text" id="inputManualDesc" name="codigo_infracao" class="form-control" placeholder="Ex: Art. 15 do RDBM ou Art. 290 do CPM..." oninput="atualizarTextoInteligente()">
                                         </div>
 
@@ -754,11 +754,11 @@
                                             </div>
                                         </div>
                                         <div class="mb-2">
-                                            <label class="small">Fato Constatado (Descrição detalhada da conduta)</label>
-                                            <textarea name="descricao" id="descricaoFatoInput" class="form-control" rows="2" placeholder="Ex: deixou a parte de cima do seu armário fora dos padrões exigidos." required oninput="atualizarTextoInteligente()"></textarea>
+                                            <label class="small">Fato Constatado (DescriÃ§Ã£o detalhada da conduta)</label>
+                                            <textarea name="descricao" id="descricaoFatoInput" class="form-control" rows="2" placeholder="Ex: deixou a parte de cima do seu armÃ¡rio fora dos padrÃµes exigidos." required oninput="atualizarTextoInteligente()"></textarea>
                                         </div>
                                         <div class="mb-2">
-                                            <label class="small">Termo de Justificação (Gerado Automaticamente)</label>
+                                            <label class="small">Termo de JustificaÃ§Ã£o (Gerado Automaticamente)</label>
                                             <textarea id="campoObservacao" name="observacao" class="form-control" rows="15"></textarea>
                                         </div>
                                         <div class="text-end"><button type="submit" class="btn btn-danger">Registrar</button></div>
@@ -771,7 +771,7 @@
 
                 <div class="justice-content {% if active_tab == 'newElogioContent' %}active{% endif %}" id="newElogioContent">
     <div class="row">
-        <!-- COLUNA ESQUERDA: Formulário de Registro -->
+        <!-- COLUNA ESQUERDA: FormulÃ¡rio de Registro -->
         <div class="col-lg-7 mb-4">
             <div class="card border-success shadow-sm h-100">
                 <div class="card-header bg-success text-white">
@@ -805,7 +805,7 @@
             </div>
         </div>
 
-        <!-- COLUNA DIREITA: Histórico do Usuário Logado -->
+        <!-- COLUNA DIREITA: HistÃ³rico do UsuÃ¡rio Logado -->
         <div class="col-lg-5 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-secondary text-white">
@@ -821,7 +821,7 @@
                                         <div class="me-2">
                                             <small class="text-muted"><i class="fas fa-calendar-alt"></i> {{ elogio.data_elogio.strftime('%d/%m/%Y') }}</small>
                                             
-                                            <!-- Informações do Aluno -->
+                                            <!-- InformaÃ§Ãµes do Aluno -->
                                             {% if elogio.aluno and elogio.aluno.user %}
                                             <br>
                                             <strong class="text-success">
@@ -832,11 +832,11 @@
                                             {% endif %}
                                             {% endif %}
                                             
-                                            <!-- Descrição -->
+                                            <!-- DescriÃ§Ã£o -->
                                             <p class="mb-1 mt-1 small">{{ elogio.descricao }}</p>
                                         </div>
                                         
-                                        <!-- Botão de Excluir vinculando à rota de exclusão do elogio -->
+                                        <!-- BotÃ£o de Excluir vinculando Ã  rota de exclusÃ£o do elogio -->
                                         <form action="{{ url_for('elogio.deletar_elogio', elogio_id=elogio.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este elogio?');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir Elogio">
@@ -850,13 +850,13 @@
                     {% else %}
                         <div class="p-4 text-center text-muted">
                             <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
-                            <p>Você ainda não publicou nenhum elogio.</p>
+                            <p>VocÃª ainda nÃ£o publicou nenhum elogio.</p>
                         </div>
                     {% endif %}
                 </div>
                 {% if meus_elogios_paginados and meus_elogios_paginados.pages > 1 %}
                 <div class="card-footer bg-white border-top-0 pt-0">
-                    <nav aria-label="Navegação de meus elogios">
+                    <nav aria-label="NavegaÃ§Ã£o de meus elogios">
                         <ul class="pagination pagination-sm justify-content-center mb-0 mt-2">
                             <li class="page-item {% if not meus_elogios_paginados.has_prev %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('justica.index', page_elogios=meus_elogios_paginados.prev_num, tab='newElogioContent', q=request.args.get('q', '')) }}" tabindex="-1">Anterior</a>
@@ -873,7 +873,7 @@
                             {% endfor %}
 
                             <li class="page-item {% if not meus_elogios_paginados.has_next %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('justica.index', page_elogios=meus_elogios_paginados.next_num, tab='newElogioContent', q=request.args.get('q', '')) }}">Próximo</a>
+                                <a class="page-link" href="{{ url_for('justica.index', page_elogios=meus_elogios_paginados.next_num, tab='newElogioContent', q=request.args.get('q', '')) }}">PrÃ³ximo</a>
                             </li>
                         </ul>
                     </nav>
@@ -962,10 +962,10 @@ function toggleInputsInline(selectEl, id) {
     if (divTurnos) divTurnos.style.display = 'none';
     if (divPontos) divPontos.style.display = 'none';
 
-    if (val === 'Sustação da Dispensa') {
+    if (val === 'SustaÃ§Ã£o da Dispensa') {
         if (divTurnos) divTurnos.style.display = 'block';
         if (divPontos) divPontos.style.display = 'block';
-    } else if (val === 'Advertência' || val === 'Repreensão') {
+    } else if (val === 'AdvertÃªncia' || val === 'RepreensÃ£o') {
         if (divPontos) divPontos.style.display = 'block';
     }
 }
@@ -990,10 +990,10 @@ window.toggleInputsRecurso = function(selectEl, id) {
     if (divTurnos) divTurnos.style.display = 'none';
     if (divPontos) divPontos.style.display = 'none';
 
-    if (val === 'Sustação da Dispensa') {
+    if (val === 'SustaÃ§Ã£o da Dispensa') {
         if (divTurnos) divTurnos.style.display = 'block';
         if (divPontos) divPontos.style.display = 'block';
-    } else if (val === 'Advertência' || val === 'Repreensão') {
+    } else if (val === 'AdvertÃªncia' || val === 'RepreensÃ£o') {
         if (divPontos) divPontos.style.display = 'block';
     }
 };
@@ -1030,7 +1030,7 @@ function iniciarCronometros() {
                 const mm = m.toString().padStart(2, '0');
                 const ss = s.toString().padStart(2, '0');
 
-                el.innerHTML = `⏳ ${hh}:${mm}:${ss}`;
+                el.innerHTML = `â³ ${hh}:${mm}:${ss}`;
             }
         });
 
@@ -1049,7 +1049,7 @@ function iniciarCronometros() {
                 const mm = m.toString().padStart(2, '0');
                 const ss = s.toString().padStart(2, '0');
 
-                el.innerHTML = `⏱️ ${hh}:${mm}:${ss}`;
+                el.innerHTML = `â±ï¸ ${hh}:${mm}:${ss}`;
 
                 if (diff > 86400000) {
                     if (!el.classList.contains('bg-danger')) {
@@ -1080,7 +1080,7 @@ function iniciarCronometros() {
 document.addEventListener('DOMContentLoaded', function() {
     iniciarCronometros();
 
-    // Inicializa o TomSelect para o formulário de Nova Infração
+    // Inicializa o TomSelect para o formulÃ¡rio de Nova InfraÃ§Ã£o
     if(document.getElementById("regraSelect")) {
         var controlRegra = new TomSelect("#regraSelect", {
             create: false,
@@ -1090,7 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.controlRegra = controlRegra;
     }
 
-    // Inicializa o TomSelect para os dropdowns dinâmicos de "Mudar Enquadramento"
+    // Inicializa o TomSelect para os dropdowns dinÃ¢micos de "Mudar Enquadramento"
     document.querySelectorAll('.tom-select-enquadramento').forEach(el => {
         new TomSelect(el, {
             create: false,
@@ -1103,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(e) {
             if(this.tagName.toLowerCase() === 'a') return;
 
-            // Remove o 'tab=' da URL para não prender a navegação na mesma aba se a pessoa clicar no botão
+            // Remove o 'tab=' da URL para nÃ£o prender a navegaÃ§Ã£o na mesma aba se a pessoa clicar no botÃ£o
             const url = new URL(window.location);
             url.searchParams.delete('tab');
             window.history.replaceState({}, '', url);
@@ -1175,10 +1175,10 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function getDataPorExtenso(dateString) {
-        if (!dateString) return "data não informada";
+        if (!dateString) return "data nÃ£o informada";
         const parts = dateString.split('-');
         if (parts.length !== 3) return dateString;
-        const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+        const meses = ["janeiro", "fevereiro", "marÃ§o", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
         return `${parts[2]} de ${meses[parseInt(parts[1]) - 1]} de ${parts[0]}`;
     }
 
@@ -1199,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', function() {
              }
         } else {
              const manualText = document.getElementById('inputManualDesc').value.trim();
-             regraDesc = manualText ? ("em: " + manualText) : "em infração a descrever";
+             regraDesc = manualText ? ("em: " + manualText) : "em infraÃ§Ã£o a descrever";
         }
 
         const dataExtenso = getDataPorExtenso(document.getElementById('dataFatoInput').value);
@@ -1212,10 +1212,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(r => r.json())
                 .then(d => {
                     const nomeCompleto = `${d.posto_graduacao} ${d.nome_completo}, Id Func. ${d.matricula}`;
-                    box.value = `Termo de Justificação:\n\nTendo em vista as informações constantes na Parte Nº ___/${anoAtual}, evidenciando a existência, em tese, de infração das Normas de Procedimentos e Condutas do Corpo de Alunos e proporcionando assegurar o direito de defesa, formulo o seguinte termo de justificação:\n\n1. Justificante: ${nomeCompleto}.\n\n2. Descrição da conduta infracional: O ${nomeCompleto}, no dia ${dataExtenso} às ${horaFato}, ${descFato}. Com isso, incorreu ${regraDesc}.\n\n3. Cientifico-lhe que a contar do recebimento da presente, abre-se o prazo de 24 horas, para que, querendo, apresente resposta escrita com as provas que entender cabíveis. Fica advertido o acusado que a não entrega da justificação dentro do prazo estipulado, implicará em reconhecimento como verdadeiros os fatos imputados.\n\n[NOME, POSTO/GRADUAÇÃO E FUNÇÃO DO RESPONSÁVEL]`;
+                    box.value = `Termo de JustificaÃ§Ã£o:\n\nTendo em vista as informaÃ§Ãµes constantes na Parte NÂº ___/${anoAtual}, evidenciando a existÃªncia, em tese, de infraÃ§Ã£o das Normas de Procedimentos e Condutas do Corpo de Alunos e proporcionando assegurar o direito de defesa, formulo o seguinte termo de justificaÃ§Ã£o:\n\n1. Justificante: ${nomeCompleto}.\n\n2. DescriÃ§Ã£o da conduta infracional: O ${nomeCompleto}, no dia ${dataExtenso} Ã s ${horaFato}, ${descFato}. Com isso, incorreu ${regraDesc}.\n\n3. Cientifico-lhe que a contar do recebimento da presente, abre-se o prazo de 24 horas, para que, querendo, apresente resposta escrita com as provas que entender cabÃ­veis. Fica advertido o acusado que a nÃ£o entrega da justificaÃ§Ã£o dentro do prazo estipulado, implicarÃ¡ em reconhecimento como verdadeiros os fatos imputados.\n\n[NOME, POSTO/GRADUAÃ‡ÃƒO E FUNÃ‡ÃƒO DO RESPONSÃVEL]`;
                 });
         } else if(checks.length > 1) {
-            box.value = `Termo Coletivo para ${checks.length} alunos.\nFato ocorrido no dia ${dataExtenso} às ${horaFato}:\n${descFato}\nEnquadramento: ${regraDesc}`;
+            box.value = `Termo Coletivo para ${checks.length} alunos.\nFato ocorrido no dia ${dataExtenso} Ã s ${horaFato}:\n${descFato}\nEnquadramento: ${regraDesc}`;
         }
     };
 });
