@@ -190,8 +190,6 @@ class User(UserMixin, db.Model):
     @property
     def is_chefe_turma(self) -> bool:
         """Verifica se o usuário (aluno) possui o cargo de Chefe de Turma."""
-        if str(self.role).lower().strip() != self.ROLE_ALUNO:
-            return False
         if not self.aluno_profile:
             return False
 
