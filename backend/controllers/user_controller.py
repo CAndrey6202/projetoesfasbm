@@ -95,6 +95,7 @@ def generate_unique_username(base: str, max_tries: int = 50) -> str:
 def meu_perfil():
     form = MeuPerfilForm(obj=current_user)
     form.turma_id.choices = []
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if request.method == 'GET':
         posto_atual = current_user.posto_graduacao
