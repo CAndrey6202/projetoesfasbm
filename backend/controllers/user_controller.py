@@ -38,6 +38,7 @@ posto_graduacao_structured = {
     'Oficiais': ['1º Tenente PM', 'Capitão PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
     'Saúde - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
     'Saúde - Médicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'Veteranos / RR': ['Soldado RR', '3º Sargento RR', '2º Sargento RR', '1º Sargento RR', '1º Tenente RR', 'Capitão RR', 'Major RR', 'Tenente-Coronel RR', 'Coronel RR'],
     'Outros': ['Civil', 'Outro']
 }
 
