@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('input[name="is_rr"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 if (this.value === '1' || this.value === 'True') {
-                    categoriaSelect.value = 'Veteranos / RR';
+                    categoriaSelect.value = 'PME / RR';
                     updatePostoOptions();
                 }
             });
