@@ -93,6 +93,15 @@ document.addEventListener('DOMContentLoaded', function () {
     categoriaSelect.addEventListener('change', updatePostoOptions);
     postoSelect.addEventListener('change', toggleOutroField);
 
+    document.querySelectorAll('input[name="is_rr"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === '1' || this.value === 'True') {
+                categoriaSelect.value = 'Veteranos / RR';
+                updatePostoOptions();
+            }
+        });
+    });
+
     // Inicializa na primeira carga
     updatePostoOptions();
 });
