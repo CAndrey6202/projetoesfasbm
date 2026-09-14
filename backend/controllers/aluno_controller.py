@@ -158,6 +158,7 @@ def editar_aluno(aluno_id):
         return redirect(url_for('aluno.listar_alunos'))
 
     form = EditAlunoForm(obj=aluno)
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     # Carrega turmas apenas da escola atual e da edio atual
     active_edicao = session.get('active_edicao_id')

@@ -91,6 +91,7 @@ def listar_instrutores():
 @school_admin_or_programmer_required
 def cadastrar_instrutor():
     form = InstrutorForm()
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if form.is_submitted():
          categoria_selecionada = form.posto_categoria.data
@@ -134,6 +135,7 @@ def editar_instrutor(instrutor_id):
         return redirect(url_for("instrutor.listar_instrutores"))
 
     form = EditInstrutorForm(obj=instrutor)
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if request.method == 'GET':
         # Preenche os dados do Usuário
@@ -204,6 +206,8 @@ def editar_instrutor(instrutor_id):
         except Exception as e:
             db.session.rollback()
             flash(f"Erro ao atualizar: {str(e)}", "danger")
+    elif request.method == 'POST':
+        flash(f"Erros de validação: {form.errors}", "danger")
 
     return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured)
 
