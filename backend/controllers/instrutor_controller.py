@@ -23,6 +23,10 @@ posto_graduacao_structured = {
     'Oficiais': ['1º Tenente PM', 'Capitão PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
     'Saúde - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
     'Saúde - Médicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'PME / RR': [
+        'Soldado RR', '3º Sargento RR', '2º Sargento RR', '1º Sargento RR', '1º Tenente RR', 'Capitão RR', 'Major RR', 'Tenente-Coronel RR', 'Coronel RR',
+        'Soldado PME', '3º Sargento PME', '2º Sargento PME', '1º Sargento PME', '1º Tenente PME', 'Capitão PME', 'Major PME', 'Tenente-Coronel PME', 'Coronel PME'
+    ],
     'Outros': ['Civil', 'Outro']
 }
 
@@ -40,7 +44,7 @@ class InstrutorForm(FlaskForm):
 
     telefone = StringField("Telefone", validators=[Optional()])
     # Alterado para SelectField para maior estabilidade
-    is_rr = SelectField("Efetivo da Reserva Remunerada (RR)", choices=[('0', 'Não'), ('1', 'Sim')], default='0')
+    is_rr = SelectField("Efetivo da Reserva Remunerada (RR/PME)", choices=[('0', 'Não'), ('1', 'Sim')], default='0')
     submit = SubmitField("Salvar")
 
 
@@ -56,7 +60,7 @@ class EditInstrutorForm(FlaskForm):
 
     telefone = StringField("Telefone", validators=[Optional()])
     # CORREÇÃO: SelectField com valores string '0' e '1'
-    is_rr = SelectField("Efetivo da Reserva Remunerada (RR)", choices=[('0', 'Não'), ('1', 'Sim')], default='0')
+    is_rr = SelectField("Efetivo da Reserva Remunerada (RR/PME)", choices=[('0', 'Não'), ('1', 'Sim')], default='0')
     submit = SubmitField("Salvar Alterações")
 
 
@@ -87,6 +91,7 @@ def listar_instrutores():
 @school_admin_or_programmer_required
 def cadastrar_instrutor():
     form = InstrutorForm()
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if form.is_submitted():
          categoria_selecionada = form.posto_categoria.data
@@ -130,6 +135,7 @@ def editar_instrutor(instrutor_id):
         return redirect(url_for("instrutor.listar_instrutores"))
 
     form = EditInstrutorForm(obj=instrutor)
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if request.method == 'GET':
         # Preenche os dados do Usuário
@@ -200,6 +206,8 @@ def editar_instrutor(instrutor_id):
         except Exception as e:
             db.session.rollback()
             flash(f"Erro ao atualizar: {str(e)}", "danger")
+    elif request.method == 'POST':
+        flash(f"Erros de validação: {form.errors}", "danger")
 
     return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured)
 

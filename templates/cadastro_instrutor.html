@@ -48,7 +48,7 @@
     {{ form.telefone(class="form-control") }}
   </div>
   <div class="form-group mb-3">
-    <label class="form-label">Efetivo da Reserva Remunerada (RR)</label>
+    <label class="form-label">Efetivo da Reserva Remunerada (RR/PME)</label>
     <div class="btn-group" role="group">
         {% for subfield in form.is_rr %}
             <input type="radio" class="btn-check" name="{{ subfield.name }}" id="{{ subfield.id }}" value="{{ subfield.data }}" {% if subfield.checked %}checked{% endif %}>
@@ -92,6 +92,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     categoriaSelect.addEventListener('change', updatePostoOptions);
     postoSelect.addEventListener('change', toggleOutroField);
+
+    document.querySelectorAll('input[name="is_rr"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === '1' || this.value === 'True') {
+                categoriaSelect.value = 'PME / RR';
+                updatePostoOptions();
+            }
+        });
+    });
 
     // Inicializa na primeira carga
     updatePostoOptions();

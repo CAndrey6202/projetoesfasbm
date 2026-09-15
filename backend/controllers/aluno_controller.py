@@ -27,10 +27,14 @@ aluno_bp = Blueprint('aluno', __name__, url_prefix='/aluno')
 
 # DICIONRIO ESTRUTURADO PARA POSTOS E GRADUAES
 posto_graduacao_structured = {
-    'Praas': ['Soldado PM', '2º Sargento PM', '1º Sargento PM', 'Aluno Oficial'],
-    'Oficiais': ['1º Tenente PM', 'Capito PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
-    'Sade - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
-    'Sade - Mdicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'Praças': ['Soldado PM', '2º Sargento PM', '1º Sargento PM', 'Aluno Oficial'],
+    'Oficiais': ['1º Tenente PM', 'Capitão PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
+    'Saúde - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
+    'Saúde - Médicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'PME / RR': [
+        'Soldado RR', '3º Sargento RR', '2º Sargento RR', '1º Sargento RR', '1º Tenente RR', 'Capitão RR', 'Major RR', 'Tenente-Coronel RR', 'Coronel RR',
+        'Soldado PME', '3º Sargento PME', '2º Sargento PME', '1º Sargento PME', '1º Tenente PME', 'Capitão PME', 'Major PME', 'Tenente-Coronel PME', 'Coronel PME'
+    ],
     'Outros': ['Civil', 'Outro']
 }
 
@@ -154,6 +158,7 @@ def editar_aluno(aluno_id):
         return redirect(url_for('aluno.listar_alunos'))
 
     form = EditAlunoForm(obj=aluno)
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     # Carrega turmas apenas da escola atual e da edio atual
     active_edicao = session.get('active_edicao_id')

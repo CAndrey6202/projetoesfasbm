@@ -38,6 +38,10 @@ posto_graduacao_structured = {
     'Oficiais': ['1º Tenente PM', 'Capitão PM', 'Major PM', 'Tenente-Coronel PM', 'Coronel PM'],
     'Saúde - Enfermagem': ['Ten Enf', 'Cap Enf', 'Maj Enf', 'Ten Cel Enf', 'Cel Enf'],
     'Saúde - Médicos': ['Ten Med', 'Cap Med', 'Maj Med', 'Ten Cel Med', 'Cel Med'],
+    'PME / RR': [
+        'Soldado RR', '3º Sargento RR', '2º Sargento RR', '1º Sargento RR', '1º Tenente RR', 'Capitão RR', 'Major RR', 'Tenente-Coronel RR', 'Coronel RR',
+        'Soldado PME', '3º Sargento PME', '2º Sargento PME', '1º Sargento PME', '1º Tenente PME', 'Capitão PME', 'Major PME', 'Tenente-Coronel PME', 'Coronel PME'
+    ],
     'Outros': ['Civil', 'Outro']
 }
 
@@ -47,7 +51,7 @@ class MeuPerfilForm(FlaskForm):
     posto_categoria = SelectField("Categoria", choices=list(posto_graduacao_structured.keys()), validators=[DataRequired()])
     posto_graduacao = SelectField('Posto/Graduação', choices=[], validators=[DataRequired()])
     turma_id = SelectField('Turma', coerce=int, validators=[WTFormsOptional()])
-    is_rr = RadioField("Efetivo da Reserva Remunerada (RR)", choices=[('True', 'Sim'), ('False', 'Não')], coerce=lambda x: x == 'True', default=False)
+    is_rr = RadioField("Efetivo da Reserva Remunerada (RR/PME)", choices=[('True', 'Sim'), ('False', 'Não')], coerce=lambda x: x == 'True', default=False)
 
     # Aceita arquivos, sem limite manual de tamanho aqui (o Service vai comprimir)
     foto_perfil = FileField('Alterar Foto de Perfil', validators=[
@@ -91,6 +95,7 @@ def generate_unique_username(base: str, max_tries: int = 50) -> str:
 def meu_perfil():
     form = MeuPerfilForm(obj=current_user)
     form.turma_id.choices = []
+    form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
 
     if request.method == 'GET':
         posto_atual = current_user.posto_graduacao
