@@ -294,7 +294,7 @@ def registrar_em_massa():
         for aid in alunos_ids:
             try:
                 novo_elogio = Elogio(aluno_id=int(aid), registrado_por_id=current_user.id,
-                                     data_elogio=data_completa, descricao=descricao, pontos=0.5)
+                                     data_elogio=data_completa, descricao=descricao, pontos=0.0)
                 db.session.add(novo_elogio)
                 count += 1
             except Exception as e:

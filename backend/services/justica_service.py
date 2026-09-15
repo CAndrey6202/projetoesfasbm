@@ -27,7 +27,7 @@ class JusticaService:
     DESC_FADA_GRAVE = 1.00
     DESC_FADA_RDBM = 2.00
     DESC_FADA_CRIME = 3.00
-    BONUS_ELOGIO = 0.50
+    BONUS_ELOGIO = 0.00
 
     @staticmethod
     def _ensure_datetime(dt_input):
