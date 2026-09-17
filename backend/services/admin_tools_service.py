@@ -137,16 +137,16 @@ class AdminToolsService:
             backup["edicoes"] = [serialize_model(e) for e in edicoes_db]
             
             # 2. Configuracoes Globais
-            regras_db = db.session.scalars(select(DisciplineRule).where(DisciplineRule.school_id == school_id)).all()
+            regras_db = db.session.scalars(select(DisciplineRule)).all()
             backup["regras_npccal"] = [serialize_model(r) for r in regras_db]
             
             logs_db = db.session.scalars(select(AdminLog).where(AdminLog.school_id == school_id)).all()
             backup["admin_logs"] = [serialize_model(l) for l in logs_db]
 
-            images_db = db.session.scalars(select(ImageAsset).where(ImageAsset.school_id == school_id)).all()
+            images_db = db.session.scalars(select(ImageAsset)).all()
             backup["image_assets"] = [serialize_model(i) for i in images_db]
 
-            videos_db = db.session.scalars(select(CursoVideo).where(CursoVideo.school_id == school_id)).all()
+            videos_db = db.session.scalars(select(CursoVideo)).all()
             backup["cursos_video"] = [serialize_model(v) for v in videos_db]
 
             # 3. Usuarios e Vinculos (UserSchool)
