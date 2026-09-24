@@ -25,6 +25,9 @@ class Semana(db.Model):
     mostrar_periodo_13: Mapped[bool] = mapped_column(default=False, server_default='0')
     mostrar_periodo_14: Mapped[bool] = mapped_column(default=False, server_default='0')
     mostrar_periodo_15: Mapped[bool] = mapped_column(default=False, server_default='0')
+    mostrar_periodo_16: Mapped[bool] = mapped_column(default=False, server_default='0')
+    mostrar_periodo_17: Mapped[bool] = mapped_column(default=False, server_default='0')
+    mostrar_periodo_18: Mapped[bool] = mapped_column(default=False, server_default='0')
     
     # Configurações de fim de semana
     mostrar_sabado: Mapped[bool] = mapped_column(default=False, server_default='0')

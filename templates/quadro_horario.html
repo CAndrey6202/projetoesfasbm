@@ -183,7 +183,10 @@
                     {% if (periodo_num <= 12) or 
                           (periodo_num == 13 and semana_selecionada.mostrar_periodo_13) or
                           (periodo_num == 14 and semana_selecionada.mostrar_periodo_14) or
-                          (periodo_num == 15 and semana_selecionada.mostrar_periodo_15) %}
+                          (periodo_num == 15 and semana_selecionada.mostrar_periodo_15) or
+                          (periodo_num == 16 and semana_selecionada.mostrar_periodo_16) or
+                          (periodo_num == 17 and semana_selecionada.mostrar_periodo_17) or
+                          (periodo_num == 18 and semana_selecionada.mostrar_periodo_18) %}
                     
                     <tr class="periodo-row">
                         <td class="cell-tempo"><strong>{{ tempos[row_idx][0] }}</strong><span>{{ tempos[row_idx][1] }}</span></td>
@@ -709,3 +712,4 @@
     }
 </style>
 {% endblock %}
+

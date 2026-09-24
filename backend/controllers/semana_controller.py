@@ -27,6 +27,9 @@ class AddSemanaForm(FlaskForm):
     mostrar_periodo_13 = BooleanField('13º Período')
     mostrar_periodo_14 = BooleanField('14º Período')
     mostrar_periodo_15 = BooleanField('15º Período')
+    mostrar_periodo_16 = BooleanField('16º Período')
+    mostrar_periodo_17 = BooleanField('17º Período')
+    mostrar_periodo_18 = BooleanField('18º Período')
     mostrar_sabado = BooleanField('Habilitar Sábado')
     periodos_sabado = IntegerField('Períodos Sábado', validators=[Optional(), NumberRange(min=1, max=15)])
     mostrar_domingo = BooleanField('Habilitar Domingo')
@@ -140,6 +143,9 @@ def editar_semana(semana_id):
              'mostrar_periodo_13': 'mostrar_periodo_13' in request.form,
              'mostrar_periodo_14': 'mostrar_periodo_14' in request.form,
              'mostrar_periodo_15': 'mostrar_periodo_15' in request.form,
+               'mostrar_periodo_16': 'mostrar_periodo_16' in request.form,
+               'mostrar_periodo_17': 'mostrar_periodo_17' in request.form,
+               'mostrar_periodo_18': 'mostrar_periodo_18' in request.form,
              'mostrar_sabado': 'mostrar_sabado' in request.form,
              'mostrar_domingo': 'mostrar_domingo' in request.form
         })
