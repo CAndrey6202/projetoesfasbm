@@ -286,6 +286,9 @@ def gerar_quadro_horario_xlsx(pelotao, semana, horario_matrix, datas_semana, tem
             if periodo_num == 13 and not getattr(semana, 'mostrar_periodo_13', False): continue
             if periodo_num == 14 and not getattr(semana, 'mostrar_periodo_14', False): continue
             if periodo_num == 15 and not getattr(semana, 'mostrar_periodo_15', False): continue
+            if periodo_num == 16 and not getattr(semana, 'mostrar_periodo_16', False): continue
+            if periodo_num == 17 and not getattr(semana, 'mostrar_periodo_17', False): continue
+            if periodo_num == 18 and not getattr(semana, 'mostrar_periodo_18', False): continue
 
         # 1. Célula de Tempo
         tempo_str = f"{tempos[row_idx][0]}\n{tempos[row_idx][1]}"
@@ -409,3 +412,4 @@ def gerar_quadro_horario_xlsx(pelotao, semana, horario_matrix, datas_semana, tem
     out = BytesIO()
     wb.save(out)
     return out.getvalue()
+

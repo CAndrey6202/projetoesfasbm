@@ -40,7 +40,13 @@
     </div>
 
     {% set max_periodo_semana = 12 %}
-    {% if semana_selecionada.mostrar_periodo_15 %}
+    {% if semana_selecionada.mostrar_periodo_18 %}
+        {% set max_periodo_semana = 18 %}
+    {% elif semana_selecionada.mostrar_periodo_17 %}
+        {% set max_periodo_semana = 17 %}
+    {% elif semana_selecionada.mostrar_periodo_16 %}
+        {% set max_periodo_semana = 16 %}
+    {% elif semana_selecionada.mostrar_periodo_15 %}
         {% set max_periodo_semana = 15 %}
     {% elif semana_selecionada.mostrar_periodo_14 %}
         {% set max_periodo_semana = 14 %}
@@ -575,3 +581,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

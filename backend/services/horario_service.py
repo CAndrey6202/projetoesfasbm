@@ -458,6 +458,12 @@ class HorarioService:
                     return False, "⚠️ AGENDAMENTO BLOQUEADO: O 14º tempo não está habilitado.", 403
                 if p == 15 and not semana.mostrar_periodo_15:
                     return False, "⚠️ AGENDAMENTO BLOQUEADO: O 15º tempo não está habilitado.", 403
+                if p == 16 and not semana.mostrar_periodo_16:
+                    return False, "AGENDAMENTO BLOQUEADO: O 16 tempo nao esta habilitado.", 403
+                if p == 17 and not semana.mostrar_periodo_17:
+                    return False, "AGENDAMENTO BLOQUEADO: O 17 tempo nao esta habilitado.", 403
+                if p == 18 and not semana.mostrar_periodo_18:
+                    return False, "AGENDAMENTO BLOQUEADO: O 18 tempo nao esta habilitado.", 403
 
                 if dia == 'sabado' and semana.periodos_sabado > 0 and p > semana.periodos_sabado:
                     return False, f"⚠️ AGENDAMENTO BLOQUEADO: Sábado vai apenas até o {semana.periodos_sabado}º tempo.", 403
@@ -1091,3 +1097,4 @@ class HorarioService:
             'futuras': futuras,
             'passadas': passadas
         }
+
