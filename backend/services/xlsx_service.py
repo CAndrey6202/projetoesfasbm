@@ -278,7 +278,7 @@ def gerar_quadro_horario_xlsx(pelotao, semana, horario_matrix, datas_semana, tem
     # Novo: Dicionário para guardar o texto da última aula encontrada em cada dia
     ultimo_texto_coluna = {}
 
-    for row_idx in range(15): 
+    for row_idx in range(18): 
         periodo_num = row_idx + 1
         
         # Ocultar períodos noturnos não ativos
@@ -412,4 +412,5 @@ def gerar_quadro_horario_xlsx(pelotao, semana, horario_matrix, datas_semana, tem
     out = BytesIO()
     wb.save(out)
     return out.getvalue()
+
 

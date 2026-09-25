@@ -64,7 +64,7 @@
             {% set pos_almoco = (intervalos.get('pos_almoco', 6)|int) - 1 %}
             {% set pos_int_2 = (intervalos.get('pos_int_2', 9)|int) - 1 %}
 
-            {% for row_idx in range(15) %}
+            {% for row_idx in range(18) %}
                 {% set periodo_num = row_idx + 1 %}
                 {% if (periodo_num <= 12) or 
                       (periodo_num == 13 and semana_selecionada.mostrar_periodo_13) or
@@ -172,3 +172,4 @@
     </table>
 </body>
 </html>
+
