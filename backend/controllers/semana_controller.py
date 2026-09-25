@@ -31,9 +31,9 @@ class AddSemanaForm(FlaskForm):
     mostrar_periodo_17 = BooleanField('17º Período')
     mostrar_periodo_18 = BooleanField('18º Período')
     mostrar_sabado = BooleanField('Habilitar Sábado')
-    periodos_sabado = IntegerField('Períodos Sábado', validators=[Optional(), NumberRange(min=1, max=15)])
+    periodos_sabado = IntegerField('Períodos Sábado', validators=[Optional(), NumberRange(min=1, max=18)])
     mostrar_domingo = BooleanField('Habilitar Domingo')
-    periodos_domingo = IntegerField('Períodos Domingo', validators=[Optional(), NumberRange(min=1, max=15)])
+    periodos_domingo = IntegerField('Períodos Domingo', validators=[Optional(), NumberRange(min=1, max=18)])
     submit_add = SubmitField('Adicionar Semana')
 
 class DeleteForm(FlaskForm):
@@ -272,3 +272,4 @@ def salvar_prioridade(semana_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+

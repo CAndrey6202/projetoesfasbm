@@ -134,7 +134,7 @@ class HorarioService:
         dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 
         horario_matrix = []
-        for p_idx in range(15):
+        for p_idx in range(18):
             row = []
             for d_idx, dia_nome in enumerate(dias):
                 p_real = p_idx + 1
@@ -218,10 +218,10 @@ class HorarioService:
                     'raw_instrutor_id_2': aula.instrutor_id_2
                 }
 
-                if 0 <= periodo_idx < 15:
+                if 0 <= periodo_idx < 18:
                     horario_matrix[periodo_idx][dia_idx] = aula_info
                     for i in range(1, aula.duracao):
-                        if (periodo_idx + i) < 15:
+                        if (periodo_idx + i) < 18:
                             horario_matrix[periodo_idx + i][dia_idx] = 'SKIP'
             except (ValueError, IndexError):
                 continue
@@ -1097,4 +1097,5 @@ class HorarioService:
             'futuras': futuras,
             'passadas': passadas
         }
+
 

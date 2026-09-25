@@ -43,7 +43,7 @@ def _get_horario_context_data():
     school_id = UserService.get_current_school_id()
 
     tempos = []
-    for i in range(1, 16):
+    for i in range(1, 19):
         key = f"horario_periodo_{i:02d}"
         periodo_str = f"{i}º"
         time_str = SiteConfigService.get_config(key, 'N/D', school_id=school_id)
@@ -888,3 +888,4 @@ def proximas_aulas_admin():
         ciclos=ciclos,
         ciclo_selecionado=ciclo_selecionado_id
     )
+

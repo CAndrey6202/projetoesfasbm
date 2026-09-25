@@ -68,7 +68,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row_idx in range(15) %}
+                    {% for row_idx in range(18) %}
                         {% set periodo_num = row_idx + 1 %}
                         {% if (periodo_num <= 12) or 
                               (periodo_num == 13 and semana_selecionada.mostrar_periodo_13) or
@@ -168,3 +168,4 @@
     }
 </style>
 {% endblock %}
+

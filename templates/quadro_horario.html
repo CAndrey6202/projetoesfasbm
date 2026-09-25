@@ -178,7 +178,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for row_idx in range(15) %}
+                {% for row_idx in range(18) %}
                     {% set periodo_num = row_idx + 1 %}
                     {% if (periodo_num <= 12) or 
                           (periodo_num == 13 and semana_selecionada.mostrar_periodo_13) or
@@ -390,7 +390,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for p in range(1, 16) %}
+                                {% for p in range(1, 19) %}
                                 <tr>
                                     <td class="fw-bold align-middle bg-light">{{ p }}º</td>
                                     {% for d in ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] %}
@@ -712,4 +712,6 @@
     }
 </style>
 {% endblock %}
+
+
 
