@@ -2,6 +2,7 @@
 
 from .database import db
 from datetime import datetime
+from sqlalchemy.orm import synonym
 
 class QuestaoBanco(db.Model):
     __tablename__ = 'questoes_banco'
@@ -9,6 +10,7 @@ class QuestaoBanco(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     disciplina_id = db.Column(db.Integer, db.ForeignKey('disciplinas.id'), nullable=False)
     escola_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
+    school_id = synonym('escola_id')
     instrutor_id = db.Column(db.Integer, db.ForeignKey('instrutores.id'), nullable=False)
     edicao_id = db.Column(db.Integer, db.ForeignKey('edicoes.id'), nullable=True)
 
@@ -32,6 +34,7 @@ class ConfiguracaoEnvio(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     escola_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
+    school_id = synonym('escola_id')
     materia = db.Column(db.String(100), nullable=False)
     envio_ativo = db.Column(db.Boolean, default=False)
     edicao_id = db.Column(db.Integer, db.ForeignKey('edicoes.id'), nullable=True)
@@ -46,6 +49,7 @@ class DelegacaoProva(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     instrutor_id = db.Column(db.Integer, db.ForeignKey('instrutores.id'), nullable=False)
     escola_gestora_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=False)
+    school_id = synonym('escola_gestora_id')
     disciplina_id = db.Column(db.Integer, db.ForeignKey('disciplinas.id'), nullable=False)
     edicao_id = db.Column(db.Integer, db.ForeignKey('edicoes.id'), nullable=True)
 
