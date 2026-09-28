@@ -237,10 +237,10 @@
         }
 
         /* --- CORREÇÃO DE RESPONSIVIDADE MOBILE (CABEÇALHO) --- */
-        @media (max-width: 768px) {
+        @media (max-width: 991.98px) {
             .top-navbar-content {
                 display: flex !important;
-                flex-wrap: wrap !important;
+                flex-wrap: nowrap !important;
                 justify-content: space-between;
                 align-items: center;
                 gap: 8px;
@@ -250,17 +250,19 @@
             .top-navbar-left-items, .top-navbar-right-items {
                 display: flex;
                 align-items: center;
-                flex-wrap: wrap; 
+                flex-wrap: nowrap; 
                 gap: 8px;
             }
 
             .school-name-display {
-                white-space: normal !important;
+                white-space: nowrap !important;
                 font-size: 0.85rem !important;
                 max-width: 140px; 
                 overflow: hidden;
                 text-overflow: ellipsis;
                 line-height: 1.1;
+                display: inline-block;
+                vertical-align: middle;
             }
 
             .top-navbar-right-items .user-info {
@@ -293,24 +295,7 @@
     {% set dec_mode_active = session.get('is_dec_mode') %}
     {% set is_global_dec_view = (dec_mode_active and not session.get('view_as_school_id')) %}
 
-    {# --- ALERTA DE MODO ESPIÃO / LOGAR COMO --- #}
-    {% if session.get('impersonator_id') %}
-    <div class="alert alert-warning text-center m-0 p-2" style="border-bottom: 2px dashed #d39e00; border-radius: 0; background-color: #fff3cd; color: #856404; z-index: 1060; position: relative;">
-        <strong><i class="fas fa-user-secret"></i> MODO ESPIÃO ATIVO</strong><br>
-        <small>Você está usando o sistema como: <b>{{ current_user.nome_de_guerra or current_user.nome_completo }}</b></small><br>
-        <a href="{{ url_for('super_admin.voltar_admin') }}" class="btn btn-sm btn-danger mt-2 fw-bold" style="border-radius: 20px;">
-            <i class="fas fa-sign-out-alt"></i> Retornar ao Admin
-        </a>
-    </div>
-    {% endif %}
 
-    {# --- BANNER DE ALERTA: MODO INTERVENÇÃO DEC --- #}
-    {% if dec_mode_active and session.get('view_as_school_id') and not session.get('impersonator_id') %}
-    <div class="dec-alert-banner">
-        <span><i class="fas fa-exclamation-triangle"></i> ATENÇÃO: Você está operando como Gestor (DEC) dentro desta escola.</span>
-        <a href="{{ url_for('super_admin.clear_school_selection') }}" class="btn btn-sm btn-outline-dark">Voltar ao Painel Global</a>
-    </div>
-    {% endif %}
 
     <header class="top-navbar">
         <div class="top-navbar-content">
@@ -442,7 +427,6 @@
                         </a>
                     </div>
                 {% endif %}
-            </div>
                 <div class="dropdown">
                     <a href="#" class="notification-bell" data-bs-toggle="dropdown" aria-expanded="false" title="Notificações">
                         🔔
@@ -649,6 +633,24 @@
         {% endif %}
 
         <main class="main-content">
+            {# --- ALERTA DE MODO ESPIÃO / LOGAR COMO --- #}
+            {% if session.get('impersonator_id') %}
+            <div class="alert alert-warning text-center m-0 p-2" style="border-bottom: 2px dashed #d39e00; border-radius: 0; background-color: #fff3cd; color: #856404; position: relative;">
+                <strong><i class="fas fa-user-secret"></i> MODO ESPIÃO ATIVO</strong><br>
+                <small>Você está usando o sistema como: <b>{{ current_user.nome_de_guerra or current_user.nome_completo }}</b></small><br>
+                <a href="{{ url_for('super_admin.voltar_admin') }}" class="btn btn-sm btn-danger mt-2 fw-bold" style="border-radius: 20px;">
+                    <i class="fas fa-sign-out-alt"></i> Retornar ao Admin
+                </a>
+            </div>
+            {% endif %}
+
+            {# --- BANNER DE ALERTA: MODO INTERVENÇÃO DEC --- #}
+            {% if dec_mode_active and session.get('view_as_school_id') and not session.get('impersonator_id') %}
+            <div class="dec-alert-banner" style="position: relative;">
+                <span><i class="fas fa-exclamation-triangle"></i> ATENÇÃO: Você está operando como Gestor (DEC) dentro desta escola.</span>
+                <a href="{{ url_for('super_admin.clear_school_selection') }}" class="btn btn-sm btn-outline-dark">Voltar ao Painel Global</a>
+            </div>
+            {% endif %}
             {% block navbar_content %}
             <nav class="navbar" {% if site_config.navbar_background_image %}style="background-image: url('{{ site_config.navbar_background_image }}');"{% endif %}>
             </nav>
