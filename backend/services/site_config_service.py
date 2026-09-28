@@ -99,6 +99,9 @@ class SiteConfigService:
         ('horario_periodo_13', '18:30-19:15', 'text', '13º Período (Extra)', 'horarios'),
         ('horario_periodo_14', '19:15-20:00', 'text', '14º Período (Extra)', 'horarios'),
         ('horario_periodo_15', '20:00-20:45', 'text', '15º Período (Extra)', 'horarios'),
+        ('horario_periodo_16', '21:00-21:45', 'text', '16º Período (Extra)', 'horarios'),
+        ('horario_periodo_17', '21:45-22:30', 'text', '17º Período (Extra)', 'horarios'),
+        ('horario_periodo_18', '22:30-23:15', 'text', '18º Período (Extra)', 'horarios'),
     ]
 
     _CONFIG_KEYS = {d[0]: {'type': d[2], 'category': d[4]} for d in _DEFAULT_CONFIGS}

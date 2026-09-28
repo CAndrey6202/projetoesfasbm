@@ -101,6 +101,9 @@ class SemanaService:
                 mostrar_periodo_13=data.get('mostrar_periodo_13', False),
                 mostrar_periodo_14=data.get('mostrar_periodo_14', False),
                 mostrar_periodo_15=data.get('mostrar_periodo_15', False),
+                mostrar_periodo_16=data.get('mostrar_periodo_16', False),
+                mostrar_periodo_17=data.get('mostrar_periodo_17', False),
+                mostrar_periodo_18=data.get('mostrar_periodo_18', False),
                 mostrar_sabado=data.get('mostrar_sabado', False),
                 periodos_sabado=int(data.get('periodos_sabado') or 0),
                 mostrar_domingo=data.get('mostrar_domingo', False),
@@ -140,6 +143,9 @@ class SemanaService:
         semana.mostrar_periodo_13 = bool(data.get('mostrar_periodo_13'))
         semana.mostrar_periodo_14 = bool(data.get('mostrar_periodo_14'))
         semana.mostrar_periodo_15 = bool(data.get('mostrar_periodo_15'))
+        semana.mostrar_periodo_16 = bool(data.get('mostrar_periodo_16'))
+        semana.mostrar_periodo_17 = bool(data.get('mostrar_periodo_17'))
+        semana.mostrar_periodo_18 = bool(data.get('mostrar_periodo_18'))
         
         semana.mostrar_sabado = bool(data.get('mostrar_sabado'))
         semana.periodos_sabado = int(data.get('periodos_sabado') or 0)

@@ -276,21 +276,28 @@ class AdminToolsService:
                 backup["justica"]["fadas"] = [serialize_model(f) for f in fadas_db]
 
             # 12. Banco de Questoes e Avaliacoes
-            questoes_db = db.session.scalars(select(QuestaoBanco).where(QuestaoBanco.school_id == school_id)).all()
-            backup["banco_questoes"] = [serialize_model(q) for q in questoes_db]
-            
-            delegacoes_db = db.session.scalars(select(DelegacaoProva).where(DelegacaoProva.school_id == school_id)).all()
-            backup["delegacoes_prova"] = [serialize_model(d) for d in delegacoes_db]
+            try:
+                questoes_db = db.session.scalars(select(QuestaoBanco).where(QuestaoBanco.escola_id == school_id)).all()
+                backup["banco_questoes"] = [serialize_model(q) for q in questoes_db]
+                
+                delegacoes_db = db.session.scalars(select(DelegacaoProva).where(DelegacaoProva.escola_gestora_id == school_id)).all()
+                backup["delegacoes_prova"] = [serialize_model(d) for d in delegacoes_db]
 
-            rascunhos_db = db.session.scalars(select(RascunhoProva).where(RascunhoProva.school_id == school_id)).all()
-            backup["rascunhos_prova"] = [serialize_model(r) for r in rascunhos_db]
+                del_ids = [d.id for d in delegacoes_db]
+                if del_ids:
+                    rascunhos_db = db.session.scalars(select(RascunhoProva).where(RascunhoProva.delegacao_id.in_(del_ids))).all()
+                else:
+                    rascunhos_db = []
+                backup["rascunhos_prova"] = [serialize_model(r) for r in rascunhos_db]
 
-            envios_db = db.session.scalars(select(ConfiguracaoEnvio).where(ConfiguracaoEnvio.school_id == school_id)).all()
-            backup["configuracoes_envio"] = [serialize_model(e) for e in envios_db]
+                envios_db = db.session.scalars(select(ConfiguracaoEnvio).where(ConfiguracaoEnvio.escola_id == school_id)).all()
+                backup["configuracoes_envio"] = [serialize_model(e) for e in envios_db]
+            except Exception as e_bq:
+                current_app.logger.warning(f"Aviso ao extrair banco de questoes no backup: {e_bq}")
 
             # 13. Questionarios de Avaliacao
-            if turma_ids:
-                questionarios_db = db.session.scalars(select(Questionario).where(Questionario.turma_id.in_(turma_ids))).all()
+            try:
+                questionarios_db = db.session.scalars(select(Questionario).where(Questionario.school_id == school_id)).all()
                 q_ids = [q.id for q in questionarios_db]
                 backup["questionarios"] = [serialize_model(q) for q in questionarios_db]
 
@@ -305,6 +312,8 @@ class AdminToolsService:
                     
                         respostas_db = db.session.scalars(select(Resposta).where(Resposta.pergunta_id.in_(p_ids))).all()
                         backup["respostas"] = [serialize_model(r) for r in respostas_db]
+            except Exception as e_quest:
+                current_app.logger.warning(f"Aviso ao extrair questionarios no backup: {e_quest}")
 
             return backup
 
@@ -358,8 +367,8 @@ class AdminToolsService:
                 #db.session.query(AvaliacaoAtitudinal).filter(AvaliacaoAtitudinal.aluno_id.in_(aluno_ids)).delete(synchronize_session=False)
 
             # Questionários (e respostas)
-            if 'questionarios' in options and turma_ids:
-                questoes = db.session.scalars(select(Questionario).where(Questionario.turma_id.in_(turma_ids))).all()
+            if 'questionarios' in options:
+                questoes = db.session.scalars(select(Questionario).where(Questionario.school_id == school_id)).all()
                 for q in questoes:
                     db.session.query(Resposta).filter(Resposta.pergunta_id.in_(
                         select(Pergunta.id).where(Pergunta.questionario_id == q.id)
