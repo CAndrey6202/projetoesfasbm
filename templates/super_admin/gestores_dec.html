@@ -24,9 +24,16 @@
                             <label for="matricula" class="form-label fw-bold small">Matrícula do Usuário</label>
                             <input type="text" class="form-control" id="matricula" name="matricula" placeholder="Ex: 1234567" required>
                         </div>
+                        <div class="mb-3">
+                            <label for="papel" class="form-label fw-bold small">Perfil DEC</label>
+                            <select class="form-select" id="papel" name="papel" required>
+                                <option value="super_admin">Gestor DEC (Super Admin - Acesso Total)</option>
+                                <option value="coordenador_provas">Coordenador de Provas (Acesso Banco de Questões)</option>
+                            </select>
+                        </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-warning fw-bold text-dark">
-                                <i class="fas fa-arrow-up me-1"></i> Promover a Super Admin
+                                <i class="fas fa-arrow-up me-1"></i> Promover Usuário
                             </button>
                         </div>
                     </form>
@@ -57,7 +64,13 @@
                                             </div>
                                             <div>
                                                 <div class="fw-bold">{{ gestor.nome_de_guerra or gestor.nome_completo }}</div>
-                                                <div class="small text-muted">{{ gestor.posto_graduacao or 'Servidor' }}</div>
+                                                <div class="small text-muted">{{ gestor.posto_graduacao or 'Servidor' }}
+                                                    {% if gestor.role == 'super_admin' %}
+                                                        <span class="badge bg-danger ms-1">Gestor</span>
+                                                    {% elif gestor.role == 'coordenador_provas' %}
+                                                        <span class="badge bg-primary ms-1">Coord. Provas</span>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
