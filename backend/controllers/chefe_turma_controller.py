@@ -432,10 +432,9 @@ def registrar_aula(primeiro_horario_id):
             flash("Todas as aulas desta disciplina já foram registradas para hoje.", "info")
             return redirect(url_for('chefe.painel', data=data_aula))
 
-        # Lista todos os alunos vinculados a esta turma (exceto os com status 'Desligado')
+        # Lista todos os alunos vinculados a esta turma (idêntico à tela de turma e ao diário do instrutor)
         alunos_turma = db.session.query(Aluno).join(User, Aluno.user_id == User.id).filter(
-            Aluno.turma_id == aluno_chefe.turma_id,
-            or_(Aluno.status_matricula != 'Desligado', Aluno.status_matricula.is_(None))
+            Aluno.turma_id == aluno_chefe.turma_id
         ).order_by(
             Aluno.num_aluno,
             User.nome_de_guerra,
