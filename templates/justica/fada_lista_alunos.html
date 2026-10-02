@@ -161,12 +161,20 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
-    document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
-    if(typeof window.abrirFadaModalInterno === 'function') {
-        window.abrirFadaModalInterno(alunoId, nomeAluno, fadaId, status, fadaData);
+    try {
+        console.log("abrirFadaModal called with", alunoId, nomeAluno, fadaId, status);
+        document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
+        if(typeof window.abrirFadaModalInterno === 'function') {
+            window.abrirFadaModalInterno(alunoId, nomeAluno, fadaId, status, fadaData);
+        } else {
+            console.warn("window.abrirFadaModalInterno is not a function!");
+        }
+        document.getElementById('overlayFada').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    } catch(e) {
+        alert("Erro ao abrir FADA: " + e.message);
+        console.error(e);
     }
-    document.getElementById('overlayFada').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
 }
 
 function fecharFadaModal() {
