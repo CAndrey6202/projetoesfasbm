@@ -114,7 +114,7 @@ def index():
         ).all()
         fadas_comissao = []
     else:
-        fadas_comissao = db.session.scalars(
+        fadas_comissao_raw = db.session.scalars(
             select(FadaAvaliacao).where(
                 or_(
                     FadaAvaliacao.presidente_id == current_user.id,
@@ -124,6 +124,14 @@ def index():
                 FadaAvaliacao.status == 'COMISSAO'
             ).order_by(FadaAvaliacao.data_avaliacao.desc())
         ).all()
+        fadas_comissao = []
+        for f in fadas_comissao_raw:
+            if f.presidente_id == current_user.id and not f.hash_pres:
+                fadas_comissao.append(f)
+            elif f.membro1_id == current_user.id and not f.hash_m1:
+                fadas_comissao.append(f)
+            elif f.membro2_id == current_user.id and not f.hash_m2:
+                fadas_comissao.append(f)
         fadas_aluno = []
         if not school_id:
             flash("Nenhuma escola selecionada.", "warning")
@@ -968,57 +976,70 @@ def enviar_fada_comissao(fada_id):
 def assinar_fada_membro(fada_id):
     fada = db.session.get(FadaAvaliacao, fada_id)
     if not fada or fada.status != 'COMISSAO':
-        flash('AvaliaÃ§Ã£o nÃ£o encontrada ou nÃ£o estÃ¡ na etapa da comissÃ£o.', 'danger')
+        flash('Avaliação não encontrada ou não está na etapa da comissão.', 'danger')
         return redirect(url_for('justica.fada_boletim'))
 
     uid = current_user.id
-    import hashlib, uuid
-    hash_assinatura = hashlib.sha256(f"MEMBRO-{uid}-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
+    import hashlib, uuid, os, base64
+    from werkzeug.utils import secure_filename
+    from flask import current_app
 
+    hash_assinatura = hashlib.sha256(f"MEMBRO-{uid}-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
     agora = datetime.now().astimezone()
+
+    tipo_assinatura = request.form.get('tipo_assinatura', 'padrao')
+    
+    if tipo_assinatura == 'canvas':
+        base64_data = request.form.get('assinatura_base64')
+        if base64_data and ',' in base64_data:
+            header, encoded = base64_data.split(',', 1)
+            file_ext = "jpeg" if "jpeg" in header else "png"
+            filename = f"assinatura_fada_{uid}_{int(agora.timestamp())}.{file_ext}"
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'assinaturas')
+            os.makedirs(upload_dir, exist_ok=True)
+            filepath = os.path.join(upload_dir, filename)
+            with open(filepath, "wb") as fh:
+                fh.write(base64.b64decode(encoded))
+            current_user.assinatura_padrao_path = f"uploads/assinaturas/{filename}"
+    elif tipo_assinatura == 'upload':
+        file = request.files.get('assinatura_upload')
+        if file and file.filename:
+            filename = f"assinatura_up_fada_{uid}_{int(agora.timestamp())}_{secure_filename(file.filename)}"
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'assinaturas')
+            os.makedirs(upload_dir, exist_ok=True)
+            filepath = os.path.join(upload_dir, filename)
+            file.save(filepath)
+            current_user.assinatura_padrao_path = f"uploads/assinaturas/{filename}"
 
     assinou_algum = False
     if fada.presidente_id == uid and not fada.hash_pres:
-        fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
+        fada.hash_pres = hash_assinatura
+        fada.data_ass_pres = agora
         assinou_algum = True
     if fada.membro1_id == uid and not fada.hash_m1:
-        fada.hash_m1 = hash_assinatura; fada.data_ass_m1 = agora
+        fada.hash_m1 = hash_assinatura
+        fada.data_ass_m1 = agora
         assinou_algum = True
     if fada.membro2_id == uid and not fada.hash_m2:
-        fada.hash_m2 = hash_assinatura; fada.data_ass_m2 = agora
+        fada.hash_m2 = hash_assinatura
+        fada.data_ass_m2 = agora
         assinou_algum = True
 
     if not assinou_algum:
         flash("Você já assinou ou não faz parte da comissão.", "warning")
         return redirect(url_for("justica.fada_boletim"))
-        fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
-    elif fada.membro1_id == uid:
-        if fada.hash_m1:
-            flash('Membro 1 jÃ¡ assinou.', 'warning')
-            return redirect(url_for('justica.fada_boletim'))
-        fada.hash_m1 = hash_assinatura; fada.data_ass_m1 = agora
-    elif fada.membro2_id == uid:
-        if fada.hash_m2:
-            flash('Membro 2 jÃ¡ assinou.', 'warning')
-            return redirect(url_for('justica.fada_boletim'))
-        fada.hash_m2 = hash_assinatura; fada.data_ass_m2 = agora
-    else:
-        flash('NÃ£o autorizado. O usuÃ¡rio nÃ£o faz parte da comissÃ£o.', 'danger')
-        return redirect(url_for('justica.fada_boletim'))
 
+    # Verifica se todos assinaram
     if fada.hash_pres and fada.hash_m1 and fada.hash_m2:
         fada.status = 'ALUNO'
+        LogService.log(
+            action="FADA Avançou",
+            details=f"Comissão assinou a FADA ID {fada.id}, avançando para o Aluno.",
+            school_id=UserService.get_current_school_id()
+        )
 
     db.session.commit()
-    
-    school_id = UserService.get_current_school_id()
-    LogService.log(
-        action="Assinou FADA (ComissÃ£o)",
-        details=f"Um membro da comissÃ£o registrou sua assinatura digital na FADA ID {fada_id}.",
-        school_id=school_id
-    )
-    
-    flash('Assinatura registrada com sucesso.', 'success')
+    flash('Assinatura digital realizada com sucesso!', 'success')
     return redirect(url_for('justica.fada_boletim'))
 
 @justica_bp.route('/fada/assinar-aluno/<int:fada_id>', methods=['POST'])
