@@ -125,11 +125,12 @@ class JusticaService:
         processo, dt_inicio_2_ciclo, dt_limite_atitudinal
     ):
         data_fato = JusticaService._ensure_datetime(processo.data_ocorrencia)
-        dt_limite = JusticaService._ensure_datetime(dt_limite_atitudinal)
         if not data_fato:
             return False
-        if data_fato > dt_limite:
-            return False
+        if dt_limite_atitudinal:
+            dt_limite = JusticaService._ensure_datetime(dt_limite_atitudinal)
+            if data_fato > dt_limite:
+                return False
         if processo.is_crime or processo.origem_punicao == "RDBM":
             return True
         if dt_inicio_2_ciclo:
