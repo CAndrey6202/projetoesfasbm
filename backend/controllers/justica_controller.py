@@ -870,9 +870,9 @@ def salvar_fada():
     pres_id = request.form.get('presidente_id')
     m1_id = request.form.get('membro1_id')
     m2_id = request.form.get('membro2_id')
-      pres_id = int(pres_id) if pres_id and pres_id.isdigit() else None
-      m1_id = int(m1_id) if m1_id and m1_id.isdigit() else None
-      m2_id = int(m2_id) if m2_id and m2_id.isdigit() else None
+    pres_id = int(pres_id) if pres_id and pres_id.isdigit() else None
+    m1_id = int(m1_id) if m1_id and m1_id.isdigit() else None
+    m2_id = int(m2_id) if m2_id and m2_id.isdigit() else None
 
     if not aluno_id or len(notas) != 18:
         flash("Dados incompletos.", "danger"); return redirect(url_for('justica.fada_boletim'))
