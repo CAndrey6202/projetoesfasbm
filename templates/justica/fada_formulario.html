@@ -312,7 +312,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
 
         if (etapa === 'ALUNO') {
             document.getElementById('status-aluno-ass').innerText = "Documento liberado. Assine abaixo.";
-            if ("{{ current_user.role }}" === "aluno") {
+            if ("{{ current_user.role }}".toLowerCase().trim() === "aluno") {
                 document.getElementById('botoes-aluno').classList.remove('d-none');
                 document.getElementById('formAssAluno').action = `/justica-e-disciplina/fada/assinar-aluno/${fadaId}`;
             }
