@@ -23,10 +23,10 @@
                     <button type="button" class="btn-close" onclick="fecharCaixaAssinatura()"></button>
                 </div>
                 
-                <form id="formAssinarMembroReal" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="tipo_assinatura" id="tipo_assinatura_membro" value="padrao">
-                    <input type="hidden" name="assinatura_base64" id="assinatura_base64_membro" value="">
+                <div id="divAssinarMembroReal">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" form="hiddenFormAssinarMembro">
+                    <input type="hidden" name="tipo_assinatura" id="tipo_assinatura_membro" value="padrao" form="hiddenFormAssinarMembro">
+                    <input type="hidden" name="assinatura_base64" id="assinatura_base64_membro" value="" form="hiddenFormAssinarMembro">
                     
                     <ul class="nav nav-pills mb-3" role="tablist">
                         {% if current_user.assinatura_padrao_path %}
@@ -66,17 +66,15 @@
                         
                         <div class="tab-pane fade" id="tab-upload">
                             <label class="form-label small fw-bold">Selecione uma imagem (PNG/JPG):</label>
-                            <input class="form-control form-control-sm" type="file" name="assinatura_upload" accept="image/png, image/jpeg, image/jpg">
+                            <input class="form-control form-control-sm" type="file" name="assinatura_upload" accept="image/png, image/jpeg, image/jpg" form="hiddenFormAssinarMembro">
                             <p class="small text-muted mt-1"><b>Isto atualizará sua assinatura padrão.</b></p>
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-success w-100 fw-bold" onclick="prepararAssinaturaFada(event)">
+                    <button type="button" class="btn btn-success w-100 fw-bold" onclick="prepararAssinaturaFada(event)">
                         <i class="fas fa-check-double me-1"></i> Confirmar Assinatura
                     </button>
-                </form>
-            </div>
-            <div id="backdropAssinatura" class="position-fixed top-0 start-0 w-100 h-100 bg-dark opacity-50 z-2" style="display: none;" onclick="fecharCaixaAssinatura()"></div>
+                </div></div><div id="backdropAssinatura" class="position-fixed top-0 start-0 w-100 h-100 bg-dark opacity-50 z-2" style="display: none;" onclick="fecharCaixaAssinatura()"></div>
 
         </div>
 
@@ -217,19 +215,15 @@
             <div id="status-aluno-ass" class="text-center py-2 text-muted fst-italic">Aguardando liberação da comissão...</div>
 
             <div id="botoes-aluno" class="mt-2 d-none d-print-none">
-                <form action="" id="formAssAluno" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div id="divAssAluno">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" form="hiddenFormAssAluno">
 
-                    <input type="hidden" name="acao" id="acao_aluno_input">
+                    <input type="hidden" name="acao" id="acao_aluno_input" form="hiddenFormAssAluno">
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-success btn-sm w-100 mb-1" onclick="assinarAluno('assinar')">CONCORDO E ASSINO</button>
                         <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="assinarAluno('recorrer')">RECORRER</button>
                     </div>
-                </form>
-            </div>
-        </div>
-
-        <div id="loadingContainerFada" style="display: none; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1.5rem;" class="d-print-none">
+                </div></div><div id="loadingContainerFada" style="display: none; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1.5rem;" class="d-print-none">
             <div class="spinner-border text-primary spinner-border-sm" role="status">
                 <span class="visually-hidden">Processando...</span>
             </div>
@@ -241,6 +235,10 @@
             <button type="button" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="if(document.getElementById('formFada').reportValidity()) { document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important'); document.getElementById('formFada').submit(); }">Salvar Rascunho</button>
         </div>
     </form>
+
+<form id="hiddenFormAssinarMembro" method="POST" enctype="multipart/form-data" style="display:none;"></form>
+<form id="hiddenFormAssAluno" method="POST" style="display:none;"></form>
+
 </div>
 
 <style>
@@ -306,7 +304,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
             if (souPres || souM1 || souM2) {
                 const formAss = document.getElementById('areaAssinaturaMembro');
                 formAss.style.display = 'inline-block';
-                document.getElementById('formAssinarMembroReal').action = `/justica-e-disciplina/fada/assinar-membro/${fadaId}`;
+                document.getElementById('hiddenFormAssinarMembro').action = `/justica-e-disciplina/fada/assinar-membro/${fadaId}`;
             }
         }
 
@@ -314,7 +312,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
             document.getElementById('status-aluno-ass').innerText = "Documento liberado. Assine abaixo.";
             if ("{{ current_user.role }}".toLowerCase().trim() === "aluno") {
                 document.getElementById('botoes-aluno').classList.remove('d-none');
-                document.getElementById('formAssAluno').action = `/justica-e-disciplina/fada/assinar-aluno/${fadaId}`;
+                document.getElementById('hiddenFormAssAluno').action = `/justica-e-disciplina/fada/assinar-aluno/${fadaId}`;
             }
         }
 
@@ -412,14 +410,14 @@ function assinarAluno(acao) {
         inputMotivo.type = 'hidden';
         inputMotivo.name = 'motivo_recurso';
         inputMotivo.value = motivo;
-        document.getElementById('formAssAluno').appendChild(inputMotivo);
+        document.getElementById('hiddenFormAssAluno').appendChild(inputMotivo);
     } else {
         if (!confirm("Ao assinar, você concorda com a avaliação e a nota será lançada no seu boletim. Deseja prosseguir?")) {
             return;
         }
     }
     document.getElementById('acao_aluno_input').value = acao;
-    document.getElementById('formAssAluno').submit();
+    document.getElementById('hiddenFormAssAluno').submit();
 }
 
 function atualizarConceito(idx) {
@@ -533,5 +531,6 @@ document.querySelectorAll('.fada-input').forEach(input => {
                 return;
             }
         }
+        document.getElementById('hiddenFormAssinarMembro').submit();
     }
 </script>
