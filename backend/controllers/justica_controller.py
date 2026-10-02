@@ -226,7 +226,8 @@ def index():
                            agora=agora_dt,
                            meus_elogios=meus_elogios, is_aluno_view=is_aluno_view,
                            meus_elogios_paginados=meus_elogios_paginados,
-                           fadas_aluno=locals().get('fadas_aluno', []))
+                           fadas_aluno=locals().get('fadas_aluno', []),
+                           fadas_comissao=locals().get('fadas_comissao', []))
 
 @justica_bp.route('/registrar-em-massa', methods=['POST'])
 @login_required
@@ -869,6 +870,9 @@ def salvar_fada():
     pres_id = request.form.get('presidente_id')
     m1_id = request.form.get('membro1_id')
     m2_id = request.form.get('membro2_id')
+      pres_id = int(pres_id) if pres_id and pres_id.isdigit() else None
+      m1_id = int(m1_id) if m1_id and m1_id.isdigit() else None
+      m2_id = int(m2_id) if m2_id and m2_id.isdigit() else None
 
     if not aluno_id or len(notas) != 18:
         flash("Dados incompletos.", "danger"); return redirect(url_for('justica.fada_boletim'))
@@ -928,7 +932,7 @@ def salvar_fada():
         
         flash(f"AvaliaÃ§Ã£o salva com sucesso. MÃ©dia: {media:.4f}", "success")
     except Exception as e:
-        db.session.rollback(); flash("Erro ao salvar avaliaÃ§Ã£o.", "danger")
+        db.session.rollback(); logger.error(f"Erro ao salvar FADA: {e}"); flash(f"Erro ao salvar avaliaÃ§Ã£o: {e}", "danger")
 
     return redirect(url_for('justica.fada_boletim'))
 
@@ -973,10 +977,20 @@ def assinar_fada_membro(fada_id):
 
     agora = datetime.now().astimezone()
 
-    if fada.presidente_id == uid:
-        if fada.hash_pres:
-            flash('Presidente jÃ¡ assinou.', 'warning')
-            return redirect(url_for('justica.fada_boletim'))
+    assinou_algum = False
+    if fada.presidente_id == uid and not fada.hash_pres:
+        fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
+        assinou_algum = True
+    if fada.membro1_id == uid and not fada.hash_m1:
+        fada.hash_m1 = hash_assinatura; fada.data_ass_m1 = agora
+        assinou_algum = True
+    if fada.membro2_id == uid and not fada.hash_m2:
+        fada.hash_m2 = hash_assinatura; fada.data_ass_m2 = agora
+        assinou_algum = True
+
+    if not assinou_algum:
+        flash("Você já assinou ou não faz parte da comissão.", "warning")
+        return redirect(url_for("justica.fada_boletim"))
         fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
     elif fada.membro1_id == uid:
         if fada.hash_m1:
