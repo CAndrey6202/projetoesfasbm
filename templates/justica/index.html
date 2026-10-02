@@ -741,7 +741,7 @@
                                                 'etapa_atual': fada.status,
                                                 'punicoes': []
                                             } %}
-                                            <button class="btn btn-sm btn-success fw-bold" onclick='abrirFadaModal({{ fada.aluno.id }}, "{{ fada.aluno.user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})'>Assinar</button>
+                                            <button class="btn btn-sm btn-success fw-bold btn-abrir-fada" data-aluno-id="{{ fada.aluno.id }}" data-aluno-nome="{{ fada.aluno.user.nome_completo }}" data-fada-id="{{ fada.id }}" data-status="{{ fada.status }}" data-fada-json="{{ fada_data | tojson | forceescape }}">Assinar</button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -794,7 +794,7 @@
                                                     'etapa_atual': fada.status,
                                                     'punicoes': []
                                                 } %}
-                                                <button class="btn btn-sm btn-primary" onclick='abrirFadaModal({{ current_user.aluno_profile.id }}, "{{ current_user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})'>Ver e Assinar</button>
+                                                <button class="btn btn-sm btn-primary btn-abrir-fada" data-aluno-id="{{ current_user.aluno_profile.id }}" data-aluno-nome="{{ current_user.nome_completo }}" data-fada-id="{{ fada.id }}" data-status="{{ fada.status }}" data-fada-json="{{ fada_data | tojson | forceescape }}">Ver e Assinar</button>
 
                                             </td>
                                         </tr>
@@ -1371,6 +1371,30 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <script>
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.btn-abrir-fada')) {
+        let btn = e.target.closest('.btn-abrir-fada');
+        let alunoId = btn.getAttribute('data-aluno-id');
+        let nomeAluno = btn.getAttribute('data-aluno-nome');
+        let fadaId = btn.getAttribute('data-fada-id');
+        let status = btn.getAttribute('data-status');
+        let fadaDataStr = btn.getAttribute('data-fada-json');
+        let fadaData = {};
+        try {
+            fadaData = JSON.parse(fadaDataStr);
+        } catch(err) {
+            console.error("Erro ao fazer parse do JSON da FADA:", err);
+        }
+        abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData);
+    }
+});
+
+// Append overlay to body to prevent z-index/transform clipping
+document.addEventListener("DOMContentLoaded", function(){
+    const overlay = document.getElementById('overlayFada');
+    if (overlay) document.body.appendChild(overlay);
+});
+
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
     document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
     if(typeof window.abrirFadaModalInterno === 'function') {

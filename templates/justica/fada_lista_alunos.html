@@ -95,8 +95,7 @@
                         <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary" 
-                                        onclick='abrirFadaModal({{ item.id }}, "{{ item.aluno.user.nome_completo }}", {{ fada_id }}, "{{ status }}", {{ fada_data|tojson|safe }})'>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-abrir-fada" data-aluno-id="{{ item.id }}" data-aluno-nome="{{ item.aluno.user.nome_completo }}" data-fada-id="{{ fada_id }}" data-status="{{ status }}" data-fada-json="{{ fada_data|tojson|forceescape }}">
                                     <i class="fas fa-edit"></i> Abrir
                                 </button>
                                 
@@ -159,6 +158,24 @@ window.listaAvaliadores = [
 document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById('overlayFada');
     if (overlay) document.body.appendChild(overlay);
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.btn-abrir-fada')) {
+        let btn = e.target.closest('.btn-abrir-fada');
+        let alunoId = btn.getAttribute('data-aluno-id');
+        let nomeAluno = btn.getAttribute('data-aluno-nome');
+        let fadaId = btn.getAttribute('data-fada-id');
+        let status = btn.getAttribute('data-status');
+        let fadaDataStr = btn.getAttribute('data-fada-json');
+        let fadaData = {};
+        try {
+            fadaData = JSON.parse(fadaDataStr);
+        } catch(err) {
+            console.error("Erro ao fazer parse do JSON da FADA:", err);
+        }
+        abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData);
+    }
 });
 
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
