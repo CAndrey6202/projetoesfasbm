@@ -536,3 +536,60 @@ document.querySelectorAll('.fada-input').forEach(input => {
     }
 </script>
 
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+<script>
+    var signaturePadFadaObj = null;
+
+    function abrirCaixaAssinatura() {
+        document.getElementById("boxAssinatura").style.display = "block";
+        document.getElementById("backdropAssinatura").style.display = "block";
+        
+        if (!signaturePadFadaObj) {
+            var canvas = document.getElementById("signaturePadFada");
+            signaturePadFadaObj = new SignaturePad(canvas, { backgroundColor: "rgb(255, 255, 255)" });
+        }
+        
+        const isCanvasActive = document.getElementById("tipo_assinatura_membro").value === "canvas";
+        if (isCanvasActive) {
+            setTimeout(resizeCanvasFada, 100);
+        }
+    }
+
+    function fecharCaixaAssinatura() {
+        document.getElementById("boxAssinatura").style.display = "none";
+        document.getElementById("backdropAssinatura").style.display = "none";
+    }
+
+    function resizeCanvasFada() {
+        var canvas = document.getElementById("signaturePadFada");
+        var ratio =  Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        if (signaturePadFadaObj) signaturePadFadaObj.clear(); 
+    }
+
+    window.addEventListener("resize", resizeCanvasFada);
+
+    function prepararAssinaturaFada(e) {
+        var tipo = document.getElementById("tipo_assinatura_membro").value;
+        if (tipo === "canvas") {
+            if (signaturePadFadaObj.isEmpty()) {
+                e.preventDefault();
+                alert("Por favor, faca sua assinatura.");
+                return;
+            }
+            document.getElementById("assinatura_base64_membro").value = document.getElementById("signaturePadFada").toDataURL("image/jpeg", 0.7);
+        } 
+        else if (tipo === "upload") {
+            var fileInput = document.querySelector("input[name=\"assinatura_upload\"]");
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                alert("Selecione um arquivo.");
+                return;
+            }
+        }
+    }
+</script>
+
