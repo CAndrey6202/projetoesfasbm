@@ -68,7 +68,7 @@
                         'hash_pres': item.fada_obj.hash_pres if item.fada_obj else '',
                           'ass_img_pres': item.fada_obj.presidente.assinatura_padrao_path if (item.fada_obj and getattr(item.fada_obj, 'presidente', None)) else '',
                           'ass_img_m1': item.fada_obj.membro1.assinatura_padrao_path if (item.fada_obj and getattr(item.fada_obj, 'membro1', None)) else '',
-                          'ass_img_m2': item.fada_obj.membro2.assinatura_padrao_path if (item.fada_obj and getattr(item.fada_obj, 'membro2', None)) else ',
+                          'ass_img_m2': item.fada_obj.membro2.assinatura_padrao_path if (item.fada_obj and getattr(item.fada_obj, 'membro2', None)) else '',
                         'hash_m1': item.fada_obj.hash_m1 if item.fada_obj else '',
                         'hash_m2': item.fada_obj.hash_m2 if item.fada_obj else '',
                         'data_ass_pres': item.fada_obj.data_ass_pres.strftime('%d/%m') if (item.fada_obj and item.fada_obj.data_ass_pres) else '',
