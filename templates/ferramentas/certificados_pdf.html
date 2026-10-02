@@ -127,12 +127,86 @@
             overflow: hidden;
         }
         
-        .back-crest {
+        /* FRONT CSS */
+        .front-header-text {
             position: absolute;
-            top: 7%; 
-            left: 0;
-            width: 100%;
+            top: 20%;
+            left: 15%;
+            width: 70%;
             text-align: center;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        .front-content {
+            position: absolute;
+            top: 32%;
+            left: 15%;
+            width: 70%;
+            text-align: center;
+        }
+        .cert-title {
+            font-family: 'Constantia', serif;
+            font-size: 48.5pt;
+            font-weight: bold;
+            color: #1a365d;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+        .cert-text {
+            font-family: 'Cambria', serif;
+            font-size: 13pt;
+            line-height: 1.3;
+            text-align: justify;
+            margin-bottom: 15px;
+        }
+        .cert-name {
+            font-family: 'Cambria', serif;
+            font-size: 24pt;
+            font-weight: bold;
+            margin: 15px 0;
+            text-transform: uppercase;
+        }
+        .cert-date {
+            font-family: 'Cambria', serif;
+            text-align: right;
+            font-size: 11pt;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .signatures {
+            position: absolute;
+            bottom: 9%;
+            left: 20%;
+            width: 60%;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-block {
+            width: 40%;
+            text-align: center;
+        }
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-bottom: 5px;
+        }
+        
+        /* BACK CSS */
+        .back-content {
+            position: absolute;
+            top: 15%;
+            left: 10%;
+            width: 80%;
+            height: 70%;
+        }
+        
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            background-color: transparent;
         }
         
         .box-container {
@@ -142,7 +216,8 @@
             width: 80%;
             height: 210mm; 
             border: 1px solid #000;
-            background: transparent;
+            padding: 0 4px;
+            line-height: 1.2;
         }
         
         .box-header {
@@ -203,23 +278,23 @@
             border-bottom: 1px solid #000;
             text-align: center;
         }
-
-        .footer-left {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 10mm;
-            border-top: 1px solid #000;
-            font-size: 11px;
+        
+        .legislacao-cell {
+            vertical-align: top;
+            text-align: justify;
+            padding: 15px !important;
+            font-size: 12px;
+            position: relative; /* Essencial para a assinatura ser fixada no fundo */
         }
-        .footer-left-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 80%;
-            height: 100%;
-            border-right: 1px solid #000;
+        
+        .seal-logo {
+            display: block;
+            margin: 0 auto 15px auto;
+            width: 120px;
+        }
+        
+        .signature-container {
+            margin-top: 20px;
             text-align: center;
             font-weight: bold;
             line-height: 10mm; 
@@ -258,15 +333,9 @@
         
         .right-signature {
             position: absolute;
-            bottom: 15px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-        }
-        .sig-line-back {
-            border-top: 1px solid #000;
-            width: 80%;
-            margin: 0 auto 5px auto;
+            bottom: 50px;
+            left: 15px;
+            right: 15px;
         }
     </style>
 </head>
@@ -274,22 +343,18 @@
     {% for aluno in alunos %}
     <!-- FRENTE -->
     <div class="page-front">
-        <div class="front-header">
-            <div class="fh-left"><img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}"></div>
-            
-            <div class="fh-center">
-                <div style="display: block; height: 70px; margin-bottom: 10px;">
-                    <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 70px; margin: 0 auto;">
-                </div>
-                <div style="display: block;">
-                    ESTADO DO RIO GRANDE DO SUL<br>
-                    SECRETARIA DA SEGURANÇA PÚBLICA<br>
-                    BRIGADA MILITAR<br>
-                    DEPARTAMENTO DE EDUCAÇÃO E CULTURA
-                </div>
-            </div>
-            
-            <div class="fh-right"><img src="{{ url_for('static', filename='img/logo_dec.png', _external=True) }}"></div>
+        <!-- Brasões Superiores -->
+        <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="position: absolute; left: 14%; top: 10.8%; width: 16.7%; z-index: 10; object-fit: contain;">
+        <div style="position: absolute; top: 8.5%; width: 100%; text-align: center; z-index: 10;">
+            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 85px; width: auto; object-fit: contain;">
+        </div>
+        <img src="{{ url_for('static', filename='img/brasao_dec.jpg', _external=True) }}" style="position: absolute; left: 71.09%; top: 10.5%; width: 14.84%; z-index: 10; object-fit: contain;">
+        
+        <div class="front-header-text">
+            ESTADO DO RIO GRANDE DO SUL<br>
+            SECRETARIA DA SEGURANÇA PÚBLICA<br>
+            BRIGADA MILITAR<br>
+            DEPARTAMENTO DE EDUCAÇÃO E CULTURA
         </div>
         
         <div class="front-content">
@@ -302,111 +367,111 @@
             <div class="cert-name">{{ aluno }}</div>
             
             <div class="cert-text">
-                tendo em vista a conclusão do <strong>"{{ dados.nome_curso }}"</strong>. Realizado no período de <strong>{{ dados.data_duracao }}</strong>, com um total de <strong>{{ dados.carga_horaria }}</strong>; ficando-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
+                tendo em vista a conclusão do curso <strong>{{ dados.nome_curso }}</strong>, realizado no período de <strong>{{ dados.data_duracao }}</strong>, com um total de <strong>{{ dados.carga_horaria }}</strong>, sendo-lhe assegurados os direitos e prerrogativas que a lei lhe concede.
             </div>
             
-            <div class="cert-date">{{ dados.data_local }}</div>
-        </div>
-
-        <div class="signatures">
-            <div class="sig-left">
-                <div class="signature-line"></div>
-                <div>
-                    {{ dados.nome_comandante }}<br>
-                    <strong>Comandante</strong>
-                </div>
+            <div class="cert-date">
+                {{ dados.data_local }}
             </div>
-            <div class="sig-right">
-                <div class="signature-line"></div>
-                <div>
-                    {{ dados.nome_diretor }}<br>
-                    <strong>Diretor de Educação e Cultura</strong>
+        </div>
+        
+        <div class="signatures">
+            <div class="signature-block">
+                <div class="signature-line" style="width: 100%;"></div>
+                <div>{{ dados.nome_comandante | replace('\n', '<br>') | safe }}<br>{{ dados.departamento_comandante }}</div>
+                {% if dados.assinatura_comandante_b64 %}
+                <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                    <img src="{{ dados.assinatura_comandante_b64 }}" style="max-height: 100px;">
                 </div>
+                {% endif %}
+            </div>
+            <div class="signature-block">
+                <div class="signature-line" style="width: 100%;"></div>
+                <div>{{ dados.nome_diretor | replace('\n', '<br>') | safe }}<br>Diretor de Educação e Cultura</div>
+                {% if dados.assinatura_diretor_b64 %}
+                <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                    <img src="{{ dados.assinatura_diretor_b64 }}" style="max-height: 100px;">
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
     
     <!-- VERSO -->
     <div class="page-back">
-        
-        <div class="back-crest">
-            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 60px;">
+        <div style="position: absolute; top: 5%; width: 100%; text-align: center;">
+            <img src="{{ url_for('static', filename='img/brasao_estado.png', _external=True) }}" style="height: 110px; width: auto; object-fit: contain;">
         </div>
-        
-        <div class="box-container">
-            
-            <div class="box-header">
-                ESTADO DO RIO GRANDE DO SUL<br>
-                SECRETARIA DA SEGURANÇA PÚBLICA<br>
-                BRIGADA MILITAR<br>
-                DEPARTAMENTO DE EDUCAÇÃO E CULTURA
-            </div>
-            
-            <div class="box-body">
-                
-                <div class="col-left">
-                    <div class="line-nr"></div>
-                    <div class="line-ch"></div>
-                    
-                    <table class="table-disciplinas">
-                        <colgroup>
-                            <col style="width: 10%;">
-                            <col style="width: 70%;">
-                            <col style="width: 20%;">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th>NR</th>
-                                <th>DISCIPLINAS</th>
-                                <th>CH</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for disc in disciplinas %}
-                            <tr>
-                                <td>{{ disc.nr }}</td>
-                                <td style="text-align: center;">{{ disc.nome }}</td>
-                                <td>{{ disc.ch }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    
-                    <div class="footer-left">
-                        <div class="footer-left-text">Carga horária total do curso</div>
-                        <div class="footer-left-val">{{ dados.carga_horaria }}</div>
-                    </div>
-                </div>
-                
-                <div class="col-right">
-                    <div class="right-header">LEGISLAÇÃO</div>
-                    
-                    <div class="right-content">
-                        
-                        <!-- AJUSTE FINAL: Altura estritamente fixada em 160px. O texto NUNCA MAIS vai subir! -->
-                        <div style="display: block; width: 100%; height: 160px; text-align: center; margin-top: 15px; margin-bottom: 15px;">
-                            <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="max-height: 160px; max-width: 130px; margin: 0 auto;">
-                        </div>
-                        
-                        <div style="text-align: justify; font-size: 12px; line-height: 1.5;">
+        <div class="back-content">
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th colspan="4" class="header-cell">
+                            ESTADO DO RIO GRANDE DO SUL<br>
+                            SECRETARIA DA SEGURANÇA PÚBLICA<br>
+                            BRIGADA MILITAR<br>
+                            DEPARTAMENTO DE EDUCAÇÃO E CULTURA
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="col-header" style="width: 5%">NR</th>
+                        <th class="col-header" style="width: 35%">DISCIPLINAS</th>
+                        <th class="col-header" style="width: 10%">CH</th>
+                        <th class="col-header" style="width: 50%">LEGISLAÇÃO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for disc in disciplinas %}
+                    <tr style="height: 15px;">
+                        <td class="text-center">{{ disc.nr }}</td>
+                        <td>{{ disc.nome }}</td>
+                        <td class="text-center">{{ disc.ch }}</td>
+
+                        {% if loop.first %}
+                        <td rowspan="{{ disciplinas|length + 1 }}" class="legislacao-cell" style="padding-bottom: 50px !important; border-bottom: none !important;">
+                            <div style="display: block; width: 100%; height: 160px; text-align: center; margin: 15px 0;">
+                                <img src="{{ url_for('static', filename='img/brasao_bm.png', _external=True) }}" style="height: 150px; width: auto; display: block; margin: 0 auto; object-fit: contain;">
+                            </div>
+
                             {{ dados.ementa | replace('\n', '<br>') | safe }}
-                        </div>
-                        
-                        <div style="text-align: right; margin-top: 25px; font-size: 11px;">
-                            {{ dados.data_local }}
-                        </div>
-                    </div>
+
+                            <!-- Data desce conforme o texto da legislação -->
+                            <div class="text-center" style="margin-top: 30px;">
+                                {{ dados.data_local }}
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
                     
-                    <div class="right-signature">
-                        <div class="sig-line-back"></div>
-                        <div style="font-size: 11px; line-height: 1.3;">
-                            {{ dados.nome_chefe_ensino }}<br>
-                            <strong>Chefe da Divisão de Ensino e Treinamento do DEC</strong>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
+                    {% set spacer_height = 630 - (disciplinas|length * 20) %}
+                    {% if spacer_height < 0 %}{% set spacer_height = 0 %}{% endif %}
+                    
+                    <!-- Linha elástica calculada matematicamente -->
+                    <tr style="height: {{ spacer_height }}px;">
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
+                        <td style="border-bottom: none; border-top: none; height: {{ spacer_height }}px;"></td>
+                    </tr>
+                    
+                    <!-- Linha do Rodapé: Carga Horária (esquerda) e Assinatura (direita) -->
+                    <tr>
+                        <td colspan="2" class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">Carga horária total do curso</td>
+                        <td class="text-center" style="font-weight: bold; border-top: 1px solid #000; padding: 4px;">{{ dados.carga_horaria }}</td>
+                        
+                        <!-- Célula da assinatura perfeitamente alinhada com a carga horária na mesma linha -->
+                        <td class="text-center" style="vertical-align: bottom; padding-bottom: 10px; height: 1px !important; border-top: none !important;">
+                            <div class="signature-line" style="width: 80%; margin: 0 auto 5px auto; border-top: 1px solid #000;"></div>
+                            <div>{{ dados.nome_chefe_ensino }}<br>{{ dados.funcao_chefe_ensino }}</div>
+                            {% if dados.assinatura_chefe_b64 %}
+                            <div style="text-align: center; margin-top: -95px; position: relative; z-index: 10;">
+                                <img src="{{ dados.assinatura_chefe_b64 }}" style="max-height: 100px;">
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
     {% endfor %}

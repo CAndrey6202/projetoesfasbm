@@ -64,9 +64,9 @@ def index():
         select(DisciplineRule).where(DisciplineRule.npccal_type == tipo_npccal)
     ).all()
     fatos_predefinidos.sort(key=sort_roman)
-    is_aluno_view = (str(current_user.role).lower().strip() == 'aluno') or (current_user.aluno_profile is not None and not current_user.is_staff)
 
-    if (str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)):
+    is_aluno_view = (str(current_user.role).lower().strip() == 'aluno') or (current_user.aluno_profile is not None and not current_user.is_staff)
+    if is_aluno_view:
         if not current_user.aluno_profile or not current_user.aluno_profile.turma:
             flash("Perfil incompleto.", "danger")
             return redirect(url_for('main.dashboard'))
@@ -105,8 +105,26 @@ def index():
                 stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
-
+        
+        fadas_aluno = db.session.scalars(
+            select(FadaAvaliacao).where(
+                FadaAvaliacao.aluno_id == aluno_id,
+                FadaAvaliacao.status.in_(['ALUNO', 'FINALIZADO', 'RECURSO'])
+            ).order_by(FadaAvaliacao.data_avaliacao.desc())
+        ).all()
+        fadas_comissao = []
     else:
+        fadas_comissao = db.session.scalars(
+            select(FadaAvaliacao).where(
+                or_(
+                    FadaAvaliacao.presidente_id == current_user.id,
+                    FadaAvaliacao.membro1_id == current_user.id,
+                    FadaAvaliacao.membro2_id == current_user.id
+                ),
+                FadaAvaliacao.status == 'COMISSAO'
+            ).order_by(FadaAvaliacao.data_avaliacao.desc())
+        ).all()
+        fadas_aluno = []
         if not school_id:
             flash("Nenhuma escola selecionada.", "warning")
             return redirect(url_for('main.dashboard'))
@@ -207,7 +225,8 @@ def index():
                            hoje=hoje,
                            agora=agora_dt,
                            meus_elogios=meus_elogios, is_aluno_view=is_aluno_view,
-                           meus_elogios_paginados=meus_elogios_paginados)
+                           meus_elogios_paginados=meus_elogios_paginados,
+                           fadas_aluno=locals().get('fadas_aluno', []))
 
 @justica_bp.route('/registrar-em-massa', methods=['POST'])
 @login_required
@@ -275,7 +294,7 @@ def registrar_em_massa():
         for aid in alunos_ids:
             try:
                 novo_elogio = Elogio(aluno_id=int(aid), registrado_por_id=current_user.id,
-                                     data_elogio=data_completa, descricao=descricao, pontos=0.5)
+                                     data_elogio=data_completa, descricao=descricao, pontos=0.0)
                 db.session.add(novo_elogio)
                 count += 1
             except Exception as e:
@@ -817,7 +836,8 @@ def fada_boletim():
         try:
             if hasattr(u, 'schools'):
                 if any(str(s.id) == str(school_id) for s in u.schools):
-                    staff_users.append(u)
+                    if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id):
+                        staff_users.append(u)
         except: continue
 
     if current_user not in staff_users:
@@ -885,12 +905,12 @@ def salvar_fada():
         media = sum(notas_float) / 18.0
 
         if fada:
-            fada.media_final = media; fada.observacoes = obs; fada.data_avaliacao = datetime.now().astimezone()
+            fada.media_final = media; fada.observacao = obs; fada.data_avaliacao = datetime.now().astimezone()
             fada.presidente_id = pres_id; fada.membro1_id = m1_id; fada.membro2_id = m2_id
             attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
             for idx, attr in enumerate(attrs): setattr(fada, attr, notas_float[idx])
         else:
-            nova = FadaAvaliacao(aluno_id=int(aluno_id), lancador_id=current_user.id, media_final=media, observacoes=obs, status='RASCUNHO', presidente_id=pres_id, membro1_id=m1_id, membro2_id=m2_id)
+            nova = FadaAvaliacao(aluno_id=int(aluno_id), lancador_id=current_user.id, media_final=media, observacao=obs, status='RASCUNHO', presidente_id=pres_id, membro1_id=m1_id, membro2_id=m2_id)
             attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
             for idx, attr in enumerate(attrs): setattr(nova, attr, notas_float[idx])
             db.session.add(nova)
@@ -943,46 +963,49 @@ def enviar_fada_comissao(fada_id):
 @login_required
 def assinar_fada_membro(fada_id):
     fada = db.session.get(FadaAvaliacao, fada_id)
-    # UNIFICAÃ‡ÃƒO: A verificaÃ§Ã£o agora Ã© feita na coluna 'status'
     if not fada or fada.status != 'COMISSAO':
-        return jsonify({'error': 'AvaliaÃ§Ã£o nÃ£o encontrada ou nÃ£o estÃ¡ na etapa da comissÃ£o.'}), 404
+        flash('AvaliaÃ§Ã£o nÃ£o encontrada ou nÃ£o estÃ¡ na etapa da comissÃ£o.', 'danger')
+        return redirect(url_for('justica.fada_boletim'))
 
     uid = current_user.id
-    hash_assinatura = request.json.get('hash')
-    if not hash_assinatura:
-        return jsonify({'error': 'Hash de assinatura nÃ£o fornecido.'}), 400
+    import hashlib, uuid
+    hash_assinatura = hashlib.sha256(f"MEMBRO-{uid}-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
 
     agora = datetime.now().astimezone()
 
-    # LÃ³gica de assinatura com trava anti-duplicidade
     if fada.presidente_id == uid:
-        if fada.hash_pres: return jsonify({'error': 'Presidente jÃ¡ assinou.'}), 400
+        if fada.hash_pres:
+            flash('Presidente jÃ¡ assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_pres = hash_assinatura; fada.data_ass_pres = agora
     elif fada.membro1_id == uid:
-        if fada.hash_m1: return jsonify({'error': 'Membro 1 jÃ¡ assinou.'}), 400
+        if fada.hash_m1:
+            flash('Membro 1 jÃ¡ assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_m1 = hash_assinatura; fada.data_ass_m1 = agora
     elif fada.membro2_id == uid:
-        if fada.hash_m2: return jsonify({'error': 'Membro 2 jÃ¡ assinou.'}), 400
+        if fada.hash_m2:
+            flash('Membro 2 jÃ¡ assinou.', 'warning')
+            return redirect(url_for('justica.fada_boletim'))
         fada.hash_m2 = hash_assinatura; fada.data_ass_m2 = agora
     else:
-        return jsonify({'error': 'NÃ£o autorizado. O usuÃ¡rio nÃ£o faz parte da comissÃ£o.'}), 403
+        flash('NÃ£o autorizado. O usuÃ¡rio nÃ£o faz parte da comissÃ£o.', 'danger')
+        return redirect(url_for('justica.fada_boletim'))
 
-    # UNIFICAÃ‡ÃƒO: MÃ¡quina de estados avanÃ§a o 'status'
     if fada.hash_pres and fada.hash_m1 and fada.hash_m2:
         fada.status = 'ALUNO'
 
     db.session.commit()
     
-    # --- ESPIÃƒO: MEMBRO ASSINOU FADA ---
     school_id = UserService.get_current_school_id()
     LogService.log(
         action="Assinou FADA (ComissÃ£o)",
         details=f"Um membro da comissÃ£o registrou sua assinatura digital na FADA ID {fada_id}.",
         school_id=school_id
     )
-    # -----------------------------------
     
-    return jsonify({'success': True, 'message': 'Assinatura registrada.', 'status_atual': fada.status}), 200
+    flash('Assinatura registrada com sucesso.', 'success')
+    return redirect(url_for('justica.fada_boletim'))
 
 @justica_bp.route('/fada/assinar-aluno/<int:fada_id>', methods=['POST'])
 @login_required

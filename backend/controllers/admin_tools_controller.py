@@ -270,10 +270,30 @@ def certificados():
             'carga_horaria': request.form.get('carga_horaria', ''),
             'data_local': request.form.get('data_local', ''),
             'nome_comandante': request.form.get('nome_comandante', ''),
+            'departamento_comandante': request.form.get('departamento_comandante', ''),
             'nome_diretor': request.form.get('nome_diretor', ''),
             'nome_chefe_ensino': request.form.get('nome_chefe_ensino', ''),
+            'funcao_chefe_ensino': request.form.get('funcao_chefe_ensino', 'Chefe do Departamento de Ensino e Treinamento'),
             'ementa': request.form.get('ementa', '')
         }
+        
+        # Processa uploads de assinatura, se existirem
+        import base64
+        
+        file_com = request.files.get('assinatura_comandante')
+        if file_com and file_com.filename:
+            img_bytes = file_com.read()
+            dados['assinatura_comandante_b64'] = "data:" + file_com.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
+
+        file_dir = request.files.get('assinatura_diretor')
+        if file_dir and file_dir.filename:
+            img_bytes = file_dir.read()
+            dados['assinatura_diretor_b64'] = "data:" + file_dir.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
+            
+        file_chefe = request.files.get('assinatura_chefe')
+        if file_chefe and file_chefe.filename:
+            img_bytes = file_chefe.read()
+            dados['assinatura_chefe_b64'] = "data:" + file_chefe.content_type + ";base64," + base64.b64encode(img_bytes).decode('utf-8')
         
         # Recebe as disciplinas
         disciplinas_nr = request.form.getlist('disc_nr[]')
@@ -295,8 +315,8 @@ def certificados():
             return jsonify({'success': False, 'error': 'A lista de alunos e obrigatoria.'})
 
         try:
-            # Processa o texto separando por vírgula ou quebra de linha
-            alunos_raw = lista_alunos_texto.replace('\n', ',').split(',')
+            # Processa o texto separando apenas por quebra de linha
+            alunos_raw = lista_alunos_texto.split('\n')
             alunos = [a.strip() for a in alunos_raw if a.strip()]
             
             if not alunos:

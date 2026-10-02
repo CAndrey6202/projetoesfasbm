@@ -117,6 +117,9 @@ def selecionar_escola():
     ainda não definiu em qual contexto quer trabalhar.
     AGORA SUPORTA: Admins, Instrutores e Alunos!
     """
+    if current_user.role == 'coordenador_provas':
+        return redirect(url_for('questoes.painel_dec'))
+
     escolas_dict = {}
 
     # 1. Busca vínculos da tabela padrão (Admins, SENS, CAL)
@@ -210,6 +213,9 @@ def trocar_escola(school_id):
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
+    if current_user.role == 'coordenador_provas':
+        return redirect(url_for('questoes.painel_dec'))
+
     # Valida se o Sudo Mode está ativamente ligado para um Super Admin real
     dec_mode_active = session.get('is_dec_mode', False) and current_user.role == 'super_admin'
     

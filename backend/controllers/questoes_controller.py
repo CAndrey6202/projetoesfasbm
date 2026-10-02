@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from markupsafe import escape
 
-from utils.decorators import super_admin_required
+from utils.decorators import coordenador_provas_required
 from backend.models.database import db
 from backend.models import QuestaoBanco, DelegacaoProva, Disciplina, School, Instrutor, Turma, User, Ciclo
 from backend.models.banco_questoes import ConfiguracaoEnvio
@@ -19,7 +19,7 @@ questoes_bp = Blueprint('questoes', __name__, url_prefix='/questoes')
 
 @questoes_bp.route('/gerenciar', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def painel_gestao():
     """
     Painel central do Super Admin para gerenciar o Banco de Questões.
@@ -31,7 +31,7 @@ def painel_gestao():
 
 @questoes_bp.route('/api/disciplinas/<int:school_id>', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_get_disciplinas(school_id):
     """
     Retorna as disciplinas unificadas (materia) exclusivas da escola selecionada (histórico completo).
@@ -46,7 +46,7 @@ def api_get_disciplinas(school_id):
 
 @questoes_bp.route('/api/edicoes/<int:school_id>', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_get_edicoes(school_id):
     """Retorna as edições que pertencem fisicamente à escola selecionada."""
     from backend.models.edicao import Edicao
@@ -55,7 +55,7 @@ def api_get_edicoes(school_id):
 
 @questoes_bp.route('/api/ciclos/filtro', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_get_ciclos_filtro():
     school_id = request.args.get('school_id')
     query = db.session.query(Ciclo.id, Ciclo.nome)
@@ -68,7 +68,7 @@ def api_get_ciclos_filtro():
 
 @questoes_bp.route('/api/materias/filtro', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_get_materias_filtro():
     """Retorna as matérias dinamicamente com base na escola, edição e ciclo selecionados."""
     school_id = request.args.get('school_id')
@@ -148,7 +148,7 @@ def api_configuracao_envio():
 
 @questoes_bp.route('/api/instrutores', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_get_instrutores():
     """
     Busca apenas os instrutores vinculados àquela matéria específica na escola selecionada.
@@ -189,7 +189,7 @@ def api_get_instrutores():
 
 @questoes_bp.route('/api/delegacoes/listar', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def api_listar_delegacoes():
     """Retorna a lista de instrutores autorizados a gerar provas para a matéria e edição."""
     school_id = request.args.get('school_id', type=int)
@@ -220,10 +220,8 @@ def api_listar_delegacoes():
 
 @questoes_bp.route('/banco/<int:school_id>/<string:materia>', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def ver_banco_disciplina(school_id, materia):
-    if current_user.role != 'super_admin':
-        abort(403, description="Acesso restrito exclusivamente ao Administrador DEC.")
     """
     Lista as questões de uma matéria/escola para auditoria do Super Admin.
     """
@@ -246,7 +244,7 @@ def ver_banco_disciplina(school_id, materia):
 
 @questoes_bp.route('/api/delegar-prova', methods=['POST'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def delegar_prova():
     """Processa a autorização de múltiplos instrutores via AJAX sem piscar a tela."""
     dados = request.get_json()
@@ -302,7 +300,7 @@ def delegar_prova():
 
 @questoes_bp.route('/api/delegacao/revogar/<int:id>', methods=['POST'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def revogar_delegacao(id):
     """
     Remove a permissão de um instrutor de confeccionar a prova.
@@ -315,7 +313,7 @@ def revogar_delegacao(id):
 
 @questoes_bp.route('/api/questao/remover/<int:id>', methods=['POST'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def remover_questao_banco(id):
     """
     Realiza o 'soft delete' de uma questão do banco, desativando-a.
@@ -327,7 +325,7 @@ def remover_questao_banco(id):
 
 @questoes_bp.route('/api/questao/editar/<int:id>', methods=['POST'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def editar_questao_banco(id):
     """Edita uma questão do banco."""
     questao = QuestaoBanco.query.get_or_404(id)
@@ -346,6 +344,8 @@ def editar_questao_banco(id):
     if alternativas and isinstance(alternativas, dict):
         # Limpar espaços e padronizar chaves para string
         questao.alternativas = {str(k).upper().strip(): str(v).strip() for k, v in alternativas.items()}
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(questao, "alternativas")
     if resposta_correta and isinstance(resposta_correta, str):
         questao.resposta_correta = resposta_correta.upper().strip()
     if assunto is not None:
@@ -356,11 +356,9 @@ def editar_questao_banco(id):
 
 @questoes_bp.route('/painel-dec', methods=['GET'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def painel_dec():
     """Painel do DEC para geração de provas globais e análise unificada."""
-    if current_user.role != 'super_admin':
-        abort(403, description="Acesso restrito exclusivamente ao Administrador DEC.")
         
     escolas = School.query.order_by(School.nome).all()
     materias_db = db.session.query(Disciplina.materia).distinct().all()
@@ -370,7 +368,7 @@ def painel_dec():
 
 @questoes_bp.route('/dec/gerar-prova', methods=['POST'])
 @login_required
-@super_admin_required
+@coordenador_provas_required
 def gerar_prova_dec():
     """Sorteia as questões globalmente e exibe na tela de impressão imediata."""
     qtd = request.form.get('qtd_questoes', type=int, default=30)

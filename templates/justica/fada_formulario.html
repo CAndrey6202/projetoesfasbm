@@ -212,6 +212,19 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     renderHash('box_ass_m1', dadosFada?.hash_m1);
     renderHash('box_ass_m2', dadosFada?.hash_m2);
 
+    if (dadosFada && dadosFada.notas) {
+        for(let i=0; i<18; i++) {
+            const input = document.getElementById(`attr_${i}`);
+            if(input && dadosFada.notas[i] !== undefined) {
+                input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
+                atualizarConceito(i);
+            }
+        }
+    }
+    if (dadosFada && dadosFada.observacao) {
+        document.getElementById('obs_justificativa').value = dadosFada.observacao;
+    }
+
     if (etapa === 'RASCUNHO' || !etapa) {
         pComissao.style.display = 'block';
         btnSalvar.style.display = 'inline-block';
@@ -252,9 +265,10 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     if (dadosFada && dadosFada.punicoes && dadosFada.punicoes.length > 0) {
         let html = '<div class="alert alert-warning py-2 mb-2"><strong>Atenção:</strong> Este aluno possui punições ativas no período. Vincule-as aos atributos correspondentes para abater a nota:';
         dadosFada.punicoes.forEach(p => {
-            html += `<div class="mt-2">
+            html += `<div class="mt-2 border-bottom border-dark pb-2">
                 <label class="small fw-bold">${p.descricao}</label>
-                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
+                <div class="text-muted fst-italic mb-1" style="font-size: 0.75rem;">Fato: ${p.fato}</div>
+                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required data-pontos="${p.pontos}" data-prev-val="" onchange="aplicarDesconto(this)" ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
                     <option value="">-- Selecione o Atributo afetado --</option>`;
             const attrNomes = ['Expressão oral', 'Planejamento e método', 'Perseverança', 'Apresentação pessoal', 'Lealdade', 'Tato', 'Equilíbrio emocional', 'Disciplina', 'Responsabilidade', 'Maturidade', 'Assiduidade', 'Pontualidade', 'Dicção de voz', 'Liderança', 'Relacionamento', 'Ética', 'Produtividade', 'Eficiência'];
             for(let i=0; i<18; i++) {
@@ -318,6 +332,24 @@ function enviarParaComissao() {
 }
 
 function assinarAluno(acao) {
+    if (acao === 'recorrer') {
+        const motivo = prompt("Por favor, informe detalhadamente o motivo do seu recurso (mínimo 10 caracteres):");
+        if (!motivo) return; // Cancelou
+        if (motivo.length < 10) {
+            alert("O motivo deve ter pelo menos 10 caracteres.");
+            return;
+        }
+        // Cria um input hidden dinâmico para enviar o motivo
+        const inputMotivo = document.createElement('input');
+        inputMotivo.type = 'hidden';
+        inputMotivo.name = 'motivo_recurso';
+        inputMotivo.value = motivo;
+        document.getElementById('formAssAluno').appendChild(inputMotivo);
+    } else {
+        if (!confirm("Ao assinar, você concorda com a avaliação e a nota será lançada no seu boletim. Deseja prosseguir?")) {
+            return;
+        }
+    }
     document.getElementById('acao_aluno_input').value = acao;
     document.getElementById('formAssAluno').submit();
 }
@@ -334,4 +366,49 @@ function calcularMediaFada() {
     let s = 0; document.querySelectorAll('.fada-input').forEach(i => s += parseFloat(i.value||0));
     document.getElementById('displayMediaFada').innerText = (s/18.0).toFixed(2);
 }
+
+function aplicarDesconto(selectEl) {
+    const pontos = parseFloat(selectEl.getAttribute('data-pontos'));
+    const oldIdx = selectEl.getAttribute('data-prev-val');
+    const newIdx = selectEl.value;
+
+    if (oldIdx !== "") {
+        const inputAntigo = document.getElementById(`attr_${oldIdx - 1}`);
+        if(inputAntigo) {
+            let maxAtual = parseFloat(inputAntigo.getAttribute('max') || 10.0);
+            inputAntigo.setAttribute('max', (maxAtual + pontos).toFixed(2));
+            
+            let val = parseFloat(inputAntigo.value || 8.0);
+            inputAntigo.value = Math.min(parseFloat(inputAntigo.getAttribute('max')), val + pontos).toFixed(2);
+            atualizarConceito(oldIdx - 1);
+        }
+    }
+
+    if (newIdx !== "") {
+        const inputNovo = document.getElementById(`attr_${newIdx - 1}`);
+        if(inputNovo) {
+            let maxAtual = parseFloat(inputNovo.getAttribute('max') || 10.0);
+            let novoMax = Math.max(0, maxAtual - pontos);
+            inputNovo.setAttribute('max', novoMax.toFixed(2));
+            
+            let val = parseFloat(inputNovo.value || 8.0);
+            inputNovo.value = Math.min(novoMax, Math.max(0, val - pontos)).toFixed(2);
+            atualizarConceito(newIdx - 1);
+        }
+    }
+    
+    selectEl.setAttribute('data-prev-val', newIdx);
+}
+
+// Garante que o usuário não consiga digitar um valor acima do teto permitido
+document.querySelectorAll('.fada-input').forEach(input => {
+    input.addEventListener('input', function() {
+        let maxVal = parseFloat(this.getAttribute('max') || 10.0);
+        let val = parseFloat(this.value);
+        if (val > maxVal) {
+            this.value = maxVal.toFixed(2);
+            atualizarConceito(this.id.split('_')[1]);
+        }
+    });
+});
 </script>
