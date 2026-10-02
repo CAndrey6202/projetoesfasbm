@@ -257,5 +257,3 @@ def preview_backup():
         return redirect(request.url)
         
     return render_template('ferramentas/preview_backup.html', data=None)
-@tools_bp.route('/certificados', methods=['GET', 'POST'])
-@login_required
