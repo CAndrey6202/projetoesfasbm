@@ -176,7 +176,7 @@
 
         <div class="d-flex justify-content-end gap-2 mt-4 d-print-none" id="fadaActionButtons">
             <button type="button" class="btn btn-secondary" onclick="fecharFadaModal()">Fechar</button>
-            <button type="submit" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important');">Salvar Rascunho</button>
+            <button type="submit" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="if(document.getElementById('formFada').checkValidity()) { document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important'); }">Salvar Rascunho</button>
         </div>
     </form>
 </div>
