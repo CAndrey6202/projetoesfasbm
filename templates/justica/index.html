@@ -741,7 +741,7 @@
                                                 'etapa_atual': fada.status,
                                                 'punicoes': []
                                             } %}
-                                            <button class="btn btn-sm btn-success fw-bold" onclick='abrirFadaModalInterno({{ fada.aluno.id }}, "{{ fada.aluno.user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})' data-bs-toggle="modal" data-bs-target="#fadaModal">Assinar</button>
+                                            <button class="btn btn-sm btn-success fw-bold" onclick='abrirFadaModal({{ fada.aluno.id }}, "{{ fada.aluno.user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})'>Assinar</button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -794,7 +794,7 @@
                                                     'etapa_atual': fada.status,
                                                     'punicoes': []
                                                 } %}
-                                                <button class="btn btn-sm btn-primary" onclick='abrirFadaModalInterno({{ current_user.aluno_profile.id }}, "{{ current_user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})' data-bs-toggle="modal" data-bs-target="#fadaModal">Ver e Assinar</button>
+                                                <button class="btn btn-sm btn-primary" onclick='abrirFadaModal({{ current_user.aluno_profile.id }}, "{{ current_user.nome_completo }}", {{ fada.id }}, "{{ fada.status }}", {{ fada_data | tojson | safe }})'>Ver e Assinar</button>
 
                                             </td>
                                         </tr>
@@ -1346,26 +1346,43 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 
-<!-- FADA Modal Wrapper -->
-<div class="modal fade" id="fadaModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content" style="background-color: #f8f9fa;">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="fas fa-file-signature"></i> FADA Digital</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 py-4 d-flex justify-content-center">
+<!-- FADA Overlay Wrapper -->
+<div id="overlayFada" class="custom-overlay" style="display: none;">
+    <div class="overlay-backdrop" onclick="fecharFadaModal()"></div>
+    <div class="overlay-content">
+        <div class="overlay-header">
+            <h5 class="m-0 fw-bold" id="overlayTitle">FADA Digital</h5>
+            <button type="button" class="btn-close-custom" onclick="fecharFadaModal()">&times;</button>
+        </div>
+        <div class="overlay-body">
+            <div class="fada-paper-wrapper">
                 {% include 'justica/fada_formulario.html' %}
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .custom-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999 !important; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px; }
+    .overlay-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); cursor: pointer; }
+    .overlay-content { position: relative; background: #e0e0e0; width: auto; min-width: 230mm; max-width: 95%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 30px; margin-bottom: 30px; display: flex; flex-direction: column; z-index: 100000; }
+    .overlay-header { background: #0d6efd; color: white; padding: 10px 20px; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-close-custom { background: none; border: none; color: white; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1; }
+</style>
+
 <script>
+function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
+    document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
+    if(typeof window.abrirFadaModalInterno === 'function') {
+        window.abrirFadaModalInterno(alunoId, nomeAluno, fadaId, status, fadaData);
+    }
+    document.getElementById('overlayFada').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
 function fecharFadaModal() {
-    var myModalEl = document.getElementById('fadaModal');
-    var modal = bootstrap.Modal.getInstance(myModalEl);
-    if (modal) modal.hide();
+    document.getElementById('overlayFada').style.display = 'none';
+    document.body.style.overflow = '';
 }
 </script>
 
