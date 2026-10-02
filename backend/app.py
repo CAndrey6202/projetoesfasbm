@@ -106,6 +106,7 @@ def create_app(config_class=Config):
     app.config["PREFERRED_URL_SCHEME"] = "https"
 
     app.config.from_object(config_class)
+    app.config["JSON_AS_ASCII"] = False
 
     config_class.init_app(app)
 
