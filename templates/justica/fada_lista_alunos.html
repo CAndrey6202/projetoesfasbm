@@ -48,7 +48,7 @@
                 </thead>
                 <tbody>
                     {% for item in dados %}
-                    {% set status = item.fada_obj.etapa_atual if item.fada_obj else 'RASCUNHO' %}
+                    {% set status = item.fada_obj.status if item.fada_obj else 'RASCUNHO' %}
                     {% set fada_id = item.fada_obj.id if item.fada_obj else 'null' %}
 
                     {% set punicoes_dict = [] %}
