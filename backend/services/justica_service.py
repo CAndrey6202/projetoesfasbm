@@ -137,8 +137,6 @@ class JusticaService:
             dt_inicio_safe = JusticaService._ensure_datetime(dt_inicio_2_ciclo)
             if data_fato < dt_inicio_safe:
                 return False
-        else:
-            return False
         return True
 
     @staticmethod
