@@ -201,11 +201,12 @@ class JusticaService:
             query = select(ProcessoDisciplina).where(
                 ProcessoDisciplina.aluno_id == aluno_id,
                 ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value,
+                ProcessoDisciplina.decisao_final != 'Justificado'
             )
             processos = db.session.scalars(query).all()
         else:
             processos = [
-                p for p in processos_list if p.status == StatusProcesso.FINALIZADO.value
+                p for p in processos_list if p.status == StatusProcesso.FINALIZADO.value and p.decisao_final != 'Justificado'
             ]
 
         pontos_perdidos = 0.0
@@ -229,11 +230,12 @@ class JusticaService:
             query_proc = select(ProcessoDisciplina).where(
                 ProcessoDisciplina.aluno_id == aluno_id,
                 ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value,
+                ProcessoDisciplina.decisao_final != 'Justificado'
             )
             processos = db.session.scalars(query_proc).all()
         else:
             processos = [
-                p for p in processos_list if p.status == StatusProcesso.FINALIZADO.value
+                p for p in processos_list if p.status == StatusProcesso.FINALIZADO.value and p.decisao_final != 'Justificado'
             ]
 
         query_elogios = select(Elogio).where(Elogio.aluno_id == aluno_id)
