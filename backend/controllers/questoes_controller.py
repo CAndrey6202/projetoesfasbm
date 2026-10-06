@@ -135,6 +135,13 @@ def api_configuracao_envio():
                 config.envio_ativo = status
                 
             db.session.commit()
+            
+            from backend.services.log_service import LogService
+            LogService.log(
+                action="Alterou Configuração do Banco de Questões",
+                details=f"O recebimento de questões para a matéria '{materia}' foi alterado para: {'ABERTO' if status else 'FECHADO'}."
+            )
+            
             return jsonify({'success': True})
 
         # Para chamadas GET (quando a tela carrega)
@@ -295,6 +302,14 @@ def delegar_prova():
             adicionados += 1
 
     db.session.commit()
+    
+    if adicionados > 0:
+        from backend.services.log_service import LogService
+        LogService.log(
+            action="Delegou Confecção de Prova",
+            details=f"{adicionados} instrutor(es) receberam permissão para gerar a prova da matéria '{materia}'."
+        )
+        
     return jsonify({'success': True, 'message': f'{adicionados} instrutores autorizados!'})
 
 
@@ -306,8 +321,19 @@ def revogar_delegacao(id):
     Remove a permissão de um instrutor de confeccionar a prova.
     """
     delegacao = DelegacaoProva.query.get_or_404(id)
+    
+    instrutor_nome = delegacao.instrutor.user.nome_completo
+    materia_nome = delegacao.disciplina.materia if delegacao.disciplina else "Desconhecida"
+    
     db.session.delete(delegacao)
     db.session.commit()
+    
+    from backend.services.log_service import LogService
+    LogService.log(
+        action="Revogou Delegação de Prova",
+        details=f"A permissão do instrutor '{instrutor_nome}' para gerar prova de '{materia_nome}' foi revogada."
+    )
+    
     return jsonify({'success': True})
 
 
@@ -321,6 +347,13 @@ def remover_questao_banco(id):
     questao = QuestaoBanco.query.get_or_404(id)
     questao.ativo = False
     db.session.commit()
+    
+    from backend.services.log_service import LogService
+    LogService.log(
+        action="Inativou Questão",
+        details=f"Questão ID {id} da matéria '{questao.disciplina.materia if questao.disciplina else 'Desconhecida'}' foi inativada."
+    )
+    
     return jsonify({'success': True, 'message': 'Questão removida com sucesso.'})
 
 @questoes_bp.route('/api/questao/editar/<int:id>', methods=['POST'])
@@ -352,6 +385,13 @@ def editar_questao_banco(id):
         questao.assunto = assunto.strip()
 
     db.session.commit()
+    
+    from backend.services.log_service import LogService
+    LogService.log(
+        action="Editou Questão",
+        details=f"O administrador editou o enunciado/gabarito da Questão ID {id}."
+    )
+    
     return jsonify({'success': True, 'message': 'Questão atualizada com sucesso.'})
 
 @questoes_bp.route('/painel-dec', methods=['GET'])
@@ -586,6 +626,13 @@ def salvar_questoes():
             salvas_count += 1
 
         db.session.commit()
+        
+        if salvas_count > 0:
+            from backend.services.log_service import LogService
+            LogService.log(
+                action="Enviou Questões",
+                details=f"O usuário enviou {salvas_count} nova(s) questão(ões) para o banco da matéria '{materia}'."
+            )
 
         # Monta a mensagem inteligente que aparecerá na tela final do seu colega
         msg_final = f'{salvas_count} questões inéditas salvas com sucesso no banco!'
