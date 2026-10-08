@@ -10,12 +10,72 @@
                 <i class="fas fa-paper-plane"></i> Enviar p/ Assinatura da Comissão
             </button>
 
-            <form id="formAssinarMembro" method="POST" style="display: none;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-success btn-sm fw-bold shadow-sm">
+            
+            <div id="areaAssinaturaMembro" style="display: none;">
+                <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm" onclick="abrirCaixaAssinatura()">
                     <i class="fas fa-file-signature"></i> ASSINAR DIGITALMENTE
                 </button>
-            </form>
+            </div>
+            
+            <div id="boxAssinatura" class="position-fixed top-50 start-50 translate-middle bg-white border rounded shadow-lg p-3 z-3" style="display: none; width: 90%; max-width: 500px;">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="mb-0"><i class="fas fa-pen-nib me-2"></i>Sua Assinatura</h5>
+                    <button type="button" class="btn-close" onclick="fecharCaixaAssinatura()"></button>
+                </div>
+                
+                <div id="divAssinarMembroReal">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" form="hiddenFormAssinarMembro">
+                    <input type="hidden" name="tipo_assinatura" id="tipo_assinatura_membro" value="padrao" form="hiddenFormAssinarMembro">
+                    <input type="hidden" name="assinatura_base64" id="assinatura_base64_membro" value="" form="hiddenFormAssinarMembro">
+                    
+                    <ul class="nav nav-pills mb-3" role="tablist">
+                        {% if current_user.assinatura_padrao_path %}
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-saved" type="button" onclick="document.getElementById('tipo_assinatura_membro').value='padrao'">
+                                <i class="fas fa-save me-1"></i> Salva
+                            </button>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <button class="nav-link {% if not current_user.assinatura_padrao_path %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-draw" type="button" onclick="document.getElementById('tipo_assinatura_membro').value='canvas'; setTimeout(resizeCanvasFada, 100);">
+                                <i class="fas fa-pen me-1"></i> Desenhar
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-upload" type="button" onclick="document.getElementById('tipo_assinatura_membro').value='upload'">
+                                <i class="fas fa-upload me-1"></i> Upload
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content border rounded p-2 bg-light mb-3">
+                        {% if current_user.assinatura_padrao_path %}
+                        <div class="tab-pane fade show active text-center py-2" id="tab-saved">
+                            <p class="text-muted small fw-bold mb-2">Sua assinatura salva será utilizada:</p>
+                            <img src="{{ url_for('static', filename=current_user.assinatura_padrao_path) }}?v={{ range(1, 9999) | random }}" style="max-height: 80px;" class="border bg-white p-1">
+                        </div>
+                        {% endif %}
+                        
+                        <div class="tab-pane fade {% if not current_user.assinatura_padrao_path %}show active{% endif %} text-center" id="tab-draw">
+                            <p class="small text-muted mb-1">Assine na caixa abaixo. <b>Isto atualizará sua assinatura padrão.</b></p>
+                            <div class="border bg-white" style="height: 150px; position: relative;">
+                                <canvas id="signaturePadFada" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="signaturePadFadaObj.clear()"><i class="fas fa-eraser"></i> Limpar</button>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="tab-upload">
+                            <label class="form-label small fw-bold">Selecione uma imagem (PNG/JPG):</label>
+                            <input class="form-control form-control-sm" type="file" name="assinatura_upload" accept="image/png, image/jpeg, image/jpg" form="hiddenFormAssinarMembro">
+                            <p class="small text-muted mt-1"><b>Isto atualizará sua assinatura padrão.</b></p>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-success w-100 fw-bold" onclick="prepararAssinaturaFada(event)">
+                        <i class="fas fa-check-double me-1"></i> Confirmar Assinatura
+                    </button>
+                </div></div><div id="backdropAssinatura" class="position-fixed top-0 start-0 w-100 h-100 bg-dark opacity-50 z-2" style="display: none;" onclick="fecharCaixaAssinatura()"></div>
+
         </div>
 
         <div id="area-selecao-comissao" class="mt-2 border-top pt-2" style="display: none;">
@@ -51,6 +111,8 @@
                 <div class="col-4"><strong>DATA DA AVALIAÇÃO:</strong> <span id="fada_data_display"></span></div>
             </div>
         </div>
+
+        <div id="area-punicoes-fada"></div>
 
         <table class="table table-bordered border-dark align-middle fada-table mb-2">
             <thead class="bg-light text-center">
@@ -125,21 +187,21 @@
 
             <div class="row align-items-end mt-2 text-center g-3">
                 <div class="col-4">
-                    <div id="box_ass_m1" class="mb-1 text-muted fst-italic small" style="height: 20px;"></div>
+                    <div id="box_ass_m1" class="mb-1 text-muted fst-italic small" style="min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;"></div>
                     <div class="border-top border-dark pt-1 mx-2">
                         <span id="lbl_membro1" class="d-block fw-bold">Membro 1</span>
                         <span class="small text-muted d-block" style="font-size: 0.7rem;">Membro</span>
                     </div>
                 </div>
                 <div class="col-4">
-                    <div id="box_ass_pres" class="mb-1 text-muted fst-italic small" style="height: 20px;"></div>
+                    <div id="box_ass_pres" class="mb-1 text-muted fst-italic small" style="min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;"></div>
                     <div class="border-top border-dark pt-1 mx-2">
                         <span id="lbl_presidente" class="d-block fw-bold">Presidente</span>
                         <span class="small text-muted d-block" style="font-size: 0.7rem;">Presidente</span>
                     </div>
                 </div>
                 <div class="col-4">
-                    <div id="box_ass_m2" class="mb-1 text-muted fst-italic small" style="height: 20px;"></div>
+                    <div id="box_ass_m2" class="mb-1 text-muted fst-italic small" style="min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;"></div>
                     <div class="border-top border-dark pt-1 mx-2">
                         <span id="lbl_membro2" class="d-block fw-bold">Membro 2</span>
                         <span class="small text-muted d-block" style="font-size: 0.7rem;">Membro</span>
@@ -153,19 +215,15 @@
             <div id="status-aluno-ass" class="text-center py-2 text-muted fst-italic">Aguardando liberação da comissão...</div>
 
             <div id="botoes-aluno" class="mt-2 d-none d-print-none">
-                <form action="" id="formAssAluno" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div id="divAssAluno">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" form="hiddenFormAssAluno">
 
-                    <input type="hidden" name="acao" id="acao_aluno_input">
+                    <input type="hidden" name="acao" id="acao_aluno_input" form="hiddenFormAssAluno">
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-success btn-sm w-100 mb-1" onclick="assinarAluno('assinar')">CONCORDO E ASSINO</button>
                         <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="assinarAluno('recorrer')">RECORRER</button>
                     </div>
-                </form>
-            </div>
-        </div>
-
-        <div id="loadingContainerFada" style="display: none; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1.5rem;" class="d-print-none">
+                </div></div><div id="loadingContainerFada" style="display: none; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1.5rem;" class="d-print-none">
             <div class="spinner-border text-primary spinner-border-sm" role="status">
                 <span class="visually-hidden">Processando...</span>
             </div>
@@ -174,9 +232,13 @@
 
         <div class="d-flex justify-content-end gap-2 mt-4 d-print-none" id="fadaActionButtons">
             <button type="button" class="btn btn-secondary" onclick="fecharFadaModal()">Fechar</button>
-            <button type="submit" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important');">Salvar Rascunho</button>
+            <button type="button" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="if(document.getElementById('formFada').reportValidity()) { document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important'); document.getElementById('formFada').submit(); }">Salvar Rascunho</button>
         </div>
     </form>
+
+<form id="hiddenFormAssinarMembro" method="POST" enctype="multipart/form-data" style="display:none;"></form>
+<form id="hiddenFormAssAluno" method="POST" style="display:none;"></form>
+
 </div>
 
 <style>
@@ -206,9 +268,22 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
 
     popularSelectsComissao(dadosFada);
 
-    renderHash('box_ass_pres', dadosFada?.hash_pres);
-    renderHash('box_ass_m1', dadosFada?.hash_m1);
-    renderHash('box_ass_m2', dadosFada?.hash_m2);
+    renderHash('box_ass_pres', dadosFada?.hash_pres, dadosFada?.ass_img_pres);
+    renderHash('box_ass_m1', dadosFada?.hash_m1, dadosFada?.ass_img_m1);
+    renderHash('box_ass_m2', dadosFada?.hash_m2, dadosFada?.ass_img_m2);
+
+    if (dadosFada && dadosFada.notas) {
+        for(let i=0; i<18; i++) {
+            const input = document.getElementById(`attr_${i}`);
+            if(input && dadosFada.notas[i] !== undefined) {
+                input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
+                atualizarConceito(i);
+            }
+        }
+    }
+    if (dadosFada && dadosFada.observacao) {
+        document.getElementById('obs_justificativa').value = dadosFada.observacao;
+    }
 
     if (etapa === 'RASCUNHO' || !etapa) {
         pComissao.style.display = 'block';
@@ -227,23 +302,44 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
             const souM2 = (dadosFada?.membro2_id == currentUserId && !dadosFada?.hash_m2);
 
             if (souPres || souM1 || souM2) {
-                const formAss = document.getElementById('formAssinarMembro');
+                const formAss = document.getElementById('areaAssinaturaMembro');
                 formAss.style.display = 'inline-block';
-                formAss.action = `/justica-e-disciplina/fada/assinar-membro/${fadaId}`;
+                document.getElementById('hiddenFormAssinarMembro').action = `/justica-e-disciplina/fada/assinar-membro/${fadaId}`;
             }
         }
 
         if (etapa === 'ALUNO') {
             document.getElementById('status-aluno-ass').innerText = "Documento liberado. Assine abaixo.";
-            if ("{{ current_user.role }}" === "aluno") {
+            if ("{{ current_user.role }}".toLowerCase().trim() === "aluno") {
                 document.getElementById('botoes-aluno').classList.remove('d-none');
-                document.getElementById('formAssAluno').action = `/justica-e-disciplina/fada/assinar-aluno/${fadaId}`;
+                document.getElementById('hiddenFormAssAluno').action = `/justica-e-disciplina/fada/assinar-aluno/${fadaId}`;
             }
         }
 
         if (etapa === 'FINALIZADO') {
             document.getElementById('status-aluno-ass').innerHTML = `<span class="text-success fw-bold">ASSINADO EM ${dadosFada?.data_assinatura || ''}</span>`;
         }
+    }
+
+    const punicoesDiv = document.getElementById('area-punicoes-fada');
+    if (dadosFada && dadosFada.punicoes && dadosFada.punicoes.length > 0) {
+        let html = '<div class="alert alert-warning py-2 mb-2"><strong>Atenção:</strong> Este aluno possui punições ativas no período. Vincule-as aos atributos correspondentes para abater a nota:';
+        dadosFada.punicoes.forEach(p => {
+            html += `<div class="mt-2 border-bottom border-dark pb-2">
+                <label class="small fw-bold">${p.descricao}</label>
+                <div class="text-muted fst-italic mb-1" style="font-size: 0.75rem;">Fato: ${p.fato}</div>
+                <select name="vinculo_infracao_${p.id}" class="form-select form-select-sm fada-select" required data-pontos="${p.pontos}" data-prev-val="" onchange="aplicarDesconto(this)" ${etapa && etapa !== 'RASCUNHO' ? 'disabled' : ''}>
+                    <option value="">-- Selecione o Atributo afetado --</option>`;
+            const attrNomes = ['Expressão oral', 'Planejamento e método', 'Perseverança', 'Apresentação pessoal', 'Lealdade', 'Tato', 'Equilíbrio emocional', 'Disciplina', 'Responsabilidade', 'Maturidade', 'Assiduidade', 'Pontualidade', 'Dicção de voz', 'Liderança', 'Relacionamento', 'Ética', 'Produtividade', 'Eficiência'];
+            for(let i=0; i<18; i++) {
+                html += `<option value="${i+1}">${i+1}. ${attrNomes[i]}</option>`;
+            }
+            html += `</select></div>`;
+        });
+        html += '</div>';
+        punicoesDiv.innerHTML = html;
+    } else {
+        punicoesDiv.innerHTML = '';
     }
 };
 
@@ -278,9 +374,15 @@ function atualizarNomes() {
     document.getElementById('lbl_membro2').innerText = m2.options[m2.selectedIndex]?.text.replace('Selecione...', 'Membro 2') || "Membro 2";
 }
 
-function renderHash(elId, hash) {
-    if(hash) document.getElementById(elId).innerHTML = `<span class="text-success fw-bold" style="font-size: 0.6rem;">ASSINADO DIGITALMENTE<br>${hash.substring(0,10)}...</span>`;
-    else document.getElementById(elId).innerHTML = "";
+function renderHash(elId, hash, imgPath) {
+    const el = document.getElementById(elId);
+    if(imgPath && hash) {
+        el.innerHTML = `<img src="/static/${imgPath}" style="max-height:40px;"><br><span style="font-size: 0.5rem; color: #aaa;">${hash.substring(0,10)}</span>`;
+    } else if(hash) {
+        el.innerHTML = `<span class="text-success fw-bold" style="font-size: 0.6rem;">ASSINADO DIGITALMENTE<br>${hash.substring(0,10)}...</span>`;
+    } else {
+        el.innerHTML = "";
+    }
 }
 
 function bloquearEdicao() {
@@ -296,8 +398,26 @@ function enviarParaComissao() {
 }
 
 function assinarAluno(acao) {
+    if (acao === 'recorrer') {
+        const motivo = prompt("Por favor, informe detalhadamente o motivo do seu recurso (mínimo 10 caracteres):");
+        if (!motivo) return; // Cancelou
+        if (motivo.length < 10) {
+            alert("O motivo deve ter pelo menos 10 caracteres.");
+            return;
+        }
+        // Cria um input hidden dinâmico para enviar o motivo
+        const inputMotivo = document.createElement('input');
+        inputMotivo.type = 'hidden';
+        inputMotivo.name = 'motivo_recurso';
+        inputMotivo.value = motivo;
+        document.getElementById('hiddenFormAssAluno').appendChild(inputMotivo);
+    } else {
+        if (!confirm("Ao assinar, você concorda com a avaliação e a nota será lançada no seu boletim. Deseja prosseguir?")) {
+            return;
+        }
+    }
     document.getElementById('acao_aluno_input').value = acao;
-    document.getElementById('formAssAluno').submit();
+    document.getElementById('hiddenFormAssAluno').submit();
 }
 
 function atualizarConceito(idx) {
@@ -312,4 +432,105 @@ function calcularMediaFada() {
     let s = 0; document.querySelectorAll('.fada-input').forEach(i => s += parseFloat(i.value||0));
     document.getElementById('displayMediaFada').innerText = (s/18.0).toFixed(2);
 }
+
+function aplicarDesconto(selectEl) {
+    const pontos = parseFloat(selectEl.getAttribute('data-pontos'));
+    const oldIdx = selectEl.getAttribute('data-prev-val');
+    const newIdx = selectEl.value;
+
+    if (oldIdx !== "") {
+        const inputAntigo = document.getElementById(`attr_${oldIdx - 1}`);
+        if(inputAntigo) {
+            let maxAtual = parseFloat(inputAntigo.getAttribute('max') || 10.0);
+            inputAntigo.setAttribute('max', (maxAtual + pontos).toFixed(2));
+            
+            let val = parseFloat(inputAntigo.value || 8.0);
+            inputAntigo.value = Math.min(parseFloat(inputAntigo.getAttribute('max')), val + pontos).toFixed(2);
+            atualizarConceito(oldIdx - 1);
+        }
+    }
+
+    if (newIdx !== "") {
+        const inputNovo = document.getElementById(`attr_${newIdx - 1}`);
+        if(inputNovo) {
+            let maxAtual = parseFloat(inputNovo.getAttribute('max') || 10.0);
+            let novoMax = Math.max(0, maxAtual - pontos);
+            inputNovo.setAttribute('max', novoMax.toFixed(2));
+            
+            let val = parseFloat(inputNovo.value || 8.0);
+            inputNovo.value = Math.min(novoMax, Math.max(0, val - pontos)).toFixed(2);
+            atualizarConceito(newIdx - 1);
+        }
+    }
+    
+    selectEl.setAttribute('data-prev-val', newIdx);
+}
+
+// Garante que o usuário não consiga digitar um valor acima do teto permitido
+document.querySelectorAll('.fada-input').forEach(input => {
+    input.addEventListener('input', function() {
+        let maxVal = parseFloat(this.getAttribute('max') || 10.0);
+        let val = parseFloat(this.value);
+        if (val > maxVal) {
+            this.value = maxVal.toFixed(2);
+            atualizarConceito(this.id.split('_')[1]);
+        }
+    });
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+<script>
+    var signaturePadFadaObj = null;
+
+    function abrirCaixaAssinatura() {
+        document.getElementById("boxAssinatura").style.display = "block";
+        document.getElementById("backdropAssinatura").style.display = "block";
+        
+        if (!signaturePadFadaObj) {
+            var canvas = document.getElementById("signaturePadFada");
+            signaturePadFadaObj = new SignaturePad(canvas, { backgroundColor: "rgb(255, 255, 255)" });
+        }
+        
+        const isCanvasActive = document.getElementById("tipo_assinatura_membro").value === "canvas";
+        if (isCanvasActive) {
+            setTimeout(resizeCanvasFada, 100);
+        }
+    }
+
+    function fecharCaixaAssinatura() {
+        document.getElementById("boxAssinatura").style.display = "none";
+        document.getElementById("backdropAssinatura").style.display = "none";
+    }
+
+    function resizeCanvasFada() {
+        var canvas = document.getElementById("signaturePadFada");
+        var ratio =  Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        if (signaturePadFadaObj) signaturePadFadaObj.clear(); 
+    }
+
+    window.addEventListener("resize", resizeCanvasFada);
+
+    function prepararAssinaturaFada(e) {
+        var tipo = document.getElementById("tipo_assinatura_membro").value;
+        if (tipo === "canvas") {
+            if (signaturePadFadaObj.isEmpty()) {
+                e.preventDefault();
+                alert("Por favor, faça sua assinatura.");
+                return;
+            }
+            document.getElementById("assinatura_base64_membro").value = document.getElementById("signaturePadFada").toDataURL("image/jpeg", 0.7);
+        } 
+        else if (tipo === "upload") {
+            var fileInput = document.querySelector("input[name=\"assinatura_upload\"]");
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                alert("Selecione um arquivo.");
+                return;
+            }
+        }
+        document.getElementById('hiddenFormAssinarMembro').submit();
+    }
 </script>

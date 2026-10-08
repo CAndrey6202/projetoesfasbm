@@ -48,18 +48,40 @@
                 </thead>
                 <tbody>
                     {% for item in dados %}
-                    {% set status = item.fada_obj.etapa_atual if item.fada_obj else 'RASCUNHO' %}
+                    {% set status = item.fada_obj.status if item.fada_obj else 'RASCUNHO' %}
                     {% set fada_id = item.fada_obj.id if item.fada_obj else 'null' %}
-                    
+
+                    {% set punicoes_dict = [] %}
+                    {% for p in item.punicoes_pendentes %}
+                        {% set _ = punicoes_dict.append({
+                            'id': p.id, 
+                            'descricao': p.origem_punicao ~ ' - ' ~ p.pontos ~ ' pts (' ~ p.data_ocorrencia.strftime('%d/%m/%Y') ~ ')',
+                            'fato': p.fato_constatado,
+                            'pontos': p.pontos
+                        }) %}
+                    {% endfor %}
+
                     {% set fada_data = {
                         'presidente_id': item.fada_obj.presidente_id if item.fada_obj else '',
                         'membro1_id': item.fada_obj.membro1_id if item.fada_obj else '',
                         'membro2_id': item.fada_obj.membro2_id if item.fada_obj else '',
                         'hash_pres': item.fada_obj.hash_pres if item.fada_obj else '',
+                          'ass_img_pres': item.fada_obj.presidente.assinatura_padrao_path if (item.fada_obj and item.fada_obj.presidente) else '',
+                          'ass_img_m1': item.fada_obj.membro1.assinatura_padrao_path if (item.fada_obj and item.fada_obj.membro1) else '',
+                          'ass_img_m2': item.fada_obj.membro2.assinatura_padrao_path if (item.fada_obj and item.fada_obj.membro2) else '',
                         'hash_m1': item.fada_obj.hash_m1 if item.fada_obj else '',
                         'hash_m2': item.fada_obj.hash_m2 if item.fada_obj else '',
                         'data_ass_pres': item.fada_obj.data_ass_pres.strftime('%d/%m') if (item.fada_obj and item.fada_obj.data_ass_pres) else '',
-                        'etapa_atual': status
+                        'notas': [
+                            item.fada_obj.expressao, item.fada_obj.planejamento, item.fada_obj.perseveranca, item.fada_obj.apresentacao,
+                            item.fada_obj.lealdade, item.fada_obj.tato, item.fada_obj.equilibrio, item.fada_obj.disciplina,
+                            item.fada_obj.responsabilidade, item.fada_obj.maturidade, item.fada_obj.assiduidade, item.fada_obj.pontualidade,
+                            item.fada_obj.diccao, item.fada_obj.lideranca, item.fada_obj.relacionamento, item.fada_obj.etica,
+                            item.fada_obj.produtividade, item.fada_obj.eficiencia
+                        ] if item.fada_obj else [],
+                        'observacao': item.fada_obj.observacao if item.fada_obj else '',
+                        'etapa_atual': status,
+                        'punicoes': punicoes_dict
                     } %}
                     
                     <tr class="text-center">
@@ -69,12 +91,11 @@
                             <small class="text-muted">{{ item.turma }}</small>
                         </td>
                         <td class="fw-bold text-primary">{{ "{:.2f}".format(item.ndisc) }}</td>
-                        <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) }}</td>
-                        <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) }}</td>
+                        <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) if item.fada is not none else "Pendente"}}</td>
+                        <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary" 
-                                        onclick='abrirFadaModal({{ item.id }}, "{{ item.aluno.user.nome_completo }}", {{ fada_id }}, "{{ status }}", {{ fada_data|tojson|safe }})'>
+                                <script>window.fadaDataMap = window.fadaDataMap || {}; window.fadaDataMap[{{ fada_id }}] = {{ fada_data|tojson|safe }};</script><button type="button" class="btn btn-sm btn-outline-primary" onclick="abrirFadaModal({{ item.id }}, '{{ item.aluno.user.nome_completo | replace("'", "\'") }}', {{ fada_id }}, '{{ status }}', window.fadaDataMap[{{ fada_id }}])">
                                     <i class="fas fa-edit"></i> Abrir
                                 </button>
                                 
@@ -140,12 +161,20 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
-    document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
-    if(typeof window.abrirFadaModalInterno === 'function') {
-        window.abrirFadaModalInterno(alunoId, nomeAluno, fadaId, status, fadaData);
+    try {
+        console.log("abrirFadaModal called with", alunoId, nomeAluno, fadaId, status);
+        document.getElementById('overlayTitle').innerText = 'FADA - ' + nomeAluno;
+        if(typeof window.abrirFadaModalInterno === 'function') {
+            window.abrirFadaModalInterno(alunoId, nomeAluno, fadaId, status, fadaData);
+        } else {
+            console.warn("window.abrirFadaModalInterno is not a function!");
+        }
+        document.getElementById('overlayFada').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    } catch(e) {
+        alert("Erro ao abrir FADA: " + e.message);
+        console.error(e);
     }
-    document.getElementById('overlayFada').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
 }
 
 function fecharFadaModal() {

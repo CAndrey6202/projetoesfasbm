@@ -113,6 +113,16 @@ document.addEventListener('DOMContentLoaded', function () {
     categoriaSelect.addEventListener('change', updatePostoOptions);
     postoSelect.addEventListener('change', toggleOutroField);
 
+    const isRrField = document.getElementById('is_rr');
+    if (isRrField) {
+        isRrField.addEventListener('change', function() {
+            if (this.value === '1' || this.value === 'True') {
+                categoriaSelect.value = 'PME / RR';
+                updatePostoOptions();
+            }
+        });
+    }
+
     // Inicializa o estado dos campos
     toggleOutroField();
 });

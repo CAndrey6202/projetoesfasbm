@@ -140,7 +140,18 @@ def super_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or getattr(current_user, 'role', '') != 'super_admin':
-            return redirect(url_for('main.dashboard'))
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+def coordenador_provas_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            abort(403)
+        role = getattr(current_user, 'role', '')
+        if role not in ('super_admin', 'coordenador_provas'):
+            abort(403)
         return f(*args, **kwargs)
     return decorated_function
 

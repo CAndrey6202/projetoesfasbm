@@ -432,12 +432,14 @@ def registrar_aula(primeiro_horario_id):
             flash("Todas as aulas desta disciplina já foram registradas para hoje.", "info")
             return redirect(url_for('chefe.painel', data=data_aula))
 
-        # CORREÇÃO APLICADA AQUI: Filtrar apenas usuários ativos e com papel estrito de 'aluno'
+        # Lista todos os alunos vinculados a esta turma (idêntico à tela de turma e ao diário do instrutor)
         alunos_turma = db.session.query(Aluno).join(User, Aluno.user_id == User.id).filter(
-            Aluno.turma_id == aluno_chefe.turma_id,
-            User.is_active == True,
-            User.role == 'aluno'
-        ).order_by(Aluno.num_aluno).all()
+            Aluno.turma_id == aluno_chefe.turma_id
+        ).order_by(
+            Aluno.num_aluno,
+            User.nome_de_guerra,
+            User.nome_completo
+        ).all()
 
         if request.method == 'POST':
             conteudo_informado = request.form.get('conteudo')

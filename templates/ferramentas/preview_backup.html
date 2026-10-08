@@ -248,7 +248,8 @@
         const aluno = maps.users[String(alunoId)];
         if(!aluno) return;
         const panel = document.getElementById('detalhe-aluno');
-        const faltas = (rawData.frequencias || []).filter(f => String(f.aluno_id) === String(alunoId) && (f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta'));
+        const realId = getRealAlunoId(alunoId);
+        const faltas = (rawData.frequencias || []).filter(f => String(f.aluno_id) === String(realId) && (f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta'));
         let totalPeriodosPerdidos = 0;
         let faltasHTML = '';
 
@@ -267,7 +268,7 @@
             faltasHTML = `<div style="background:#fff3cd; color:#856404; padding:10px; border-radius:5px; margin-bottom:10px; border:1px solid #ffeeba;"><strong>Total Acumulado:</strong> ${totalPeriodosPerdidos} períodos ausentes.</div><table class="table-styled"><tr><th>Data</th><th>Disciplina</th><th>Período</th><th>Status</th></tr>${trs}</table>`;
         }
 
-        const processos = (rawData.justica.processos || []).filter(p => String(p.aluno_id) === String(alunoId));
+        const processos = (rawData.justica.processos || []).filter(p => String(p.aluno_id) === String(realId));
         let procHTML = processos.length === 0 ? '<p>Nenhum processo disciplinar registrado.</p>' : `
             <table class="table-styled">
                 <tr><th>Data</th><th>Fato</th><th>Sanção</th></tr>
@@ -310,11 +311,12 @@
         let turmaNome = "NÃO IDENTIFICADA NO BACKUP";
 
         if (!alunoTurmaId) {
-            const hist = (rawData.historicos || []).find(h => String(h.aluno_id) === String(currentPrintAlunoId));
+            const realPrintId = getRealAlunoId(currentPrintAlunoId);
+            const hist = (rawData.historicos || []).find(h => String(h.aluno_id) === String(realPrintId));
             if (hist && hist.turma_id) alunoTurmaId = hist.turma_id;
         }
         if (!alunoTurmaId) {
-            const freq = (rawData.frequencias || []).find(f => String(f.aluno_id) === String(currentPrintAlunoId));
+            const freq = (rawData.frequencias || []).find(f => String(f.aluno_id) === String(realPrintId));
             if (freq) {
                 const diario = maps.diarios[String(freq.diario_id)];
                 if (diario && diario.turma_id) alunoTurmaId = diario.turma_id;
@@ -346,7 +348,7 @@
         });
 
         // 3. ATRIBUIÇÃO DE FALTAS
-        const faltas = (rawData.frequencias || []).filter(f => String(f.aluno_id) === String(currentPrintAlunoId) && (f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta'));
+        const faltas = (rawData.frequencias || []).filter(f => String(f.aluno_id) === String(realPrintId) && (f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta'));
         faltas.forEach(f => {
             const diario = maps.diarios[String(f.diario_id)];
             if (diario) {
@@ -450,7 +452,7 @@
 
         // BLOCO 2: PROCESSOS E JUSTIÇA
         if (document.getElementById('chk-processos').checked) {
-            const processos = (rawData.justica.processos || []).filter(p => String(p.aluno_id) === String(currentPrintAlunoId));
+            const processos = (rawData.justica.processos || []).filter(p => String(p.aluno_id) === String(realPrintId));
             printHTML += `<div class="section-title">3. PROCEDIMENTOS DE JUSTIÇA E DISCIPLINA</div>`;
             
             if (processos.length === 0) {
@@ -476,7 +478,7 @@
 
         // BLOCO 3: ELOGIOS
         if (document.getElementById('chk-elogios').checked) {
-            const elogios = (rawData.justica.elogios || []).filter(e => String(e.aluno_id) === String(currentPrintAlunoId));
+            const elogios = (rawData.justica.elogios || []).filter(e => String(e.aluno_id) === String(realPrintId));
             printHTML += `<div class="section-title">4. ASSENTAMENTOS POSITIVOS E ELOGIOS</div>`;
             
             if (elogios.length === 0) {

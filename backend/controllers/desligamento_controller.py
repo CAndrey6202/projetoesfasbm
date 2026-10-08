@@ -99,6 +99,12 @@ def executar_desligamento():
         db.session.add(registro)
         db.session.commit()
 
+        from backend.services.log_service import LogService
+        LogService.log(
+            action="Registrou Desligamento de Aluno",
+            details=f"O aluno '{aluno.user.nome_completo}' foi desligado. Motivo: {motivo}. Observações: {observacoes}"
+        )
+
         flash(f"O aluno {aluno.user.nome_de_guerra} foi desligado com sucesso.", "success")
     except Exception as e:
         db.session.rollback()
@@ -159,6 +165,13 @@ def reverter_desligamento(registro_id):
         registro.observacoes = f"[REVERTIDO em {datetime.now().strftime('%d/%m/%Y')} para Turma: {nome_turma}] -- " + (registro.observacoes or "")
 
         db.session.commit()
+        
+        from backend.services.log_service import LogService
+        LogService.log(
+            action="Reverteu Desligamento de Aluno",
+            details=f"O desligamento do aluno '{aluno.user.nome_completo}' foi revertido e ele foi realocado na turma '{nome_turma}'."
+        )
+        
         flash(f"O aluno {aluno.user.nome_de_guerra} foi reativado com sucesso e o acesso foi desbloqueado!", "success")
     except Exception as e:
         db.session.rollback()
@@ -201,6 +214,12 @@ def exportar_dossie_pdf(aluno_id):
     )
     db.session.add(job)
     db.session.commit()
+    
+    from backend.services.log_service import LogService
+    LogService.log(
+        action="Exportou Dossiê de Desligamento",
+        details=f"O administrador exportou o PDF do dossiê de desligamento do aluno '{aluno.user.nome_completo}'."
+    )
     
     return jsonify({'success': True, 'job_id': job_id})
 

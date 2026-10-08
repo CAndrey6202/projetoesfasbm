@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_template | default("base.html") %}
 
 {% block title %}Banco de Questões - {{ materia }}{% endblock %}
 
@@ -30,9 +30,25 @@
                     </div>
                 </div>
 
+                <!-- Filtros do Banco -->
+                <div class="card shadow-sm mb-4 border-0 bg-light">
+                    <div class="card-body py-3">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="filtroData" class="form-label fw-bold small text-muted mb-1"><i class="fas fa-calendar-alt"></i> Filtrar por Data</label>
+                                <input type="date" class="form-control form-control-sm" id="filtroData">
+                            </div>
+                            <div class="col-md-9">
+                                <label for="filtroEnunciado" class="form-label fw-bold small text-muted mb-1"><i class="fas fa-search"></i> Buscar no Enunciado</label>
+                                <input type="text" class="form-control form-control-sm" id="filtroEnunciado" placeholder="Digite um trecho da questão para localizar...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="lista-questoes-banco">
                     {% for q in questoes %}
-                    <div class="card shadow-sm mb-4 border-start border-4 {% if q.ativo %}border-primary{% else %}border-danger{% endif %}">
+                    <div class="card questao-card shadow-sm mb-4 border-start border-4 {% if q.ativo %}border-primary{% else %}border-danger{% endif %}" data-data="{{ q.criado_em.strftime('%Y-%m-%d') }}">
                         <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                             <div>
                                 <span class="badge bg-dark">ID: #{{ q.id }}</span>
@@ -40,7 +56,9 @@
                                 <span class="badge bg-light text-dark border ms-2"><i class="fas fa-calendar-alt"></i> {{ q.criado_em.strftime('%d/%m/%Y') }}</span>
                             </div>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-warning" onclick="alert('Funcionalidade de edição em desenvolvimento')">
+                                <button class="btn btn-sm btn-outline-warning" 
+                                    data-questao='{{ {"id": q.id, "enunciado": q.enunciado, "assunto": q.assunto|default(""), "alternativas": q.alternativas, "resposta_correta": q.resposta_correta}|tojson|forceescape }}'
+                                    onclick="abrirModalEdicao(this)">
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="excluirQuestaoBanco({{ q.id }})">
@@ -89,7 +107,127 @@
     </div>
 </div>
 
+<!-- Modal de Edição de Questão -->
+<div class="modal fade" id="modalEditarQuestao" tabindex="-1" aria-labelledby="modalEditarQuestaoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title fw-bold" id="modalEditarQuestaoLabel"><i class="fas fa-edit"></i> Editar Questão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formEditarQuestao">
+          <input type="hidden" id="edit-questao-id">
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">Enunciado</label>
+            <textarea class="form-control border-warning bg-light" id="edit-enunciado" rows="4" required></textarea>
+          </div>
+          
+          <label class="form-label fw-bold">Alternativas (Marque a correta)</label>
+          <div id="edit-alternativas-container">
+            <!-- Alternativas geradas dinamicamente -->
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label class="form-label fw-bold">Assunto / Tag</label>
+            <input type="text" class="form-control" id="edit-assunto" placeholder="Ex: Informática Básica">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning fw-bold" onclick="salvarEdicaoQuestao()">
+            <i class="fas fa-save"></i> Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+    function abrirModalEdicao(btn) {
+        const questao = JSON.parse(btn.getAttribute('data-questao'));
+        
+        document.getElementById('edit-questao-id').value = questao.id;
+        document.getElementById('edit-enunciado').value = questao.enunciado;
+        document.getElementById('edit-assunto').value = questao.assunto || '';
+        
+        const container = document.getElementById('edit-alternativas-container');
+        container.innerHTML = '';
+        
+        const letras = ['A', 'B', 'C', 'D', 'E'];
+        
+        letras.forEach(letra => {
+            const textoAlt = questao.alternativas[letra] || '';
+            const checked = (questao.resposta_correta === letra) ? 'checked' : '';
+            
+            const html = `
+            <div class="input-group mb-2">
+                <div class="input-group-text bg-white">
+                    <input class="form-check-input mt-0 edit-radio-correta" type="radio" name="edit_resposta_correta" value="${letra}" ${checked} required>
+                    <span class="ms-2 fw-bold">${letra})</span>
+                </div>
+                <input type="text" class="form-control edit-texto-alt" data-letra="${letra}" value="${textoAlt}">
+            </div>
+            `;
+            container.innerHTML += html;
+        });
+        
+        const modalEl = document.getElementById('modalEditarQuestao');
+        document.body.appendChild(modalEl); // Fixes backdrop and z-index issues
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    function salvarEdicaoQuestao() {
+        const id = document.getElementById('edit-questao-id').value;
+        const enunciado = document.getElementById('edit-enunciado').value;
+        const assunto = document.getElementById('edit-assunto').value;
+        
+        const alternativas = {};
+        document.querySelectorAll('.edit-texto-alt').forEach(input => {
+            const letra = input.getAttribute('data-letra');
+            const texto = input.value.trim();
+            if(texto) alternativas[letra] = texto;
+        });
+
+        const radioSelecionado = document.querySelector('.edit-radio-correta:checked');
+        if (!radioSelecionado) {
+            alert('Selecione a alternativa correta.');
+            return;
+        }
+        const resposta_correta = radioSelecionado.value;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/questoes/api/questao/editar/${id}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enunciado: enunciado,
+                alternativas: alternativas,
+                resposta_correta: resposta_correta,
+                assunto: assunto
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                location.reload();
+            } else {
+                alert('Erro: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Erro na comunicação com o servidor.');
+        });
+    }
+
     // Função para Excluir (Soft Delete)
     function excluirQuestaoBanco(id) {
         if(confirm('Tem certeza que deseja remover esta questão do banco?')) {
@@ -113,5 +251,45 @@
             .catch(err => alert('Erro na comunicação com o servidor.'));
         }
     }
+
+    // Lógica de Filtros do Banco (Data e Enunciado)
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputData = document.getElementById('filtroData');
+        const inputEnunciado = document.getElementById('filtroEnunciado');
+        const questoes = document.querySelectorAll('.questao-card');
+
+        function removeAcentos(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function filtrarQuestoes() {
+            const dataBusca = inputData.value;
+            const textoBusca = removeAcentos(inputEnunciado.value.toLowerCase().trim());
+
+            questoes.forEach(card => {
+                const cardData = card.getAttribute('data-data');
+                const cardEnunciado = removeAcentos(card.querySelector('.card-title').innerText.toLowerCase());
+
+                let mostrarPorData = true;
+                if (dataBusca && cardData !== dataBusca) {
+                    mostrarPorData = false;
+                }
+
+                let mostrarPorTexto = true;
+                if (textoBusca && !cardEnunciado.includes(textoBusca)) {
+                    mostrarPorTexto = false;
+                }
+
+                if (mostrarPorData && mostrarPorTexto) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        inputData.addEventListener('change', filtrarQuestoes);
+        inputEnunciado.addEventListener('input', filtrarQuestoes);
+    });
 </script>
 {% endblock %}

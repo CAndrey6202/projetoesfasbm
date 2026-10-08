@@ -1,9 +1,11 @@
 # backend/controllers/admin_tools_controller.py
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file
+from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify
 from flask_login import login_required, current_user
 import io
 import json
+import uuid
+import pandas as pd
 from datetime import datetime, timedelta
 
 from utils.decorators import admin_or_programmer_required, admin_escola_required
@@ -18,7 +20,7 @@ tools_bp = Blueprint('tools', __name__, url_prefix='/ferramentas')
 @login_required
 @admin_or_programmer_required
 def index():
-    """Exibe a página principal do módulo de Ferramentas do Administrador."""
+    """Exibe a pÃ¡gina principal do mÃ³dulo de Ferramentas do Administrador."""
     return render_template('ferramentas/index.html')
 
 @tools_bp.route('/mail-merge', methods=['GET', 'POST'])
@@ -31,7 +33,7 @@ def mail_merge():
         output_format = request.form.get('output_format', 'docx')
 
         if not template_file or not data_file:
-            flash('Ambos os arquivos (template e dados) são obrigatórios.', 'danger')
+            flash('Ambos os arquivos (template e dados) sÃ£o obrigatÃ³rios.', 'danger')
             return redirect(url_for('tools.mail_merge'))
 
         zip_buffer, error = MailMergeService.generate_documents(template_file, data_file, output_format)
@@ -42,7 +44,7 @@ def mail_merge():
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # --- ESPIÃO: MAIL MERGE ---
+        # --- ESPIÃƒO: MAIL MERGE ---
         school_id = UserService.get_current_school_id()
         LogService.log(
             action="Utilizou Mail Merge",
@@ -64,7 +66,7 @@ def mail_merge():
 @login_required
 @admin_or_programmer_required
 def backup_escola():
-    """Gera e faz o download de um snapshot completo da edição atual da escola em formato JSON."""
+    """Gera e faz o download de um snapshot completo da ediÃ§Ã£o atual da escola em formato JSON."""
     school_id = UserService.get_current_school_id()
     if not school_id:
         flash("Nenhuma escola selecionada.", "warning")
@@ -77,7 +79,7 @@ def backup_escola():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"backup_escola_{school_id}_edicao_{timestamp}.json"
         
-        # --- ESPIÃO: BACKUP DA ESCOLA ---
+        # --- ESPIÃƒO: BACKUP DA ESCOLA ---
         LogService.log(
             action="Gerou Backup",
             details=f"Um arquivo de backup completo da escola foi gerado e baixado ({filename}).",
@@ -99,32 +101,32 @@ def backup_escola():
 @login_required
 @admin_or_programmer_required
 def reset_escola():
-    """Exibe a página com as opções de reset da escola."""
+    """Exibe a pÃ¡gina com as opÃ§Ãµes de reset da escola."""
     return render_template('ferramentas/reset_escola.html')
 
 @tools_bp.route('/limpar', methods=['POST'])
 @login_required
 @admin_or_programmer_required
 def clear_data():
-    """Processa as solicitações de limpeza e intercepta se 'instrutores' for marcado."""
+    """Processa as solicitaÃ§Ãµes de limpeza e intercepta se 'instrutores' for marcado."""
     password = request.form.get('password')
     
     if not password or not current_user.check_password(password):
-        flash('Senha incorreta. Nenhuma ação foi executada.', 'danger')
+        flash('Senha incorreta. Nenhuma aÃ§Ã£o foi executada.', 'danger')
         return redirect(url_for('tools.reset_escola'))
 
     school_id = UserService.get_current_school_id()
     if not school_id:
-        flash('Não foi possível identificar a sua escola. Ação cancelada.', 'danger')
+        flash('NÃ£o foi possÃ­vel identificar a sua escola. AÃ§Ã£o cancelada.', 'danger')
         return redirect(url_for('tools.reset_escola'))
 
     opcoes_selecionadas = request.form.getlist('opcoes')
     
     if not opcoes_selecionadas:
-        flash('Nenhuma categoria de dados foi selecionada para exclusão.', 'warning')
+        flash('Nenhuma categoria de dados foi selecionada para exclusÃ£o.', 'warning')
         return redirect(url_for('tools.reset_escola'))
 
-    # INTERCEPTAÇÃO: Se escolheu 'instrutores', pausa e manda pra tela de triagem
+    # INTERCEPTAÃ‡ÃƒO: Se escolheu 'instrutores', pausa e manda pra tela de triagem
     if 'instrutores' in opcoes_selecionadas:
         users_escola = UserService.get_users_by_school(school_id)
         instrutores = [u for u in users_escola if u.role == 'instrutor']
@@ -133,16 +135,16 @@ def clear_data():
             return render_template('ferramentas/selecionar_instrutores_reset.html',
                                    opcoes=opcoes_selecionadas,
                                    instrutores=instrutores,
-                                   password=password) # Passando a senha silenciosamente para o próximo form
+                                   password=password) # Passando a senha silenciosamente para o prÃ³ximo form
 
-    # Se não selecionou instrutores, executa a limpeza direto
+    # Se nÃ£o selecionou instrutores, executa a limpeza direto
     success, message = AdminToolsService.custom_clear_school_data(school_id, opcoes_selecionadas)
     
-    # --- ESPIÃO: RESETOU DADOS ---
+    # --- ESPIÃƒO: RESETOU DADOS ---
     if success:
         LogService.log(
             action="Reset/Limpeza da Escola",
-            details=f"O administrador realizou a exclusão em massa dos seguintes dados: {', '.join(opcoes_selecionadas)}.",
+            details=f"O administrador realizou a exclusÃ£o em massa dos seguintes dados: {', '.join(opcoes_selecionadas)}.",
             school_id=school_id
         )
     # -----------------------------
@@ -150,7 +152,7 @@ def clear_data():
     flash(message, 'success' if success else 'danger')
     return redirect(url_for('tools.reset_escola'))
 
-# --- NOVA ROTA PARA PROCESSAR A TELA INTERMEDIÁRIA ---
+# --- NOVA ROTA PARA PROCESSAR A TELA INTERMEDIÃRIA ---
 @tools_bp.route('/limpar_confirmado', methods=['POST'])
 @login_required
 @admin_or_programmer_required
@@ -158,24 +160,24 @@ def clear_data_confirmado():
     """Executa a limpeza final usando a lista filtrada de instrutores."""
     password = request.form.get('password')
     if not password or not current_user.check_password(password):
-        flash('Sessão expirada ou senha inválida.', 'danger')
+        flash('SessÃ£o expirada ou senha invÃ¡lida.', 'danger')
         return redirect(url_for('tools.reset_escola'))
 
     school_id = UserService.get_current_school_id()
     opcoes_selecionadas = request.form.getlist('opcoes')
     
-    # Pega apenas os IDs dos instrutores que PERMANECERAM marcados na tela intermediária
+    # Pega apenas os IDs dos instrutores que PERMANECERAM marcados na tela intermediÃ¡ria
     instrutores_marcados = request.form.getlist('instrutores_to_delete')
     instrutores_to_delete_ids = [int(i) for i in instrutores_marcados]
 
     # Chama o service passando a lista exata de quem deve sair
     success, message = AdminToolsService.custom_clear_school_data(school_id, opcoes_selecionadas, instructors_to_delete_ids=instrutores_to_delete_ids)
 
-    # --- ESPIÃO: RESETOU DADOS (COM INSTRUTORES) ---
+    # --- ESPIÃƒO: RESETOU DADOS (COM INSTRUTORES) ---
     if success:
         LogService.log(
             action="Reset/Limpeza da Escola",
-            details=f"O administrador realizou a exclusão em massa: {', '.join(opcoes_selecionadas)} (incluindo {len(instrutores_to_delete_ids)} instrutor(es) removido(s)).",
+            details=f"O administrador realizou a exclusÃ£o em massa: {', '.join(opcoes_selecionadas)} (incluindo {len(instrutores_to_delete_ids)} instrutor(es) removido(s)).",
             school_id=school_id
         )
     # -----------------------------------------------
@@ -246,11 +248,11 @@ def preview_backup():
                 backup_data = json.loads(file_content)
                 return render_template('ferramentas/preview_backup.html', data=backup_data, file_name=file.filename)
             except json.JSONDecodeError:
-                flash('O arquivo enviado não é um JSON válido ou está corrompido.', 'error')
+                flash('O arquivo enviado nÃ£o Ã© um JSON vÃ¡lido ou estÃ¡ corrompido.', 'error')
             except Exception as e:
                 flash(f'Ocorreu um erro ao processar o arquivo de backup: {str(e)}', 'error')
         else:
-            flash('Por favor, envie um arquivo .json válido.', 'error')
+            flash('Por favor, envie um arquivo .json vÃ¡lido.', 'error')
             
         return redirect(request.url)
         

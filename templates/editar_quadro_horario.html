@@ -40,7 +40,13 @@
     </div>
 
     {% set max_periodo_semana = 12 %}
-    {% if semana_selecionada.mostrar_periodo_15 %}
+    {% if semana_selecionada.mostrar_periodo_18 %}
+        {% set max_periodo_semana = 18 %}
+    {% elif semana_selecionada.mostrar_periodo_17 %}
+        {% set max_periodo_semana = 17 %}
+    {% elif semana_selecionada.mostrar_periodo_16 %}
+        {% set max_periodo_semana = 16 %}
+    {% elif semana_selecionada.mostrar_periodo_15 %}
         {% set max_periodo_semana = 15 %}
     {% elif semana_selecionada.mostrar_periodo_14 %}
         {% set max_periodo_semana = 14 %}
@@ -86,7 +92,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for row_idx in range(15) %}
+                {% for row_idx in range(18) %}
                 
                 {% set periodo_atual = row_idx + 1 %}
                 {% if periodo_atual <= max_periodo_semana %}
@@ -249,7 +255,7 @@
                         <div class="p-3 border rounded bg-light" style="max-height: 300px; overflow-y: auto;">
                             <small class="d-block mb-2 text-muted">Marque os tempos que deseja incluir nesta aula:</small>
                             <div class="row g-2">
-                                {% for i in range(1, 16) %}
+                                {% for i in range(1, 19) %}
                                 <div class="col-6 col-sm-4 periodo-check-wrapper" id="check_wrapper_{{ i }}" 
                                      {% if i > max_periodo_semana %}style="display:none;"{% endif %}>
                                     <div class="form-check">
@@ -575,3 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
+

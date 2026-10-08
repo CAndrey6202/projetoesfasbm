@@ -27,6 +27,7 @@ class User(UserMixin, db.Model):
     ROLE_ADMIN_SENS = 'admin_sens'
     ROLE_INSTRUTOR = 'instrutor'
     ROLE_ALUNO = 'aluno'
+    ROLE_COORDENADOR_PROVAS = 'coordenador_provas'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     matricula: Mapped[str] = mapped_column(db.String(20), unique=True, nullable=False)
@@ -40,7 +41,7 @@ class User(UserMixin, db.Model):
     foto_perfil: Mapped[str] = mapped_column(db.String(255), default='default.png')
     assinatura_padrao_path: Mapped[t.Optional[str]] = mapped_column(db.String(255), nullable=True)
 
-    role: Mapped[str] = mapped_column(db.String(20), nullable=False, default='aluno')
+    role: Mapped[str] = mapped_column(db.String(50), nullable=False, default='aluno')
 
     is_active: Mapped[bool] = mapped_column(default=False, nullable=False)
     must_change_password: Mapped[bool] = mapped_column(default=False, nullable=False)
@@ -111,9 +112,9 @@ class User(UserMixin, db.Model):
     def get_role_in_school(self, school_id: int | str | None) -> str | None:
         current_global_role = str(self.role).lower().strip()
 
-        # Superusuários só ignoram barreiras se estiverem em Modo DEC
-        if current_global_role == 'super_admin' and session.get('is_dec_mode'):
-            return 'super_admin'
+        # Superusuários e coordenadores só ignoram barreiras se estiverem em Modo DEC
+        if (current_global_role == 'super_admin' or current_global_role == 'coordenador_provas') and session.get('is_dec_mode'):
+            return current_global_role
 
         if not school_id:
             # Se não tem escola, e não tá em DEC, retorna a global (pode ser útil fora da escola)
@@ -134,10 +135,14 @@ class User(UserMixin, db.Model):
     def is_super_admin(self) -> bool:
         return str(self.role).lower().strip() == 'super_admin'
 
+    @property
+    def is_coordenador_provas(self) -> bool:
+        return str(self.role).lower().strip() == self.ROLE_COORDENADOR_PROVAS
+
     # --- Verificadores Contextuais ---
 
     def is_admin_escola_in_school(self, school_id: int | None) -> bool:
-        if self.is_super_admin and session.get('is_dec_mode') and school_id:
+        if (self.is_super_admin or self.is_coordenador_provas) and session.get('is_dec_mode') and school_id:
             return True
         return self.get_role_in_school(school_id) == self.ROLE_ADMIN_ESCOLA
 
@@ -190,8 +195,6 @@ class User(UserMixin, db.Model):
     @property
     def is_chefe_turma(self) -> bool:
         """Verifica se o usuário (aluno) possui o cargo de Chefe de Turma."""
-        if str(self.role).lower().strip() != self.ROLE_ALUNO:
-            return False
         if not self.aluno_profile:
             return False
 

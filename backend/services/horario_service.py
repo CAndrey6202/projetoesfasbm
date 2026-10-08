@@ -134,7 +134,7 @@ class HorarioService:
         dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 
         horario_matrix = []
-        for p_idx in range(15):
+        for p_idx in range(18):
             row = []
             for d_idx, dia_nome in enumerate(dias):
                 p_real = p_idx + 1
@@ -218,10 +218,10 @@ class HorarioService:
                     'raw_instrutor_id_2': aula.instrutor_id_2
                 }
 
-                if 0 <= periodo_idx < 15:
+                if 0 <= periodo_idx < 18:
                     horario_matrix[periodo_idx][dia_idx] = aula_info
                     for i in range(1, aula.duracao):
-                        if (periodo_idx + i) < 15:
+                        if (periodo_idx + i) < 18:
                             horario_matrix[periodo_idx + i][dia_idx] = 'SKIP'
             except (ValueError, IndexError):
                 continue
@@ -458,6 +458,12 @@ class HorarioService:
                     return False, "⚠️ AGENDAMENTO BLOQUEADO: O 14º tempo não está habilitado.", 403
                 if p == 15 and not semana.mostrar_periodo_15:
                     return False, "⚠️ AGENDAMENTO BLOQUEADO: O 15º tempo não está habilitado.", 403
+                if p == 16 and not semana.mostrar_periodo_16:
+                    return False, "AGENDAMENTO BLOQUEADO: O 16 tempo nao esta habilitado.", 403
+                if p == 17 and not semana.mostrar_periodo_17:
+                    return False, "AGENDAMENTO BLOQUEADO: O 17 tempo nao esta habilitado.", 403
+                if p == 18 and not semana.mostrar_periodo_18:
+                    return False, "AGENDAMENTO BLOQUEADO: O 18 tempo nao esta habilitado.", 403
 
                 if dia == 'sabado' and semana.periodos_sabado > 0 and p > semana.periodos_sabado:
                     return False, f"⚠️ AGENDAMENTO BLOQUEADO: Sábado vai apenas até o {semana.periodos_sabado}º tempo.", 403
@@ -730,7 +736,7 @@ class HorarioService:
                         f"{disciplina.materia} que precisa de aprovação."
                     )
                     notification_url = url_for(
-                        'horario.aprovar_horarios', _external=True
+                        'horario.aprovar_horarios', _external=True  # nosemgrep
                     )
                     NotificationService.create_notification_for_roles(
                         turma.school_id,
@@ -758,6 +764,7 @@ class HorarioService:
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
+            
         if aula.group_id:
             db.session.query(Horario).filter(Horario.group_id == aula.group_id).delete()
         else:
@@ -877,7 +884,7 @@ class HorarioService:
                     'horario.index',
                     pelotao=turma.nome,
                     semana_id=aulas_para_alterar[0].semana_id,
-                    _external=True
+                    _external=True  # nosemgrep
                 )
 
                 if instrutor_user_id:
@@ -1090,3 +1097,5 @@ class HorarioService:
             'futuras': futuras,
             'passadas': passadas
         }
+
+

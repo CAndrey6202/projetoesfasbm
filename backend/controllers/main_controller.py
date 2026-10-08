@@ -117,6 +117,9 @@ def selecionar_escola():
     ainda não definiu em qual contexto quer trabalhar.
     AGORA SUPORTA: Admins, Instrutores e Alunos!
     """
+    if current_user.role == 'coordenador_provas':
+        return redirect(url_for('questoes.painel_dec'))
+
     escolas_dict = {}
 
     # 1. Busca vínculos da tabela padrão (Admins, SENS, CAL)
@@ -210,6 +213,9 @@ def trocar_escola(school_id):
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
+    if current_user.role == 'coordenador_provas':
+        return redirect(url_for('questoes.painel_dec'))
+
     # Valida se o Sudo Mode está ativamente ligado para um Super Admin real
     dec_mode_active = session.get('is_dec_mode', False) and current_user.role == 'super_admin'
     
@@ -348,3 +354,15 @@ def pre_cadastro():
 
     schools = db.session.query(School).order_by(School.nome).all()
     return render_template('pre_cadastro.html', role_predefinido=role_arg, schools=schools)
+
+@main_bp.route('/limpar-alertas')
+def limpar_alertas():
+    from ..models.notification import Notification
+    from ..models.database import db
+    notifs = db.session.query(Notification).filter_by(url='#URGENTE_SENS', is_read=False).all()
+    count = len(notifs)
+    for n in notifs:
+        n.is_read = True
+    db.session.commit()
+    return f"<h1>{count} alertas de teste foram limpos com sucesso!</h1><br><a href='/dashboard'>Voltar para o sistema</a>"
+

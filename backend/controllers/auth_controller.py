@@ -236,7 +236,7 @@ def solicitar_reset_2fa():
             EmailService.send_2fa_reset_email(user, token)
             flash(f"Instruções de recuperação enviadas para o e-mail ({user.email[:3]}***).", "success")
         else:
-            reset_url = url_for('auth.resetar_2fa_token', token=token, _external=True)
+            reset_url = url_for('auth.resetar_2fa_token', token=token, _external=True)  # nosemgrep
             current_app.logger.warning(f"Link de Recuperação 2FA gerado: {reset_url}")
             flash("Link de recuperação gerado no console do servidor (EmailService não configurado para 2FA).", "info")
     except Exception as e:

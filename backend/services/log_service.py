@@ -56,7 +56,14 @@ class LogService:
                 timestamp=datetime.now()
             )
             
-            db.session.add(new_log)
+            try:
+                with db.session.begin_nested():
+                    db.session.add(new_log)
+                    db.session.flush()
+            except Exception as e:
+                print(f"ERRO AO INSERIR LOG: {e}")
+                return None
+                
             if commit:
                 db.session.commit()
             

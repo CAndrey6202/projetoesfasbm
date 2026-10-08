@@ -224,27 +224,28 @@ def manage_gestores():
         # --- PROMOVER USUÁRIO ---
         if action == 'add':
             matricula = request.form.get('matricula')
+            novo_papel = request.form.get('papel', 'super_admin')
             # Importação local para evitar erro circular
             from utils.normalizer import normalize_matricula
             mat_norm = normalize_matricula(matricula)
             
             user = db.session.execute(select(User).where(User.matricula == mat_norm)).scalar_one_or_none()
             if user:
-                if user.role == 'super_admin':
-                    flash(f'O usuário {user.nome_de_guerra or user.nome_completo} já é um Gestor DEC.', 'warning')
+                if user.role == novo_papel:
+                    flash(f'O usuário {user.nome_de_guerra or user.nome_completo} já tem este perfil.', 'warning')
                 else:
-                    user.role = 'super_admin'
+                    user.role = novo_papel
                     db.session.commit()
                     
                     # --- ESPIÃO: PROMOVEU GESTOR DEC ---
                     LogService.log(
                         action="Promoveu Gestor DEC (Global)",
-                        details=f"O usuário '{user.nome_completo}' foi promovido a Super Administrador (Gestor DEC).",
+                        details=f"O usuário '{user.nome_completo}' foi promovido para '{novo_papel}'.",
                         school_id=None
                     )
                     # -----------------------------------
                     
-                    flash(f'{user.nome_de_guerra or user.nome_completo} foi promovido a Gestor DEC com sucesso!', 'success')
+                    flash(f'{user.nome_de_guerra or user.nome_completo} foi promovido para {novo_papel} com sucesso!', 'success')
             else:
                 flash('Nenhum usuário encontrado com essa matrícula.', 'danger')
                 
@@ -263,16 +264,16 @@ def manage_gestores():
                     # --- ESPIÃO: REBAIXOU GESTOR DEC ---
                     LogService.log(
                         action="Rebaixou Gestor DEC (Global)",
-                        details=f"Os privilégios de Super Administrador foram removidos do usuário '{user.nome_completo}'.",
+                        details=f"Os privilégios de DEC foram removidos do usuário '{user.nome_completo}'.",
                         school_id=None
                     )
                     # -----------------------------------
                     
-                    flash(f'Privilégios de Gestor DEC removidos de {user.nome_de_guerra or user.nome_completo}.', 'info')
+                    flash(f'Privilégios de DEC removidos de {user.nome_de_guerra or user.nome_completo}.', 'info')
                     
         return redirect(url_for('super_admin.manage_gestores'))
         
-    gestores = db.session.scalars(select(User).where(User.role == 'super_admin').order_by(User.nome_completo)).all()
+    gestores = db.session.scalars(select(User).where(User.role.in_(['super_admin', 'coordenador_provas'])).order_by(User.nome_completo)).all()
     
     return render_template('super_admin/gestores_dec.html', gestores=gestores)
 
