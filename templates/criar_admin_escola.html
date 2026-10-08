@@ -23,7 +23,7 @@
 
   <div class="card-body">
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('user.criar_admin_escola') }}">
-      {{ csrf_token() if csrf_token is defined else "" }}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="row">
         <div class="col-md-6 mb-3">
