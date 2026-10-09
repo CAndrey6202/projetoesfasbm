@@ -257,3 +257,54 @@ def preview_backup():
         return redirect(request.url)
         
     return render_template('ferramentas/preview_backup.html', data=None)
+
+@admin_tools_bp.route('/fix-db-mojibake', methods=['GET'])
+@login_required
+@admin_required
+def fix_db_mojibake():
+    try:
+        from backend.models.processo_disciplina import ProcessoDisciplina
+        from backend.models.fada_avaliacao import FadaAvaliacao
+        from backend.app import db
+        
+        mapping = {
+            'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú',
+            'Ã ': 'Á', 'Ã‰': 'É', 'Ã ': 'Í', 'Ã“': 'Ó', 'Ãš': 'Ú',
+            'Ã¢': 'â', 'Ãª': 'ê', 'Ã®': 'î', 'Ã´': 'ô', 'Ã»': 'û',
+            'Ã‚': 'Â', 'ÃŠ': 'Ê', 'ÃŽ': 'Î', 'Ã”': 'Ô', 'Ã›': 'Û',
+            'Ã£': 'ã', 'Ãµ': 'õ', 'Ãƒ': 'Ã', 'Ã•': 'Õ',
+            'Ã§': 'ç', 'Ã‡': 'Ç',
+            'Ã\xa0': 'à', 'Ã¨': 'è', 'Ã¬': 'ì', 'Ã²': 'ò', 'Ã¹': 'ù',
+            'Ã€': 'À', 'Ãˆ': 'È', 'ÃŒ': 'Ì', 'Ã’': 'Ò', 'Ã™': 'Ù',
+            'Âº': 'º', 'Âª': 'ª', 'Â°': '°', 'Â§': '§'
+        }
+        
+        def fix_text(text):
+            if not text: return text
+            for bad, good in mapping.items():
+                text = text.replace(bad, good)
+            return text
+            
+        processos = ProcessoDisciplina.query.all()
+        for p in processos:
+            p.decisao_final = fix_text(p.decisao_final)
+            p.tipo_sancao = fix_text(p.tipo_sancao)
+            p.detalhes_sancao = fix_text(p.detalhes_sancao)
+            p.fatos = fix_text(p.fatos)
+            p.texto_defesa = fix_text(p.texto_defesa)
+            p.texto_recurso = fix_text(p.texto_recurso)
+            p.fundamentacao_recurso = fix_text(p.fundamentacao_recurso)
+            p.observacao_decisao = fix_text(p.observacao_decisao)
+            p.status = fix_text(p.status)
+            
+        fadas = FadaAvaliacao.query.all()
+        for f in fadas:
+            f.texto_recurso = fix_text(f.texto_recurso)
+            f.justificativa_recurso = fix_text(f.justificativa_recurso)
+            f.observacao = fix_text(f.observacao)
+            
+        db.session.commit()
+        return \"<h1>Banco de dados corrigido com sucesso!</h1><p>Todos os textos corrompidos (mojibake) nos processos disciplinares e FADAs foram restaurados.</p><p><a href='/'>Voltar para o Início</a></p>\"
+    except Exception as e:
+        db.session.rollback()
+        return f\"<h1>Erro ao corrigir banco de dados</h1><p>{str(e)}</p>\"
