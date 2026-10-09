@@ -258,7 +258,7 @@ def preview_backup():
         
     return render_template('ferramentas/preview_backup.html', data=None)
 
-@admin_tools_bp.route('/fix-db-mojibake', methods=['GET'])
+@tools_bp.route('/fix-db-mojibake', methods=['GET'])
 @login_required
 @admin_required
 def fix_db_mojibake():
