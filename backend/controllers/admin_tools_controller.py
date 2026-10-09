@@ -260,7 +260,7 @@ def preview_backup():
 
 @tools_bp.route('/fix-db-mojibake', methods=['GET'])
 @login_required
-@admin_required
+@admin_or_programmer_required
 def fix_db_mojibake():
     try:
         from backend.models.processo_disciplina import ProcessoDisciplina
