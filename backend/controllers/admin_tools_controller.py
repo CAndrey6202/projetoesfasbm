@@ -274,7 +274,7 @@ def fix_db_mojibake():
             'Ã‚': 'Â', 'ÃŠ': 'Ê', 'ÃŽ': 'Î', 'Ã”': 'Ô', 'Ã›': 'Û',
             'Ã£': 'ã', 'Ãµ': 'õ', 'Ãƒ': 'Ã', 'Ã•': 'Õ',
             'Ã§': 'ç', 'Ã‡': 'Ç',
-            'Ã\xa0': 'à', 'Ã¨': 'è', 'Ã¬': 'ì', 'Ã²': 'ò', 'Ã¹': 'ù',
+            'Ã ': 'à', 'Ã¨': 'è', 'Ã¬': 'ì', 'Ã²': 'ò', 'Ã¹': 'ù',
             'Ã€': 'À', 'Ãˆ': 'È', 'ÃŒ': 'Ì', 'Ã’': 'Ò', 'Ã™': 'Ù',
             'Âº': 'º', 'Âª': 'ª', 'Â°': '°', 'Â§': '§'
         }
@@ -304,7 +304,7 @@ def fix_db_mojibake():
             f.observacao = fix_text(f.observacao)
             
         db.session.commit()
-        return \"<h1>Banco de dados corrigido com sucesso!</h1><p>Todos os textos corrompidos (mojibake) nos processos disciplinares e FADAs foram restaurados.</p><p><a href='/'>Voltar para o Início</a></p>\"
+        return "<h1>Banco de dados corrigido com sucesso!</h1><p>Todos os textos corrompidos (mojibake) nos processos disciplinares e FADAs foram restaurados.</p><p><a href='/'>Voltar para o Inicio</a></p>"
     except Exception as e:
         db.session.rollback()
-        return f\"<h1>Erro ao corrigir banco de dados</h1><p>{str(e)}</p>\"
+        return f"<h1>Erro ao corrigir banco de dados</h1><p>{str(e)}</p>"
