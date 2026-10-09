@@ -24,7 +24,7 @@ class UserService:
 
     @staticmethod
     def set_active_school(school_id):
-        """Registra a escola selecionada na sessÃ£o do usuÃ¡rio."""
+        """Registra a escola selecionada na sessão do usuário."""
         school = db.session.get(School, school_id)
         if school:
             session['active_school_id'] = school.id
@@ -34,7 +34,7 @@ class UserService:
     @staticmethod
     def get_current_school_id():
         """
-        Retorna o ID da escola ativa na sessÃ£o ou baseada no contexto do usuÃ¡rio.
+        Retorna o ID da escola ativa na sessão ou baseada no contexto do usuário.
         """
         if not has_request_context(): return None
         if not current_user or not current_user.is_authenticated: return None
@@ -44,12 +44,12 @@ class UserService:
             view_as = session.get('view_as_school_id')
             if view_as: return int(view_as)
 
-        # Tenta pegar da sessÃ£o
+        # Tenta pegar da sessão
         active_id = session.get('active_school_id')
         if active_id:
             try:
                 active_id_int = int(active_id)
-                # Verifica se o usuÃ¡rio AINDA tem acesso a essa escola no banco
+                # Verifica se o usuário AINDA tem acesso a essa escola no banco
                 has_link = db.session.scalar(
                     select(UserSchool.school_id).where(
                         UserSchool.user_id == current_user.id,
@@ -60,7 +60,7 @@ class UserService:
                 else: session.pop('active_school_id', None)
             except Exception: pass
 
-        # Se nÃ£o tiver na sessÃ£o, tenta pegar a Ãºnica escola disponÃ­vel
+        # Se não tiver na sessão, tenta pegar a única escola disponível
         all_links = db.session.execute(
             select(UserSchool).where(UserSchool.user_id == current_user.id)
         ).scalars().all()
@@ -75,7 +75,7 @@ class UserService:
     @staticmethod
     def _ensure_instrutor_profile(user_id, school_id):
         """
-        Garante que exista um perfil de Instrutor para o usuÃ¡rio nesta escola especÃ­fica.
+        Garante que exista um perfil de Instrutor para o usuário nesta escola específica.
         """
         if not school_id: return False
         try:
@@ -98,19 +98,19 @@ class UserService:
                 db.session.add(new_profile)
                 return True
         except Exception as e:
-            current_app.logger.error(f"Erro ao criar perfil automÃ¡tico de instrutor: {e}")
+            current_app.logger.error(f"Erro ao criar perfil automático de instrutor: {e}")
         return False
 
     @staticmethod
     def _ensure_user_school(user_id, school_id, role):
         """
-        MÃ‰TODO CENTRAL DE VINCULAÃ‡ÃƒO.
-        Garante que o usuÃ¡rio tenha o vÃ­nculo com a escola ESPECÃFICA solicitada.
-        NÃƒO afeta vÃ­nculos com outras escolas.
+        MÉTODO CENTRAL DE VINCULAÇÃO.
+        Garante que o usuário tenha o vínculo com a escola ESPECÃFICA solicitada.
+        NÃO afeta vínculos com outras escolas.
         """
         if not school_id: return False
 
-        # Verifica se jÃ¡ existe O vÃ­nculo nesta escola especÃ­fica
+        # Verifica se já existe O vínculo nesta escola específica
         existing_link = db.session.scalar(
             select(UserSchool).where(
                 UserSchool.user_id == user_id,
@@ -119,12 +119,12 @@ class UserService:
         )
         
         if existing_link:
-            # Se jÃ¡ existe, apenas garante que o papel estÃ¡ atualizado
+            # Se já existe, apenas garante que o papel está atualizado
             if existing_link.role != role:
                 existing_link.role = role
-            return True # JÃ¡ estava vinculado
+            return True # Já estava vinculado
 
-        # Se nÃ£o existe vÃ­nculo COM ESTA ESCOLA, cria um novo.
+        # Se não existe vínculo COM ESTA ESCOLA, cria um novo.
         new_link = UserSchool(user_id=user_id, school_id=school_id, role=role)
         db.session.add(new_link)
         return True
@@ -135,12 +135,12 @@ class UserService:
         role = (data.get('role') or 'aluno').strip()
 
         if not matricula:
-            return False, "MatrÃ­cula Ã© obrigatÃ³ria."
+            return False, "Matrícula é obrigatória."
         if not school_id:
-            return False, "A escola Ã© obrigatÃ³ria para o vÃ­nculo."
+            return False, "A escola é obrigatória para o vínculo."
 
         try:
-            # 1. Busca ou Cria o UsuÃ¡rio Globalmente
+            # 1. Busca ou Cria o Usuário Globalmente
             user = db.session.scalar(select(User).filter_by(matricula=matricula))
 
             is_new_user = False
@@ -148,27 +148,27 @@ class UserService:
                 is_new_user = True
                 user = User(
                     matricula=matricula,
-                    username=matricula, # TemporÃ¡rio
+                    username=matricula, # Temporário
                     role=role,
-                    is_active=True, # PrÃ©-cadastro jÃ¡ ativa para login
+                    is_active=True, # Pré-cadastro já ativa para login
                     must_change_password=True
                 )
-                user.set_password(matricula) # Senha inicial = matrÃ­cula
+                user.set_password(matricula) # Senha inicial = matrícula
                 db.session.add(user)
                 db.session.flush() # Gera ID
 
-                # CORREÃ‡ÃƒO DO ERRO 'opm required': Passamos um valor padrÃ£o '-'
+                # CORREÇÃO DO ERRO 'opm required': Passamos um valor padrão '-'
                 if role == 'aluno':
                     db.session.add(Aluno(user_id=user.id, opm='-', edicao_id=edicao_id))
             else:
-                # CORREÃ‡ÃƒO DA TRANSFERÃŠNCIA: Garante a recriaÃ§Ã£o da ficha de aluno caso tenha sido excluÃ­da em outra escola
+                # CORREÇÃO DA TRANSFERÊNCIA: Garante a recriação da ficha de aluno caso tenha sido excluída em outra escola
                 if role == 'aluno':
                     aluno_existente = db.session.scalar(select(Aluno).filter_by(user_id=user.id))
                     if not aluno_existente:
                         db.session.add(Aluno(user_id=user.id, opm='-', edicao_id=edicao_id))
 
-            # 2. Garante o VÃ­nculo SOMENTE com a Escola Solicitada
-            # Se ele jÃ¡ existir em outra escola, isso nÃ£o afeta nada aqui.
+            # 2. Garante o Vínculo SOMENTE com a Escola Solicitada
+            # Se ele já existir em outra escola, isso não afeta nada aqui.
             UserService._ensure_user_school(user.id, school_id, role)
 
             # 3. Se for instrutor, garante o perfil de instrutor nesta escola
@@ -177,12 +177,12 @@ class UserService:
 
             db.session.commit()
 
-            msg = "UsuÃ¡rio criado e vinculado." if is_new_user else "UsuÃ¡rio existente vinculado a esta escola."
+            msg = "Usuário criado e vinculado." if is_new_user else "Usuário existente vinculado a esta escola."
             return True, msg
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erro no prÃ©-cadastro: {e}")
+            current_app.logger.error(f"Erro no pré-cadastro: {e}")
             return False, f"Erro interno: {str(e)}"
 
     @staticmethod
@@ -299,30 +299,30 @@ class UserService:
     @staticmethod
     def create_user(data, school_id=None, edicao_id=None):
         """
-        CriaÃ§Ã£o completa de usuÃ¡rio (geralmente via Admin Tools ou Cadastro Manual).
-        AGORA INTELIGENTE: Se a matrÃ­cula/email existir, reaproveita a conta e cria apenas o vÃ­nculo!
+        Criação completa de usuário (geralmente via Admin Tools ou Cadastro Manual).
+        AGORA INTELIGENTE: Se a matrícula/email existir, reaproveita a conta e cria apenas o vínculo!
         """
         try:
-            # Define a escola do contexto se nÃ£o passada
+            # Define a escola do contexto se não passada
             if not school_id:
                 school_id = UserService.get_current_school_id()
 
             role = data.get('role', 'aluno')
             password = data.get('password') or 'mudar123'
 
-            # 1. Busca se o usuÃ¡rio jÃ¡ existe no sistema globalmente
+            # 1. Busca se o usuário já existe no sistema globalmente
             user = db.session.scalar(
                 select(User).where(or_(User.email == data['email'], User.matricula == data['matricula']))
             )
 
             if not user:
-                # 2. Se NÃƒO existe, cria do zero normalmente
+                # 2. Se NÃO existe, cria do zero normalmente
                 user = User(
                     email=data['email'], 
                     matricula=data['matricula'], 
                     nome_completo=data['nome_completo'],
                     nome_de_guerra=data.get('nome_de_guerra'), 
-                    role='membro', # A permissÃ£o real fica no vÃ­nculo agora
+                    role='membro', # A permissão real fica no vínculo agora
                     posto_graduacao=data.get('posto_graduacao'),
                     is_active=True,
                     must_change_password=True
@@ -343,7 +343,7 @@ class UserService:
                 if not aluno_existente:
                     db.session.add(Aluno(user_id=user.id, opm='-', edicao_id=edicao_id))
 
-            # 5. VINCULAÃ‡ÃƒO NA ESCOLA ATUAL
+            # 5. VINCULAÇÃO NA ESCOLA ATUAL
             if school_id and role != 'super_admin':
                 UserService._ensure_user_school(user.id, school_id, role)
                 if role == 'instrutor':
@@ -359,10 +359,10 @@ class UserService:
     @staticmethod
     def set_user_role_for_school(user_id, school_id, new_role):
         user = db.session.get(User, user_id)
-        if not user: return False, "UsuÃ¡rio nÃ£o encontrado."
+        if not user: return False, "Usuário não encontrado."
 
         try:
-            # Usa o mÃ©todo centralizado para garantir o vÃ­nculo/atualizaÃ§Ã£o
+            # Usa o método centralizado para garantir o vínculo/atualização
             UserService._ensure_user_school(user_id, school_id, new_role)
             
             if new_role == 'aluno':
@@ -371,7 +371,7 @@ class UserService:
                 UserService._ensure_instrutor_profile(user_id, school_id)
             
             db.session.commit()
-            return True, "PermissÃ£o atualizada na escola com sucesso."
+            return True, "Permissão atualizada na escola com sucesso."
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Erro ao setar role: {e}")
@@ -382,7 +382,7 @@ class UserService:
     @staticmethod
     def update_user(user_id, data):
         user = db.session.get(User, user_id)
-        if not user: return False, "UsuÃ¡rio nÃ£o encontrado."
+        if not user: return False, "Usuário não encontrado."
         try:
             if 'nome_completo' in data: user.nome_completo = data['nome_completo']
             if 'nome_de_guerra' in data: user.nome_de_guerra = data['nome_de_guerra']
@@ -409,7 +409,7 @@ class UserService:
                 .order_by(User.nome_completo)
             ).all()
         except Exception as e:
-            current_app.logger.error(f"Erro ao buscar usuÃ¡rios da escola {school_id}: {e}")
+            current_app.logger.error(f"Erro ao buscar usuários da escola {school_id}: {e}")
             return []
     
     @staticmethod
@@ -432,15 +432,15 @@ class UserService:
     def remove_school_role(user_id, school_id):
         user = db.session.get(User, user_id)
         if user and user.role == 'super_admin':
-            return False, "NÃ£o permitido."
+            return False, "Não permitido."
 
         assignment = db.session.scalar(select(UserSchool).filter_by(user_id=user_id, school_id=school_id))
         if not assignment:
-            return False, "VÃ­nculo nÃ£o encontrado."
+            return False, "Vínculo não encontrado."
 
         db.session.delete(assignment)
         db.session.commit()
-        return True, "VÃ­nculo removido."
+        return True, "Vínculo removido."
 
     @staticmethod
     def delete_user_by_id(user_id):
@@ -449,14 +449,14 @@ class UserService:
     @staticmethod
     def delete_user(user_id):
         """
-        ExclusÃ£o profunda de usuÃ¡rio.
+        Exclusão profunda de usuário.
         """
         try:
             user = db.session.get(User, user_id)
-            if not user: return False, "UsuÃ¡rio nÃ£o encontrado."
+            if not user: return False, "Usuário não encontrado."
             
             if user.role == 'super_admin':
-                 return False, "NÃ£o Ã© permitido excluir administradores globais."
+                 return False, "Não é permitido excluir administradores globais."
 
             # Limpezas profundas
             # 1. Instrutor
@@ -472,16 +472,16 @@ class UserService:
             aluno = db.session.scalar(select(Aluno).filter_by(user_id=user.id))
             if aluno: db.session.delete(aluno)
 
-            # 3. VÃ­nculos e DiÃ¡rios
+            # 3. Vínculos e Diários
             DiarioClasse.query.filter_by(responsavel_id=user.id).update({'responsavel_id': None})
             DiarioClasse.query.filter_by(instrutor_assinante_id=user.id).update({'instrutor_assinante_id': None})
             db.session.query(UserSchool).filter(UserSchool.user_id == user.id).delete()
 
             db.session.delete(user)
             db.session.commit()
-            return True, "UsuÃ¡rio excluÃ­do com sucesso."
+            return True, "Usuário excluído com sucesso."
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erro ao excluir usuÃ¡rio {user_id}: {str(e)}")
+            current_app.logger.error(f"Erro ao excluir usuário {user_id}: {str(e)}")
             return False, f"Erro ao excluir: {str(e)}"

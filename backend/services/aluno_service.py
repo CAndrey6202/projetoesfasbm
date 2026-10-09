@@ -42,7 +42,7 @@ from utils.normalizer import normalize_name
 
 
 
-# ImportaÃ§Ã£o para garantir o contexto da sessÃ£o
+# Importação para garantir o contexto da sessão
 
 from .user_service import UserService
 
@@ -64,15 +64,15 @@ def _save_profile_picture(file):
 
     
 
-    # Valida extensÃ£o bÃ¡sica
+    # Valida extensão básica
 
     if not allowed_file(file.filename, file.stream, ALLOWED_EXTENSIONS):
 
-        return None, "Tipo de arquivo de imagem nÃ£o permitido."
+        return None, "Tipo de arquivo de imagem não permitido."
 
     
 
-    # COMPRESSÃƒO AUTOMÃTICA (256x256, Qualidade 60, JPEG)
+    # COMPRESSÃO AUTOMÃTICA (256x256, Qualidade 60, JPEG)
 
     compressed_file = compress_image_to_memory(file, max_size=(256, 256), quality=60)
 
@@ -86,7 +86,7 @@ def _save_profile_picture(file):
 
     try:
 
-        # Gera nome Ãºnico
+        # Gera nome único
 
         filename = secure_filename(compressed_file.filename)
 
@@ -232,7 +232,7 @@ class AlunoService:
 
         if not aluno:
 
-            return False, "Aluno nÃ£o encontrado ou pertence a outra escola."
+            return False, "Aluno não encontrado ou pertence a outra escola."
 
 
 
@@ -252,11 +252,11 @@ class AlunoService:
 
                     except Exception as e:
 
-                        current_app.logger.error(f"NÃ£o foi possÃ­vel remover a foto antiga: {e}")
+                        current_app.logger.error(f"Não foi possível remover a foto antiga: {e}")
 
 
 
-            # Salva a nova foto jÃ¡ comprimida
+            # Salva a nova foto já comprimida
 
             filename, msg = _save_profile_picture(file)
 
@@ -282,7 +282,7 @@ class AlunoService:
 
         if not aluno:
 
-            return False, "Aluno nÃ£o encontrado."
+            return False, "Aluno não encontrado."
 
 
 
@@ -298,7 +298,7 @@ class AlunoService:
 
         if not all([nome_completo, opm, email_novo, turma_id_val]):
 
-            return False, "Todos os campos de dados bÃ¡sicos sÃ£o obrigatÃ³rios."
+            return False, "Todos os campos de dados básicos são obrigatórios."
 
 
 
@@ -308,7 +308,7 @@ class AlunoService:
 
             if not new_turma or new_turma.school_id != UserService.get_current_school_id():
 
-                return False, "Turma invÃ¡lida ou de outra escola."
+                return False, "Turma inválida ou de outra escola."
 
 
 
@@ -316,7 +316,7 @@ class AlunoService:
 
                 if db.session.scalar(select(User).where(User.email == email_novo, User.id != aluno.user.id)):
 
-                    return False, "O e-mail fornecido jÃ¡ estÃ¡ em uso por outra conta."
+                    return False, "O e-mail fornecido já está em uso por outra conta."
 
 
 
@@ -368,7 +368,7 @@ class AlunoService:
 
         if not aluno:
 
-            return False, "Aluno nÃ£o encontrado."
+            return False, "Aluno não encontrado."
 
         
 
@@ -392,9 +392,9 @@ class AlunoService:
 
                     HistoricoAluno.aluno_id == aluno_id,
 
-                    HistoricoAluno.tipo == 'FunÃ§Ã£o de Escola',
+                    HistoricoAluno.tipo == 'Função de Escola',
 
-                    HistoricoAluno.descricao.like(f"%Assumiu a funÃ§Ã£o de {funcao_antiga}%"),
+                    HistoricoAluno.descricao.like(f"%Assumiu a função de {funcao_antiga}%"),
 
                     HistoricoAluno.data_fim.is_(None)
 
@@ -412,9 +412,9 @@ class AlunoService:
 
                     aluno_id=aluno_id,
 
-                    tipo='FunÃ§Ã£o de Escola',
+                    tipo='Função de Escola',
 
-                    descricao=f'Assumiu a funÃ§Ã£o de {funcao_nova}.',
+                    descricao=f'Assumiu a função de {funcao_nova}.',
 
                     data_inicio=data_evento
 
@@ -430,15 +430,15 @@ class AlunoService:
 
             db.session.commit()
 
-            return True, "FunÃ§Ã£o do aluno atualizada com sucesso!"
+            return True, "Função do aluno atualizada com sucesso!"
 
         except Exception as e:
 
             db.session.rollback()
 
-            current_app.logger.error(f"Erro ao atualizar funÃ§Ã£o do aluno: {e}")
+            current_app.logger.error(f"Erro ao atualizar função do aluno: {e}")
 
-            return False, "Ocorreu um erro ao atualizar a funÃ§Ã£o."
+            return False, "Ocorreu um erro ao atualizar a função."
 
 
 
@@ -450,7 +450,7 @@ class AlunoService:
 
         if not aluno:
 
-            return False, "Aluno nÃ£o encontrado."
+            return False, "Aluno não encontrado."
 
 
 
@@ -464,7 +464,7 @@ class AlunoService:
 
                 db.session.commit()
 
-                return True, "Aluno e todos os seus registros foram excluÃ­dos com sucesso!"
+                return True, "Aluno e todos os seus registros foram excluídos com sucesso!"
 
             else:
 
@@ -472,7 +472,7 @@ class AlunoService:
 
                 db.session.commit()
 
-                return True, "Perfil de aluno Ã³rfÃ£o removido com sucesso."
+                return True, "Perfil de aluno órfão removido com sucesso."
 
         except Exception as e:
 
@@ -618,7 +618,7 @@ class AlunoService:
 
 
 
-        # Buscar campanhas obrigatÃ³rias e ativas para a escola do aluno
+        # Buscar campanhas obrigatórias e ativas para a escola do aluno
 
         campanhas = db.session.query(CampanhaAvaliacao).filter_by(
 
@@ -642,7 +642,7 @@ class AlunoService:
 
 
 
-        # Identificar instrutores vÃ¡lidos da turma (ignorando 'C Al / S Ens')
+        # Identificar instrutores válidos da turma (ignorando 'C Al / S Ens')
 
         instrutores_ids = set()
 
@@ -697,7 +697,7 @@ class AlunoService:
 
 
 
-        # Verificar se o aluno jÃ¡ respondeu para TODOS os instrutores vÃ¡lidos nestas campanhas
+        # Verificar se o aluno já respondeu para TODOS os instrutores válidos nestas campanhas
 
         for campanha in campanhas:
 
