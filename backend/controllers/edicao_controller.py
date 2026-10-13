@@ -52,8 +52,8 @@ def criar():
             school_id=school_id,
             npccal_type=npccal_type,
             data_formatura=datetime.strptime(data_formatura_str, '%Y-%m-%d').date() if data_formatura_str else None,
-            fada_data_inicio=datetime.strptime(fada_inicio_str, '%Y-%m-%dT%H:%M') if fada_inicio_str and npccal_type != 'ctsp' else None,
-            fada_data_fim=datetime.strptime(fada_fim_str, '%Y-%m-%dT%H:%M') if fada_fim_str and npccal_type != 'ctsp' else None,
+            fada_data_inicio=datetime.strptime(fada_inicio_str, '%Y-%m-%dT%H:%M') if fada_inicio_str and npccal_type in ['cbfpm', 'cspm'] else None,
+            fada_data_fim=datetime.strptime(fada_fim_str, '%Y-%m-%dT%H:%M') if fada_fim_str and npccal_type in ['cbfpm', 'cspm'] else None,
         )
         db.session.add(nova)
         db.session.commit()
@@ -86,8 +86,8 @@ def editar(edicao_id):
         fada_fim_str = request.form.get('fada_data_fim', '').strip()
 
         edicao.data_formatura = datetime.strptime(data_formatura_str, '%Y-%m-%d').date() if data_formatura_str else None
-        edicao.fada_data_inicio = datetime.strptime(fada_inicio_str, '%Y-%m-%dT%H:%M') if fada_inicio_str and edicao.npccal_type != 'ctsp' else None
-        edicao.fada_data_fim = datetime.strptime(fada_fim_str, '%Y-%m-%dT%H:%M') if fada_fim_str and edicao.npccal_type != 'ctsp' else None
+        edicao.fada_data_inicio = datetime.strptime(fada_inicio_str, '%Y-%m-%dT%H:%M') if fada_inicio_str and edicao.npccal_type in ['cbfpm', 'cspm'] else None
+        edicao.fada_data_fim = datetime.strptime(fada_fim_str, '%Y-%m-%dT%H:%M') if fada_fim_str and edicao.npccal_type in ['cbfpm', 'cspm'] else None
 
         db.session.commit()
         flash(f"Edição '{edicao.nome}' atualizada com sucesso!", "success")

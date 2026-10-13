@@ -135,6 +135,7 @@
                             <option value="ctsp">CTSP</option>
                             <option value="cbfpm">CBFPM</option>
                             <option value="cspm">CSPM</option>
+                            <option value="outros">Outros</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -186,6 +187,7 @@
                                 <option value="ctsp" {{ 'selected' if ed.npccal_type == 'ctsp' else '' }}>CTSP</option>
                                 <option value="cbfpm" {{ 'selected' if ed.npccal_type == 'cbfpm' else '' }}>CBFPM</option>
                                 <option value="cspm" {{ 'selected' if ed.npccal_type == 'cspm' else '' }}>CSPM</option>
+                                <option value="outros" {{ 'selected' if ed.npccal_type == 'outros' else '' }}>Outros</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -266,7 +268,7 @@
             const toggleFada = () => {
                 const target = document.querySelector(select.dataset.fadaTarget);
                 if (target) {
-                    if (select.value === 'ctsp') {
+                    if (select.value === 'ctsp' || select.value === 'outros') {
                         target.style.display = 'none';
                         // Limpa os valores quando esconde
                         const inputs = target.querySelectorAll('input');
