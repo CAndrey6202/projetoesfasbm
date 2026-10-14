@@ -111,6 +111,7 @@
             <thead class="table-light">
                 <tr>
                     <th>Título</th>
+                    <th>Ciclos</th>
                     <th>Status</th>
                     <th>Agendamento</th>
                     <th>Respostas</th>
@@ -122,6 +123,15 @@
                     {% for c in campanhas %}
                     <tr>
                         <td><strong>{{ c.titulo }}</strong></td>
+                        <td>
+                            {% if c.lista_ciclos_ids %}
+                                {% for cid in c.lista_ciclos_ids %}
+                                    <span class="badge bg-secondary mb-1">{{ mapa_ciclos.get(cid, 'Ciclo ' ~ cid) }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="badge bg-light text-dark border">Todos os Ciclos</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if c.is_ativa %}
                                 <span class="badge bg-success">Ativa</span>
@@ -195,6 +205,28 @@
                 <label class="form-label">Título da Avaliação</label>
                 <input type="text" class="form-control" name="titulo" required placeholder="Ex: Avaliação Final 2026">
                 <small class="text-muted">Isso criará uma campanha de avaliação para todos os alunos da escola atual avaliarem os instrutores da turma deles.</small>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ciclos da Avaliação *</label>
+                <div class="border rounded p-2 bg-light">
+                    {% if ciclos %}
+                        {% for ciclo in ciclos %}
+                        <div class="form-check">
+                            <input class="form-check-input check-ciclo" type="checkbox" name="ciclos_ids" value="{{ ciclo.id }}" id="ciclo_{{ ciclo.id }}">
+                            <label class="form-check-label" for="ciclo_{{ ciclo.id }}">
+                                <strong>{{ ciclo.nome }}</strong>
+                            </label>
+                        </div>
+                        {% endfor %}
+                        <div class="mt-2 pt-2 border-top d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="document.querySelectorAll('.check-ciclo').forEach(c => c.checked = true)">Marcar Todos</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" onclick="document.querySelectorAll('.check-ciclo').forEach(c => c.checked = false)">Desmarcar Todos</button>
+                        </div>
+                    {% else %}
+                        <small class="text-danger d-block">Nenhum ciclo cadastrado para esta edição/escola. Cadastre ciclos em Semanas/Disciplinas antes de criar a avaliação.</small>
+                    {% endif %}
+                </div>
+                <small class="text-muted">Apenas as disciplinas e instrutores dos ciclos selecionados serão avaliados pelos alunos.</small>
             </div>
             <div class="mb-3">
                 <label class="form-label">Agendar Início</label>

@@ -45,8 +45,15 @@ def index():
         stmt_campanhas = stmt_campanhas.where(CampanhaAvaliacao.edicao_id == active_edicao_id)
         
     campanhas = db.session.scalars(stmt_campanhas.order_by(CampanhaAvaliacao.id.desc())).all()
-    
-    return render_template('questionario/index.html', questionarios=questionarios, campanhas=campanhas)
+
+    from ..models.ciclo import Ciclo
+    stmt_ciclos = select(Ciclo).where(Ciclo.school_id == school_id)
+    if active_edicao_id:
+        stmt_ciclos = stmt_ciclos.where(Ciclo.edicao_id == active_edicao_id)
+    ciclos = db.session.scalars(stmt_ciclos.order_by(Ciclo.nome)).all()
+    mapa_ciclos = {c.id: c.nome for c in ciclos}
+
+    return render_template('questionario/index.html', questionarios=questionarios, campanhas=campanhas, ciclos=ciclos, mapa_ciclos=mapa_ciclos)
 
 @questionario_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
@@ -276,13 +283,21 @@ def nova_avaliacao_instrutores():
     else:
         data_inicio_obj = datetime.utcnow()
 
+    ciclos_selecionados = request.form.getlist('ciclos_ids')
+    if not ciclos_selecionados:
+        flash('Selecione pelo menos um ciclo para a avaliação.', 'danger')
+        return redirect(url_for('questionario.index'))
+
+    ciclos_ids_str = ",".join(str(cid) for cid in ciclos_selecionados if str(cid).isdigit())
+
     nova_campanha = CampanhaAvaliacao(
         titulo=titulo,
         is_ativa=True,
         is_obrigatoria=is_obrigatoria,
         data_inicio=data_inicio_obj,
         school_id=school_id,
-        edicao_id=active_edicao_id
+        edicao_id=active_edicao_id,
+        ciclos_ids=ciclos_ids_str
     )
     db.session.add(nova_campanha)
     db.session.commit()

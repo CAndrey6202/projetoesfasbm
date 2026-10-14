@@ -23,6 +23,7 @@ class CampanhaAvaliacao(db.Model):
     data_inicio: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow)
     school_id: Mapped[int] = mapped_column(db.ForeignKey('schools.id'), nullable=False)
     edicao_id: Mapped[t.Optional[int]] = mapped_column(db.ForeignKey('edicoes.id'), nullable=True)
+    ciclos_ids: Mapped[t.Optional[str]] = mapped_column(db.String(255), nullable=True)
 
     school: Mapped["School"] = relationship()
     edicao: Mapped[t.Optional["Edicao"]] = relationship()
@@ -46,6 +47,15 @@ class CampanhaAvaliacao(db.Model):
         if not self.data_inicio:
             return True
         return datetime.utcnow() >= self.data_inicio
+
+    @property
+    def lista_ciclos_ids(self) -> list[int]:
+        if not self.ciclos_ids:
+            return []
+        try:
+            return [int(cid.strip()) for cid in self.ciclos_ids.split(',') if cid.strip().isdigit()]
+        except Exception:
+            return []
 
     def __repr__(self):
         return f"<CampanhaAvaliacao id={self.id} titulo='{self.titulo}' ativa={self.is_ativa}>"

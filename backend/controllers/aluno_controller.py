@@ -361,11 +361,14 @@ def responder_avaliacao(id):
         
     # Buscar os instrutores da turma conectando com Disciplina para evitar vazamento entre escolas com turmas de mesmo nome
     from backend.models.disciplina import Disciplina
-    vinculos = db.session.query(DisciplinaTurma).join(
+    query_vinculos = db.session.query(DisciplinaTurma).join(
         Disciplina, DisciplinaTurma.disciplina_id == Disciplina.id
     ).filter(
         Disciplina.turma_id == aluno.turma.id
-    ).all()
+    )
+    if campanha.lista_ciclos_ids:
+        query_vinculos = query_vinculos.filter(Disciplina.ciclo_id.in_(campanha.lista_ciclos_ids))
+    vinculos = query_vinculos.all()
     
     registros = []
     for v in vinculos:
