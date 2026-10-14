@@ -109,6 +109,12 @@
                                         <i class="fas fa-file-pdf"></i>
                                     </button>
                                 {% endif %}
+
+                                {% if item.fada_obj %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="abrirModalAnularFada({{ fada_id }}, '{{ item.aluno.user.nome_completo | replace("'", "\'") }}')" title="Anular e Refazer FADA">
+                                        <i class="fas fa-ban"></i> Anular
+                                    </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -119,6 +125,39 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Anular FADA -->
+<div class="modal fade" id="modalAnularFada" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Anular Avaliação FADA</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formAnularFada" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <p class="mb-2">Você está prestes a anular a FADA do aluno:</p>
+                    <div class="alert alert-secondary py-2 fw-bold text-dark fs-6" id="nomeAlunoAnulacao">-</div>
+                    
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Atenção:</strong> Todas as notas e assinaturas digitais serão apagadas e a FADA retornará ao status <strong>RASCUNHO em branco</strong> para ser preenchida e assinada novamente. O nome e o motivo de quem anulou serão registrados no histórico de auditoria.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivo_anulacao_fada" class="form-label fw-bold">Motivo da Anulação (Obrigatório):</label>
+                        <textarea class="form-control border-danger" id="motivo_anulacao_fada" name="motivo_anulacao" rows="3" required minlength="10" placeholder="Ex: Cadastrada com erro na pontualidade do aluno antes da revisão final..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger fw-bold"><i class="fas fa-ban me-1"></i>Confirmar Anulação</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -180,6 +219,15 @@ function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
 function fecharFadaModal() {
     document.getElementById('overlayFada').style.display = 'none';
     document.body.style.overflow = '';
+}
+
+function abrirModalAnularFada(fadaId, nomeAluno) {
+    document.getElementById('nomeAlunoAnulacao').innerText = nomeAluno;
+    document.getElementById('formAnularFada').action = '/justica/fada/anular/' + fadaId;
+    document.getElementById('motivo_anulacao_fada').value = '';
+    const modalEl = document.getElementById('modalAnularFada');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
 }
 
 // Lógica de Polling do PDF

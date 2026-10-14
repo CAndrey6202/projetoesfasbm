@@ -1185,6 +1185,85 @@ def anular_processo(pid):
     flash(f"Processo Nº {processo.id} anulado com sucesso. O registro foi salvo no histórico.", "success")
     return redirect(url_for('justica.index'))
 
+@justica_bp.route('/fada/anular/<int:fada_id>', methods=['POST'])
+@login_required
+@can_manage_justice_required
+def anular_fada(fada_id):
+    fada = db.session.get(FadaAvaliacao, fada_id)
+    if not fada:
+        flash("Avaliação FADA não encontrada.", "danger")
+        return redirect(url_for('justica.fada_boletim'))
+
+    motivo = request.form.get('motivo_anulacao', '').strip()
+    if not motivo or len(motivo) < 10:
+        flash("A motivação da anulação deve ter no mínimo 10 caracteres.", "warning")
+        return redirect(url_for('justica.fada_boletim'))
+
+    aluno = fada.aluno
+    nome_aluno = aluno.user.nome_completo if aluno and aluno.user else f"ID {fada.aluno_id}"
+    media_anterior = fada.media_final
+
+    # 1. Registro detalhado no Log / Espião
+    school_id = UserService.get_current_school_id()
+    data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+    detalhes_log = (
+        f"FADA ID {fada.id} do aluno {nome_aluno} foi ANULADA por {current_user.nome_completo} "
+        f"(ID: {current_user.id}). Média anterior: {media_anterior:.4f}. "
+        f"Motivo: {motivo}"
+    )
+    LogService.log(
+        action="Anulou Avaliação FADA",
+        details=detalhes_log,
+        school_id=school_id
+    )
+
+    # 2. Reseta os atributos preenchidos para recriar/reabrir em branco
+    attrs = [
+        'expressao', 'planejamento', 'perseveranca', 'apresentacao',
+        'lealdade', 'tato', 'equilibrio', 'disciplina',
+        'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade',
+        'diccao', 'lideranca', 'relacionamento', 'etica',
+        'produtividade', 'eficiencia'
+    ]
+    for attr in attrs:
+        setattr(fada, attr, 0.0)
+
+    fada.media_final = 0.0
+    fada.status = 'RASCUNHO'
+    fada.ndisc_snapshot = 0.0
+    fada.aat_snapshot = 0.0
+    fada.data_envio = None
+
+    # Limpa todas as assinaturas digitais da comissão e do aluno
+    fada.data_ass_pres = None
+    fada.hash_pres = None
+    fada.ip_pres = None
+
+    fada.data_ass_m1 = None
+    fada.hash_m1 = None
+    fada.ip_m1 = None
+
+    fada.data_ass_m2 = None
+    fada.hash_m2 = None
+    fada.ip_m2 = None
+
+    fada.data_assinatura = None
+    fada.hash_integridade = None
+    fada.ip_assinatura = None
+    fada.user_agent_aluno = None
+    fada.texto_recurso = None
+
+    # Carimbo de auditoria na observação da FADA
+    nota_auditoria = f"[FADA ANULADA em {data_formatada} por {current_user.nome_completo} (ID {current_user.id}) - Motivo: {motivo}]"
+    if fada.observacao and fada.observacao.strip():
+        fada.observacao = f"{nota_auditoria}\n" + fada.observacao
+    else:
+        fada.observacao = nota_auditoria
+
+    db.session.commit()
+    flash(f"A FADA de {nome_aluno} foi anulada com sucesso! O formulário foi reaberto em branco como RASCUNHO para novo preenchimento.", "success")
+    return redirect(url_for('justica.fada_boletim'))
+
 @justica_bp.route('/fada/exportar-pdf/<int:fada_id>')
 @login_required
 def exportar_fada_pdf(fada_id):
