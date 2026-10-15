@@ -828,7 +828,16 @@ def fada_boletim():
     turma_id = request.args.get('turma_id', type=int)
 
     active_edicao_id = session.get('active_edicao_id')
-    query = select(Aluno).join(Turma).join(User).where(Turma.school_id == school_id)
+    query = (
+        select(Aluno)
+        .options(
+            joinedload(Aluno.user),
+            joinedload(Aluno.turma).joinedload(Turma.edicao)
+        )
+        .join(Turma)
+        .join(User)
+        .where(Turma.school_id == school_id)
+    )
     if active_edicao_id:
         query = query.where(Turma.edicao_id == active_edicao_id)
     if turma_id: query = query.where(Turma.id == turma_id)
@@ -844,7 +853,7 @@ def fada_boletim():
     for u in all_users:
         try:
             if hasattr(u, 'schools'):
-                if any(str(s.id) == str(school_id) for s in u.schools):
+                if any(str(s.id) == str(school_id) for s in u.schools if s):
                     if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id):
                         staff_users.append(u)
         except: continue
@@ -854,17 +863,33 @@ def fada_boletim():
 
     lista = []
     for aluno in alunos:
-        fada_obj = db.session.scalar(select(FadaAvaliacao).where(FadaAvaliacao.aluno_id == aluno.id).order_by(FadaAvaliacao.id.desc()))
-        aat, ndisc, fada_val = JusticaService.calcular_aat_final(aluno.id)
+        try:
+            fada_obj = db.session.scalar(
+                select(FadaAvaliacao)
+                .options(
+                    joinedload(FadaAvaliacao.presidente),
+                    joinedload(FadaAvaliacao.membro1),
+                    joinedload(FadaAvaliacao.membro2)
+                )
+                .where(FadaAvaliacao.aluno_id == aluno.id)
+                .order_by(FadaAvaliacao.id.desc())
+            )
+            aat, ndisc, fada_val = JusticaService.calcular_aat_final(aluno.id)
 
-        dt_inicio, dt_limite = JusticaService.get_datas_limites(aluno.turma_id)
-        punicoes = db.session.scalars(select(ProcessoDisciplina).where(ProcessoDisciplina.aluno_id == aluno.id, ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.decisao_final != 'Justificado')).all()
-        punicoes_validas = [p for p in punicoes if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite)]
+            dt_inicio, dt_limite = JusticaService.get_datas_limites(aluno.turma_id)
+            punicoes = db.session.scalars(select(ProcessoDisciplina).where(ProcessoDisciplina.aluno_id == aluno.id, ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.decisao_final != 'Justificado')).all()
+            punicoes_validas = [p for p in punicoes if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite)]
 
-        lista.append({
-            'id': aluno.id, 'aluno': aluno, 'turma': aluno.turma.nome,
-            'ndisc': ndisc, 'fada': fada_val, 'aat': aat, 'fada_obj': fada_obj, 'punicoes_pendentes': punicoes_validas
-        })
+            lista.append({
+                'id': aluno.id, 'aluno': aluno, 'turma': aluno.turma.nome if aluno.turma else '-',
+                'ndisc': ndisc, 'fada': fada_val, 'aat': aat, 'fada_obj': fada_obj, 'punicoes_pendentes': punicoes_validas
+            })
+        except Exception as e:
+            current_app.logger.error(f"Erro ao processar aluno {aluno.id} no boletim FADA: {e}")
+            lista.append({
+                'id': aluno.id, 'aluno': aluno, 'turma': aluno.turma.nome if aluno.turma else '-',
+                'ndisc': 10.0, 'fada': None, 'aat': None, 'fada_obj': None, 'punicoes_pendentes': []
+            })
 
     return render_template('justica/fada_lista_alunos.html', dados=lista, turmas=turmas, avaliadores=staff_users)
 

@@ -278,7 +278,7 @@ class JusticaService:
         if not aluno:
             return None, None, None
         if not JusticaService._is_curso_pontuado(turma=aluno.turma):
-            return None, None, None
+            return None, 10.0, None
 
         query_proc = select(ProcessoDisciplina).where(
             ProcessoDisciplina.aluno_id == aluno_id,
