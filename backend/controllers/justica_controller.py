@@ -1,5 +1,5 @@
 # backend/controllers/justica_controller.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, Response, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, Response, session, current_app
 from flask_login import login_required, current_user
 from urllib.parse import quote
 from weasyprint import HTML
@@ -16,6 +16,7 @@ from ..models.processo_disciplina import ProcessoDisciplina, StatusProcesso
 from ..models.elogio import Elogio
 from ..models.aluno import Aluno
 from ..models.user import User
+from ..models.user_school import UserSchool
 from ..models.turma import Turma
 from ..models.discipline_rule import DisciplineRule
 from ..models.fada_avaliacao import FadaAvaliacao
@@ -859,7 +860,7 @@ def fada_boletim():
             if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id) or getattr(u, 'is_super_admin', False) or u.role == 'admin'
         ]
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar staff: {e}")
+        logger.error(f"Erro ao buscar staff: {e}")
         staff_users = []
 
     if current_user not in staff_users:
@@ -948,7 +949,7 @@ def fada_boletim():
                 'punicoes_pendentes': punicoes_validas
             })
         except Exception as e:
-            current_app.logger.error(f"Erro ao processar aluno {aluno.id} no boletim FADA: {e}")
+            logger.error(f"Erro ao processar aluno {aluno.id} no boletim FADA: {e}")
             lista.append({
                 'id': aluno.id,
                 'aluno': aluno,
