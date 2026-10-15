@@ -846,49 +846,118 @@ def fada_boletim():
 
     turmas = TurmaService.get_turmas_by_school(school_id, edicao_id=active_edicao_id)
 
-    query_staff = select(User).where(User.role != 'aluno').order_by(User.nome_completo)
-    all_users = db.session.scalars(query_staff).all()
-
-    staff_users = []
-    for u in all_users:
-        try:
-            if hasattr(u, 'schools'):
-                if any(str(s.id) == str(school_id) for s in u.schools if s):
-                    if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id):
-                        staff_users.append(u)
-        except: continue
+    # 2. Busca avaliadores vinculados à escola de forma rápida
+    try:
+        staff_users = db.session.scalars(
+            select(User)
+            .join(UserSchool, UserSchool.user_id == User.id)
+            .where(UserSchool.school_id == school_id, User.role != 'aluno')
+            .order_by(User.nome_completo)
+        ).all()
+        staff_users = [
+            u for u in staff_users
+            if u.is_cal_in_school(school_id) or u.is_sens_in_school(school_id) or u.is_admin_escola_in_school(school_id) or getattr(u, 'is_super_admin', False) or u.role == 'admin'
+        ]
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar staff: {e}")
+        staff_users = []
 
     if current_user not in staff_users:
         staff_users.append(current_user)
 
+    if not alunos:
+        return render_template('justica/fada_lista_alunos.html', dados=[], turmas=turmas, avaliadores=staff_users)
+
+    aluno_ids = [a.id for a in alunos]
+    turma_ids = list({a.turma_id for a in alunos if a.turma_id})
+
+    # 3. Cache das datas limites por turma (evita consultar ciclos centenas de vezes)
+    datas_limites_cache = {}
+    for tid in turma_ids:
+        try:
+            datas_limites_cache[tid] = JusticaService.get_datas_limites(tid)
+        except Exception:
+            datas_limites_cache[tid] = (None, None)
+
+    # 4. Busca TODAS as FADAs dos alunos em UMA única query rápida
+    fadas_all = db.session.scalars(
+        select(FadaAvaliacao)
+        .options(
+            joinedload(FadaAvaliacao.presidente),
+            joinedload(FadaAvaliacao.membro1),
+            joinedload(FadaAvaliacao.membro2)
+        )
+        .where(FadaAvaliacao.aluno_id.in_(aluno_ids))
+        .order_by(FadaAvaliacao.id.desc())
+    ).all()
+    fada_map = {}
+    for f in fadas_all:
+        if f.aluno_id not in fada_map:
+            fada_map[f.aluno_id] = f
+
+    # 5. Busca TODAS as punições finalizadas dos alunos em UMA única query rápida
+    processos_all = db.session.scalars(
+        select(ProcessoDisciplina)
+        .where(
+            ProcessoDisciplina.aluno_id.in_(aluno_ids),
+            ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value,
+            ProcessoDisciplina.decisao_final != 'Justificado'
+        )
+        .order_by(ProcessoDisciplina.data_ocorrencia.desc())
+    ).all()
+    processos_map = {}
+    for p in processos_all:
+        processos_map.setdefault(p.aluno_id, []).append(p)
+
+    # 6. Montagem dos dados em memória (zero queries adicionais)
     lista = []
     for aluno in alunos:
         try:
-            fada_obj = db.session.scalar(
-                select(FadaAvaliacao)
-                .options(
-                    joinedload(FadaAvaliacao.presidente),
-                    joinedload(FadaAvaliacao.membro1),
-                    joinedload(FadaAvaliacao.membro2)
-                )
-                .where(FadaAvaliacao.aluno_id == aluno.id)
-                .order_by(FadaAvaliacao.id.desc())
-            )
-            aat, ndisc, fada_val = JusticaService.calcular_aat_final(aluno.id)
+            fada_obj = fada_map.get(aluno.id)
+            dt_inicio, dt_limite = datas_limites_cache.get(aluno.turma_id, (None, None))
+            aluno_processos = processos_map.get(aluno.id, [])
 
-            dt_inicio, dt_limite = JusticaService.get_datas_limites(aluno.turma_id)
-            punicoes = db.session.scalars(select(ProcessoDisciplina).where(ProcessoDisciplina.aluno_id == aluno.id, ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.decisao_final != 'Justificado')).all()
-            punicoes_validas = [p for p in punicoes if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite)]
+            punicoes_validas = [
+                p for p in aluno_processos
+                if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite)
+            ]
+
+            is_pontuado = JusticaService._is_curso_pontuado(turma=aluno.turma)
+            if not is_pontuado:
+                ndisc = 10.0
+            else:
+                pontos_perdidos = sum(p.pontos for p in punicoes_validas if p.origem_punicao == "NPCCAL" and p.pontos)
+                ndisc = max(0.0, min(10.0, (JusticaService.NDISC_BASE - pontos_perdidos) / 2.0))
+            ndisc = round(ndisc, 2)
+
+            if fada_obj and fada_obj.media_final is not None:
+                fada_val = round(fada_obj.media_final, 4)
+                aat = round((ndisc + fada_val) / 2.0, 2)
+            else:
+                fada_val = None
+                aat = None
 
             lista.append({
-                'id': aluno.id, 'aluno': aluno, 'turma': aluno.turma.nome if aluno.turma else '-',
-                'ndisc': ndisc, 'fada': fada_val, 'aat': aat, 'fada_obj': fada_obj, 'punicoes_pendentes': punicoes_validas
+                'id': aluno.id,
+                'aluno': aluno,
+                'turma': aluno.turma.nome if aluno.turma else '-',
+                'ndisc': ndisc,
+                'fada': fada_val,
+                'aat': aat,
+                'fada_obj': fada_obj,
+                'punicoes_pendentes': punicoes_validas
             })
         except Exception as e:
             current_app.logger.error(f"Erro ao processar aluno {aluno.id} no boletim FADA: {e}")
             lista.append({
-                'id': aluno.id, 'aluno': aluno, 'turma': aluno.turma.nome if aluno.turma else '-',
-                'ndisc': 10.0, 'fada': None, 'aat': None, 'fada_obj': None, 'punicoes_pendentes': []
+                'id': aluno.id,
+                'aluno': aluno,
+                'turma': aluno.turma.nome if aluno.turma else '-',
+                'ndisc': 10.0,
+                'fada': None,
+                'aat': None,
+                'fada_obj': None,
+                'punicoes_pendentes': []
             })
 
     return render_template('justica/fada_lista_alunos.html', dados=lista, turmas=turmas, avaliadores=staff_users)
