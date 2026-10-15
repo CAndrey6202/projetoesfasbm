@@ -160,6 +160,12 @@ def create_app(config_class=Config):
             app.static_folder, "manifest.json", mimetype="application/json"
         )
 
+    @app.route("/offline.html")
+    def offline_page():
+        return send_from_directory(
+            app.static_folder, "offline.html", mimetype="text/html"
+        )
+
     # ### FIM PWA ###
 
     db.init_app(app)

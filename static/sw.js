@@ -1,8 +1,7 @@
-// ATUALIZADO: v7.3 - Força atualização da lógica de nome de escola
-const CACHE_NAME = 'esfas-app-v7.4';
+// ATUALIZADO: v7.5 - Limpeza de cache e resiliência offline
+const CACHE_NAME = 'esfas-app-v7.5';
 
 const urlsToCache = [
-  '/',
   '/static/css/style.css',
   '/static/manifest.json',
   '/static/img/brasaoappcel.png',
@@ -11,19 +10,28 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         return cache.addAll(urlsToCache);
       })
+      .catch(err => console.warn('Cache SW falhou em carregar alguns recursos:', err))
   );
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     fetch(event.request)
       .catch(() => {
-        return caches.match(event.request);
+        return caches.match(event.request).then(response => {
+          if (response) return response;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/offline.html');
+          }
+        });
       })
   );
 });
