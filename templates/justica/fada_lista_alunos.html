@@ -65,6 +65,10 @@
                     {% endfor %}
 
                     {% set fada_data = {
+                        'aluno_id': item.id,
+                        'aluno_nome': item.aluno.user.nome_completo if item.aluno.user else '',
+                        'fada_id': (item.fada_obj.id if item.fada_obj else None),
+                        'status': status,
                         'presidente_id': item.fada_obj.presidente_id if (item.fada_obj and item.fada_obj.presidente_id) else '',
                         'membro1_id': item.fada_obj.membro1_id if (item.fada_obj and item.fada_obj.membro1_id) else '',
                         'membro2_id': item.fada_obj.membro2_id if (item.fada_obj and item.fada_obj.membro2_id) else '',
@@ -99,7 +103,7 @@
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2">
                                 <script>window.fadaDataMap = window.fadaDataMap || {}; window.fadaDataMap[{{ item.id }}] = {{ fada_data|tojson|safe }};</script>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="abrirFadaModal({{ item.id }}, {{ (item.aluno.user.nome_completo if item.aluno.user else '') | tojson }}, {{ fada_id }}, '{{ status }}', window.fadaDataMap[{{ item.id }}])">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="abrirFadaPorId({{ item.id }})">
                                     <i class="fas fa-edit"></i> Abrir
                                 </button>
                                 
@@ -109,13 +113,13 @@
                                     <span class="badge bg-warning text-dark" title="Aguardando Aluno"><i class="fas fa-user-edit"></i></span>
                                 {% elif status == 'FINALIZADO' %}
                                     <span class="badge bg-success" title="Concluído"><i class="fas fa-check-double"></i></span>
-                                    <button type="button" class="btn btn-sm btn-danger btn-fada-pdf" data-url="{{ url_for('justica.exportar_fada_pdf', fada_id=fada_id) }}" title="Imprimir PDF">
+                                    <button type="button" class="btn btn-sm btn-danger btn-fada-pdf" data-url="{{ url_for('justica.exportar_fada_pdf', fada_id=item.fada_obj.id if item.fada_obj else 0) }}" title="Imprimir PDF">
                                         <i class="fas fa-file-pdf"></i>
                                     </button>
                                 {% endif %}
 
                                 {% if item.fada_obj %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="abrirModalAnularFada({{ fada_id }}, {{ (item.aluno.user.nome_completo if item.aluno.user else '') | tojson }})" title="Anular e Refazer FADA">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="abrirModalAnularPorId({{ item.id }})" title="Anular e Refazer FADA">
                                         <i class="fas fa-ban"></i> Anular
                                     </button>
                                 {% endif %}
@@ -194,14 +198,45 @@
 <script>
 window.listaAvaliadores = [
     {% for u in avaliadores %}
-    { id: {{ u.id }}, nome: "{{ u.nome_completo }}", posto: "{{ u.posto_graduacao }}" },
+    { id: {{ u.id }}, nome: {{ (u.nome_completo or '')|tojson }}, posto: {{ (u.posto_graduacao or '')|tojson }} },
     {% endfor %}
 ];
 
 document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById('overlayFada');
-    if (overlay) document.body.appendChild(overlay);
+    if (overlay && overlay.parentNode !== document.body) {
+        document.body.appendChild(overlay);
+    }
 });
+
+function abrirFadaPorId(alunoId) {
+    try {
+        const fadaData = (window.fadaDataMap && window.fadaDataMap[alunoId]) ? window.fadaDataMap[alunoId] : {};
+        const nomeAluno = fadaData.aluno_nome || '';
+        const fadaId = fadaData.fada_id || null;
+        const status = fadaData.status || 'RASCUNHO';
+        abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData);
+    } catch(e) {
+        alert("Erro ao abrir FADA: " + e.message);
+        console.error(e);
+    }
+}
+
+function abrirModalAnularPorId(alunoId) {
+    try {
+        const fadaData = (window.fadaDataMap && window.fadaDataMap[alunoId]) ? window.fadaDataMap[alunoId] : {};
+        const nomeAluno = fadaData.aluno_nome || '';
+        const fadaId = fadaData.fada_id;
+        if (!fadaId || fadaId === 'null') {
+            alert("Esta avaliação FADA ainda não possui registro salvo para ser anulada.");
+            return;
+        }
+        abrirModalAnularFada(fadaId, nomeAluno);
+    } catch(e) {
+        alert("Erro ao abrir modal de anulação: " + e.message);
+        console.error(e);
+    }
+}
 
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
     try {
@@ -227,11 +262,18 @@ function fecharFadaModal() {
 
 function abrirModalAnularFada(fadaId, nomeAluno) {
     document.getElementById('nomeAlunoAnulacao').innerText = nomeAluno;
-    document.getElementById('formAnularFada').action = '/justica/fada/anular/' + fadaId;
+    const urlBase = "{{ url_for('justica.anular_fada', fada_id=0) }}".replace('/0', '/');
+    document.getElementById('formAnularFada').action = urlBase + fadaId;
     document.getElementById('motivo_anulacao_fada').value = '';
     const modalEl = document.getElementById('modalAnularFada');
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = (typeof bootstrap.Modal.getOrCreateInstance === 'function')
+            ? bootstrap.Modal.getOrCreateInstance(modalEl)
+            : new bootstrap.Modal(modalEl);
+        modal.show();
+    } else if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+        $('#modalAnularFada').modal('show');
+    }
 }
 
 // Lógica de Polling do PDF
