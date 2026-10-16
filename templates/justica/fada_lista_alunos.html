@@ -193,6 +193,8 @@
     .btn-close-custom { background: none; border: none; color: white; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1; }
     .overlay-body { padding: 20px; display: flex; justify-content: center; background: #525659; }
     .fada-paper-wrapper { background: white; padding: 0; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
+    #modalAnularFada { z-index: 100050 !important; }
+    .modal-backdrop { z-index: 100040 !important; }
 </style>
 
 <script>
@@ -206,6 +208,10 @@ document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById('overlayFada');
     if (overlay && overlay.parentNode !== document.body) {
         document.body.appendChild(overlay);
+    }
+    const modalAnular = document.getElementById('modalAnularFada');
+    if (modalAnular && modalAnular.parentNode !== document.body) {
+        document.body.appendChild(modalAnular);
     }
 });
 
@@ -261,11 +267,15 @@ function fecharFadaModal() {
 }
 
 function abrirModalAnularFada(fadaId, nomeAluno) {
+    const modalEl = document.getElementById('modalAnularFada');
+    if (modalEl && modalEl.parentNode !== document.body) {
+        document.body.appendChild(modalEl);
+    }
     document.getElementById('nomeAlunoAnulacao').innerText = nomeAluno;
     const urlBase = "{{ url_for('justica.anular_fada', fada_id=0) }}".replace('/0', '/');
     document.getElementById('formAnularFada').action = urlBase + fadaId;
     document.getElementById('motivo_anulacao_fada').value = '';
-    const modalEl = document.getElementById('modalAnularFada');
+    
     if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         const modal = (typeof bootstrap.Modal.getOrCreateInstance === 'function')
             ? bootstrap.Modal.getOrCreateInstance(modalEl)
