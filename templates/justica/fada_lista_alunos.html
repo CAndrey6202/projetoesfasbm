@@ -116,6 +116,8 @@
                                     <button type="button" class="btn btn-sm btn-danger btn-fada-pdf" data-url="{{ url_for('justica.exportar_fada_pdf', fada_id=item.fada_obj.id if item.fada_obj else 0) }}" title="Imprimir PDF">
                                         <i class="fas fa-file-pdf"></i>
                                     </button>
+                                {% elif item.fada_obj and status == 'RASCUNHO' %}
+                                    <span class="badge bg-secondary" title="Rascunho / Em Edição"><i class="fas fa-pencil-alt"></i></span>
                                 {% endif %}
 
                                 {% if item.fada_obj %}

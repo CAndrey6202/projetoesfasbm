@@ -932,8 +932,12 @@ def fada_boletim():
             ndisc = round(ndisc, 2)
 
             if fada_obj and fada_obj.media_final is not None:
-                fada_val = round(fada_obj.media_final, 4)
-                aat = round((ndisc + fada_val) / 2.0, 2)
+                if fada_obj.status == 'RASCUNHO' and (fada_obj.media_final == 0.0 or not fada_obj.media_final):
+                    fada_val = None
+                    aat = None
+                else:
+                    fada_val = round(fada_obj.media_final, 4)
+                    aat = round((ndisc + fada_val) / 2.0, 2)
             else:
                 fada_val = None
                 aat = None
@@ -1321,9 +1325,9 @@ def anular_fada(fada_id):
         'produtividade', 'eficiencia'
     ]
     for attr in attrs:
-        setattr(fada, attr, 0.0)
+        setattr(fada, attr, 8.0)
 
-    fada.media_final = 0.0
+    fada.media_final = 8.0
     fada.status = 'RASCUNHO'
     fada.ndisc_snapshot = 0.0
     fada.aat_snapshot = 0.0

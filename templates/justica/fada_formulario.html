@@ -114,6 +114,13 @@
 
         <div id="area-punicoes-fada"></div>
 
+        <div class="d-flex justify-content-between align-items-center mb-2 d-print-none bg-light p-2 rounded border">
+            <span class="small text-muted"><i class="fas fa-info-circle text-primary me-1"></i>Clique nos campos da coluna <strong>GRAU</strong> para alterar qualquer nota.</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold" id="btn-restaurar-padrao" onclick="restaurarPadraoBM()" title="Preenche todos os 18 atributos com a nota padrão 8.00">
+                <i class="fas fa-magic text-warning me-1"></i> Preencher Todas com 8.00 (Padrão BM)
+            </button>
+        </div>
+
         <table class="table table-bordered border-dark align-middle fada-table mb-2">
             <thead class="bg-light text-center">
                 <tr>
@@ -156,6 +163,7 @@
                         <input type="number" step="0.01" min="0" max="10"
                                class="form-control text-center fw-bold fada-input border-0 bg-transparent p-0"
                                id="attr_{{ loop.index0 }}" name="notas[]" value="8.00"
+                               oninput="atualizarConceito({{ loop.index0 }})"
                                onchange="atualizarConceito({{ loop.index0 }})">
                     </td>
                     <td class="text-center fw-bold small" id="conc_{{ loop.index0 }}">APROVADO</td>
@@ -245,11 +253,39 @@
     .fada-page { width: 210mm; min-height: 297mm; background: white; padding: 15mm; margin: 0 auto; font-family: "Times New Roman", Times, serif; color: #000; }
     .fada-table th, .fada-table td { padding: 2px 5px !important; font-size: 0.85rem; border-color: #000 !important; }
     .fada-input { box-shadow: none; font-size: 1rem; }
-    @media print { .fada-page { margin: 0; box-shadow: none !important; width: 100%; } .d-print-none { display: none !important; } input, textarea { border: none !important; resize: none; } }
+    .fada-input:not(:disabled) {
+        background-color: #fffef0 !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 4px;
+        padding: 2px 4px !important;
+        cursor: text;
+        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    }
+    .fada-input:not(:disabled):hover {
+        border-color: #86b7fe !important;
+        background-color: #ffffff !important;
+    }
+    .fada-input:not(:disabled):focus {
+        border-color: #0d6efd !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25) !important;
+        outline: 0;
+    }
+    @media print { .fada-page { margin: 0; box-shadow: none !important; width: 100%; } .d-print-none { display: none !important; } input, textarea { border: none !important; resize: none; background: transparent !important; } }
 </style>
 
 <script>
 const currentUserId = {{ current_user.id }};
+
+window.restaurarPadraoBM = function() {
+    for(let i=0; i<18; i++) {
+        const input = document.getElementById(`attr_${i}`);
+        if(input && !input.disabled) {
+            input.value = "8.00";
+            atualizarConceito(i);
+        }
+    }
+};
 
 window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dadosFada) {
     document.getElementById('formFada').reset();
@@ -272,11 +308,26 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     renderHash('box_ass_m1', dadosFada?.hash_m1, dadosFada?.ass_img_m1);
     renderHash('box_ass_m2', dadosFada?.hash_m2, dadosFada?.ass_img_m2);
 
-    if (dadosFada && dadosFada.notas) {
+    if (dadosFada && dadosFada.notas && dadosFada.notas.length > 0) {
+        const todasZeradas = dadosFada.notas.every(n => n === null || n === undefined || parseFloat(n) === 0);
         for(let i=0; i<18; i++) {
             const input = document.getElementById(`attr_${i}`);
-            if(input && dadosFada.notas[i] !== undefined) {
-                input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
+            if(input) {
+                if (todasZeradas && (etapa === 'RASCUNHO' || !etapa)) {
+                    input.value = "8.00";
+                } else if (dadosFada.notas[i] !== undefined && dadosFada.notas[i] !== null) {
+                    input.value = parseFloat(dadosFada.notas[i]).toFixed(2);
+                } else {
+                    input.value = "8.00";
+                }
+                atualizarConceito(i);
+            }
+        }
+    } else {
+        for(let i=0; i<18; i++) {
+            const input = document.getElementById(`attr_${i}`);
+            if(input) {
+                input.value = "8.00";
                 atualizarConceito(i);
             }
         }
