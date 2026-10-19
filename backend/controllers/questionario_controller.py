@@ -14,10 +14,18 @@ from ..services.user_service import UserService
 
 questionario_bp = Blueprint('questionario', __name__, url_prefix='/questionario')
 
-# Helper para permisses
-def cal_or_admin_required():
-    if not (current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
-        flash('Acesso no autorizado.', 'danger')
+# Helpers para permissões
+def sens_or_admin_required():
+    """Criar questionários/campanhas e pausar/iniciar: Admin Escola, Super Admin (DEC) e SENS."""
+    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Acesso não autorizado.', 'danger')
+        return False
+    return True
+
+def admin_or_dec_required():
+    """Visualizar respostas, gráficos de resultados e participantes: apenas Admin Escola e Super Admin (DEC)."""
+    if not (current_user.is_admin_escola or current_user.is_super_admin):
+        flash('Permissão negada. Apenas o Comandante da Escola ou DEC podem visualizar os resultados.', 'danger')
         return False
     return True
 
@@ -58,7 +66,7 @@ def index():
 @questionario_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
 def novo():
-    if not cal_or_admin_required():
+    if not sens_or_admin_required():
         return redirect(url_for('questionario.index'))
 
     if request.method == 'POST':
@@ -122,8 +130,8 @@ def novo():
 @questionario_bp.route('/ver/<int:id>')
 @login_required
 def ver(id):
-    # Visualizao para Admin/CAL (Preview)
-    if not cal_or_admin_required():
+    # Visualizao para Admin/SENS (Preview)
+    if not sens_or_admin_required():
         return redirect(url_for('questionario.index'))
         
     questionario = db.session.get(Questionario, id)
@@ -135,8 +143,7 @@ def ver(id):
 @questionario_bp.route('/resultado/<int:id>')
 @login_required
 def resultado(id):
-    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
-        flash('Permisso negada.', 'danger')
+    if not admin_or_dec_required():
         return redirect(url_for('questionario.index'))
 
     questionario = db.session.get(Questionario, id)
@@ -204,7 +211,7 @@ def realizar(id):
 @questionario_bp.route('/participantes/<int:questionario_id>')
 @login_required
 def participantes(questionario_id):
-    if not cal_or_admin_required():
+    if not admin_or_dec_required():
         return redirect(url_for('questionario.index'))
 
     questionario = db.session.get(Questionario, questionario_id)
@@ -213,10 +220,63 @@ def participantes(questionario_id):
     
     return render_template('questionario/participantes.html', questionario=questionario, participantes=users)
 
+@questionario_bp.route('/participantes/<int:questionario_id>/editar/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def editar_respostas(questionario_id, user_id):
+    if not admin_or_dec_required():
+        return redirect(url_for('questionario.index'))
+
+    questionario = db.session.get(Questionario, questionario_id)
+    participante = db.session.get(User, user_id)
+    if not questionario or not participante:
+        flash('Registro não encontrado.', 'danger')
+        return redirect(url_for('questionario.index'))
+
+    if request.method == 'POST':
+        db.session.query(Resposta).filter_by(questionario_id=questionario_id, user_id=user_id).delete()
+        for pergunta in questionario.perguntas:
+            if pergunta.tipo == 'texto_livre':
+                texto = request.form.get(f'texto_livre_{pergunta.id}')
+                if texto:
+                    db.session.add(Resposta(questionario_id=questionario_id, pergunta_id=pergunta.id, user_id=user_id, texto_livre=texto))
+            else:
+                opcoes_ids = request.form.getlist(f'pergunta_{pergunta.id}')
+                texto_outro = request.form.get(f'outro_{pergunta.id}')
+                for op_id in opcoes_ids:
+                    db.session.add(Resposta(questionario_id=questionario_id, pergunta_id=pergunta.id, opcao_resposta_id=int(op_id), user_id=user_id, texto_livre=texto_outro))
+        db.session.commit()
+        flash('Respostas atualizadas com sucesso!', 'success')
+        return redirect(url_for('questionario.participantes', questionario_id=questionario_id))
+
+    respostas_usuario = db.session.scalars(
+        select(Resposta).where(Resposta.questionario_id == questionario_id, Resposta.user_id == user_id)
+    ).all()
+    respostas_map = {}
+    for r in respostas_usuario:
+        if r.pergunta_id not in respostas_map:
+            respostas_map[r.pergunta_id] = {'selected_ids': [], 'texto_livre': None}
+        if r.opcao_resposta_id:
+            respostas_map[r.pergunta_id]['selected_ids'].append(r.opcao_resposta_id)
+        if r.texto_livre:
+            respostas_map[r.pergunta_id]['texto_livre'] = r.texto_livre
+
+    return render_template('questionario/editar_respostas.html', questionario=questionario, participante=participante, respostas_map=respostas_map)
+
+@questionario_bp.route('/participantes/<int:questionario_id>/excluir/<int:user_id>', methods=['POST'])
+@login_required
+def excluir_resposta_usuario(questionario_id, user_id):
+    if not admin_or_dec_required():
+        return redirect(url_for('questionario.index'))
+
+    db.session.query(Resposta).filter_by(questionario_id=questionario_id, user_id=user_id).delete()
+    db.session.commit()
+    flash('Respostas do participante excluídas com sucesso.', 'success')
+    return redirect(url_for('questionario.participantes', questionario_id=questionario_id))
+
 @questionario_bp.route('/alternar-status/<int:id>')
 @login_required
 def alternar_status(id):
-    if not cal_or_admin_required(): return redirect(url_for('questionario.index'))
+    if not sens_or_admin_required(): return redirect(url_for('questionario.index'))
     
     q = db.session.get(Questionario, id)
     if q:
@@ -228,7 +288,7 @@ def alternar_status(id):
 @questionario_bp.route('/excluir/<int:id>')
 @login_required
 def excluir(id):
-    if not cal_or_admin_required(): return redirect(url_for('questionario.index'))
+    if not sens_or_admin_required(): return redirect(url_for('questionario.index'))
     
     q = db.session.get(Questionario, id)
     if q:
@@ -364,13 +424,12 @@ def excluir_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>')
 @login_required
 def resultado_avaliacao(id):
-    if not (current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin):
-        flash('Acesso negado.', 'danger')
+    if not admin_or_dec_required():
         return redirect(url_for('questionario.index'))
         
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        flash('Campanha no encontrada.', 'danger')
+        flash('Campanha não encontrada.', 'danger')
         return redirect(url_for('questionario.index'))
         
     turma_id_filter = request.args.get('turma_id', type=int)
@@ -394,7 +453,7 @@ def resultado_avaliacao(id):
     turmas_disponiveis = {r.turma for r in todas_respostas}
     turmas_disponiveis = sorted(list(turmas_disponiveis), key=lambda t: t.nome)
     
-    # 1. Preparar DADOS GERAIS (MDULO)
+    # 1. Preparar DADOS GERAIS (MÓDULO)
     geral_data = {
         'total_respostas': len(respostas_gerais),
         'espaco_fisico': 0,
@@ -450,7 +509,7 @@ def resultado_avaliacao(id):
                 'token': r.token_sigilo
             })
             
-    # Calcular mdias por instrutor
+    # Calcular médias por instrutor
     lista_instrutores = []
     for nome, data in instrutores_data.items():
         media_rel = sum(data['notas_relacionamento']) / len(data['notas_relacionamento']) if data['notas_relacionamento'] else 0
@@ -479,12 +538,12 @@ def resultado_avaliacao(id):
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>/exportar_pdf_multiplos', methods=['POST'])
 @login_required
 def exportar_pdf_resultados_multiplos(id):
-    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
+    if not (current_user.is_admin_escola or current_user.is_super_admin):
         return jsonify({'success': False, 'error': 'Acesso negado.'})
 
     campanha = db.session.get(CampanhaAvaliacao, id)
     if not campanha:
-        return jsonify({'success': False, 'error': 'Campanha no encontrada.'})
+        return jsonify({'success': False, 'error': 'Campanha não encontrada.'})
         
     data = request.get_json() or {}
     instrutores_ids = data.get('instrutores_ids', [])
@@ -539,7 +598,7 @@ def exportar_pdf_resultados_multiplos(id):
         "data": {
             "labels": labels,
             "datasets": [{
-                "label": "Nota Mdia",
+                "label": "Nota Média",
                 "data": medias,
                 "backgroundColor": "#2ecc71"
             }]
@@ -598,7 +657,7 @@ def exportar_pdf_resultados_multiplos(id):
 @questionario_bp.route('/avaliacao-instrutores/resultado/<int:id>/exportar_pdf', methods=['POST'])
 @login_required
 def exportar_pdf_resultados(id):
-    if not (current_user.is_cal or current_user.is_sens or current_user.is_staff):
+    if not (current_user.is_admin_escola or current_user.is_super_admin):
         return jsonify({'success': False, 'error': 'Acesso negado.'})
 
     campanha = db.session.get(CampanhaAvaliacao, id)
