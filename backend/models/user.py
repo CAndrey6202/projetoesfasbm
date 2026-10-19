@@ -195,26 +195,40 @@ class User(UserMixin, db.Model):
     @property
     def is_chefe_turma(self) -> bool:
         """Verifica se o usuário (aluno) possui o cargo de Chefe de Turma."""
+        if hasattr(self, '_is_chefe_turma_cache'):
+            return self._is_chefe_turma_cache
+
         if not self.aluno_profile:
+            self._is_chefe_turma_cache = False
             return False
 
         try:
             # Importação local para evitar ciclo de importação
             from .turma_cargo import TurmaCargo
 
-            stmt = select(TurmaCargo).where(
+            stmt = select(TurmaCargo.id).where(
                 TurmaCargo.aluno_id == self.aluno_profile.id,
                 TurmaCargo.cargo_nome == TurmaCargo.ROLE_CHEFE
-            )
+            ).limit(1)
             result = db.session.execute(stmt).scalar()
-            return result is not None
+            self._is_chefe_turma_cache = (result is not None)
+            return self._is_chefe_turma_cache
         except Exception:
             return False
 
     @property
     def pode_enviar_questoes(self) -> bool:
+        if hasattr(self, '_pode_enviar_questoes_cache'):
+            return self._pode_enviar_questoes_cache
+
+        if not self.instrutor_profile:
+            self._pode_enviar_questoes_cache = False
+            return False
+
         sid = self._get_active_school_id()
-        if not sid: return False
+        if not sid:
+            self._pode_enviar_questoes_cache = False
+            return False
 
         from .banco_questoes import ConfiguracaoEnvio
         from .disciplina_turma import DisciplinaTurma
@@ -225,9 +239,7 @@ class User(UserMixin, db.Model):
         try:
             configs = db.session.query(ConfiguracaoEnvio).filter_by(escola_id=sid, envio_ativo=True).all()
             if not configs:
-                return False
-                
-            if not self.instrutor_profile:
+                self._pode_enviar_questoes_cache = False
                 return False
                 
             vinculos_db = db.session.query(Disciplina.materia, Turma.edicao_id)\
@@ -247,7 +259,9 @@ class User(UserMixin, db.Model):
                 for v_materia, v_edicao in materias_vinculadas:
                     if v_materia == c.materia:
                         if c.edicao_id is None or c.edicao_id == v_edicao:
+                            self._pode_enviar_questoes_cache = True
                             return True
+            self._pode_enviar_questoes_cache = False
             return False
         except Exception:
             return False

@@ -451,9 +451,6 @@
                                                         <label class="form-label small text-warning fw-bold">Mudar Enquadramento (Opcional):</label>
                                                         <select name="novo_enquadramento_id" class="form-select tom-select-enquadramento" placeholder="Deixe em branco para manter o original ou pesquise para alterar...">
                                                             <option value="">-- Manter Enquadramento Original ({{ p.codigo_infracao }}) --</option>
-                                                            {% for regra in fatos_predefinidos %}
-                                                            <option value="{{ regra.id }}">{{ regra.codigo }} - {{ regra.descricao }}</option>
-                                                            {% endfor %}
                                                         </select>
                                                         <small class="text-muted" style="font-size: 0.70rem;">A alteração constará na fundamentação da decisão.</small>
                                                     </div>
@@ -1028,7 +1025,30 @@
 <script>
 function toggleAnalise(id) {
     const el = document.getElementById('collapseProcesso' + id);
-    if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+    if (!el) return;
+    const isOpening = (el.style.display === 'none');
+    el.style.display = isOpening ? 'block' : 'none';
+    if (isOpening) {
+        const sel = el.querySelector('.tom-select-enquadramento');
+        if (sel && !sel.tomselect) {
+            const masterSel = document.getElementById('regraSelect');
+            if (masterSel && sel.options.length <= 1) {
+                Array.from(masterSel.options).forEach(opt => {
+                    if (opt.value) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = opt.value;
+                        newOpt.textContent = opt.textContent;
+                        sel.appendChild(newOpt);
+                    }
+                });
+            }
+            new TomSelect(sel, {
+                create: false,
+                allowEmptyOption: true,
+                maxOptions: 1000
+            });
+        }
+    }
 }
 
 function toggleDefesa(id) {
@@ -1213,15 +1233,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         window.controlRegra = controlRegra;
     }
-
-    // Inicializa o TomSelect para os dropdowns dinâmicos de "Mudar Enquadramento"
-    document.querySelectorAll('.tom-select-enquadramento').forEach(el => {
-        new TomSelect(el, {
-            create: false,
-            allowEmptyOption: true,
-            maxOptions: 1000
-        });
-    });
 
     document.querySelectorAll('.justice-option-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {

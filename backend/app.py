@@ -12,9 +12,13 @@ if os.environ.get("FLASK_ENV") == "development" or os.name == "nt":
     sys.modules["weasyprint"] = MagicMock()
 # ---------------------------------------------------------
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
+warnings.filterwarnings("ignore", category=FutureWarning, module="firebase_admin")
+
 import click
 import firebase_admin
-from flask import Flask, render_template, g, session, send_from_directory
+from flask import Flask, render_template, g, session, send_from_directory, request
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_babel import Babel
@@ -118,10 +122,6 @@ def create_app(config_class=Config):
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
                 app.logger.info("Firebase Admin SDK inicializado com sucesso.")
-        else:
-            app.logger.warning(
-                f"Arquivo 'credentials.json' não encontrado em {cred_path}. Funcionalidades do Firebase não estarão disponíveis."
-            )
     except ValueError:
         pass  # App já inicializado
     except Exception as e:
@@ -185,14 +185,14 @@ def create_app(config_class=Config):
 
     @login_manager.user_loader
     def load_user(user_id):
-        from sqlalchemy.orm import selectinload
+        from sqlalchemy.orm import selectinload, joinedload
 
         return (
             db.session.query(User)
             .options(
-                selectinload(User.user_schools),
-                selectinload(User.alunos_profiles),
-                selectinload(User.instrutor_profile),
+                selectinload(User.user_schools).joinedload(UserSchool.school),
+                selectinload(User.alunos_profiles).joinedload(Aluno.turma),
+                joinedload(User.instrutor_profile),
             )
             .get(int(user_id))
         )
@@ -202,6 +202,15 @@ def create_app(config_class=Config):
     # =========================================================
     @app.before_request
     def set_user_context():
+        # Evita disparar load_user() (4 queries SQL) em arquivos estáticos e PWA
+        if request.path.startswith("/static/") or request.path in [
+            "/sw.js",
+            "/manifest.json",
+            "/favicon.ico",
+            "/offline.html",
+        ]:
+            return
+
         if current_user.is_authenticated:
             if current_user.role == "super_admin":
                 view_as = session.get("view_as_school_id")
@@ -314,12 +323,17 @@ def register_handlers_and_processors(app):
         from flask import request
 
         # --- FILTRO DE DESEMPENHO EM PRODUÇÃO ---
-        # Evita consultas pesadas ao banco de dados para assets visuais e PWA
-        if request.path.startswith("/static/") or request.path in [
-            "/sw.js",
-            "/manifest.json",
-            "/favicon.ico",
-        ]:
+        # Evita consultas pesadas ao banco de dados para assets visuais, PWA e polling de notificações
+        if (
+            request.path.startswith("/static/")
+            or request.path.startswith("/notifications/api/")
+            or request.path in [
+                "/sw.js",
+                "/manifest.json",
+                "/favicon.ico",
+                "/offline.html",
+            ]
+        ):
             return
         # -----------------------------------------
 
@@ -531,6 +545,12 @@ def register_handlers_and_processors(app):
 
     @app.errorhandler(404)
     def not_found_error(error):
+        if request.path.startswith("/static/") or request.path in [
+            "/sw.js",
+            "/manifest.json",
+            "/favicon.ico",
+        ]:
+            return "", 404
         return render_template("404.html"), 404
 
     @app.errorhandler(500)

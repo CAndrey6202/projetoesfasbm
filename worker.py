@@ -1,28 +1,46 @@
 import os
 import time
 import logging
-from datetime import datetime, timedelta
-
-
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-from backend.app import create_app
-from backend.models.database import db
-from backend.models.background_job import BackgroundJob
-
-app = create_app()
-
+import warnings
 import json
 import zipfile
 import shutil
 import re
-from flask import render_template
+from datetime import datetime, timedelta
+from flask import Flask, render_template
 
-def fix_image_urls(html_content, app_root):
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+from backend.config import Config
+from backend.models.database import db
+from backend.models.background_job import BackgroundJob
+
+def create_worker_app():
+    project_root = os.path.abspath(os.path.dirname(__file__))
+    template_dir = os.path.join(project_root, "templates")
+    static_dir = os.path.join(project_root, "static")
+    worker_app = Flask("worker", template_folder=template_dir, static_folder=static_dir)
+    worker_app.config["SQLALCHEMY_DATABASE_URI"] = Config.SQLALCHEMY_DATABASE_URI
+    worker_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    worker_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_size": 1,
+        "max_overflow": 1,
+        "pool_recycle": 300,
+    }
+    db.init_app(worker_app)
+    return worker_app
+
+app = create_worker_app()
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+
+def fix_image_urls(html_content, app_root=None):
     # Substitui as URLs https://localhost e http://localhost por caminhos absolutos do sistema de arquivos file://
-    project_root = __import__('os').path.abspath(__import__('os').path.join(app_root, '..'))
-    if __import__('os').name == 'nt':
+    project_root = PROJECT_ROOT
+    if os.name == 'nt':
         project_root = '/' + project_root.replace('\\', '/')
         
     file_prefix = f'file://{project_root}'
@@ -33,8 +51,7 @@ def fix_image_urls(html_content, app_root):
 def process_certificates_zip(job):
     # Gera um PDF por aluno e empacota em um ZIP.
     from weasyprint import HTML
-    import os
-    downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
+    downloads_dir = os.path.join(PROJECT_ROOT, 'static', 'downloads')
     os.makedirs(downloads_dir, exist_ok=True)
     
     temp_dir = os.path.join(downloads_dir, f'temp_{job.id}')
@@ -64,7 +81,7 @@ def process_certificates_zip(job):
                 )
             
             # Corrige as URLs das imagens para o WeasyPrint conseguir baixar
-            rendered_html = fix_image_urls(rendered_html, app.root_path)
+            rendered_html = fix_image_urls(rendered_html)
             
             logging.info(f'Gerando PDF para {aluno}')
             HTML(string=rendered_html).write_pdf(pdf_path)
@@ -87,7 +104,7 @@ def process_certificates_zip(job):
 def process_pdf_job(job):
     """Gera o PDF usando Weasyprint a partir do HTML salvo no payload."""
     from weasyprint import HTML
-    downloads_dir = os.path.join(app.root_path, '..', 'static', 'downloads')
+    downloads_dir = os.path.join(PROJECT_ROOT, 'static', 'downloads')
     os.makedirs(downloads_dir, exist_ok=True)
     
     filename = f"document_{job.id}.pdf"
@@ -98,13 +115,12 @@ def process_pdf_job(job):
     
     # Verifica se há anexos para mesclar (ex: fundamentação do recurso)
     if job.meta_data:
-        import json
         try:
             meta = json.loads(job.meta_data)
             anexos = meta.get('anexos', [])
             if anexos:
                 try:
-                    from pypdf import PdfWriter, PdfReader
+                    from pypdf import PdfWriter
                     merger = PdfWriter()
                     merger.append(file_path) # PDF principal gerado
                     for anexo in anexos:
@@ -151,19 +167,19 @@ def run_worker():
     last_cleanup = datetime.utcnow()
 
     while True:
-        # Colocar o context manager DENTRO do loop previne memory leaks do SQLAlchemy Identity Map.
+        had_job = False
         with app.app_context():
-            # Executa a limpeza a cada 1 hora
-            if (datetime.utcnow() - last_cleanup).total_seconds() > 3600:
-                cleanup_old_jobs()
-                last_cleanup = datetime.utcnow()
-
             try:
+                # Executa a limpeza a cada 1 hora
+                if (datetime.utcnow() - last_cleanup).total_seconds() > 3600:
+                    cleanup_old_jobs()
+                    last_cleanup = datetime.utcnow()
+
                 # Busca o primeiro job pendente (FIFO)
                 job = BackgroundJob.query.filter_by(status='pending').order_by(BackgroundJob.created_at.asc()).first()
                 
                 if job:
-                    # Marca como processando
+                    had_job = True
                     job.status = 'processing'
                     job.started_at = datetime.utcnow()
                     db.session.commit()
@@ -180,7 +196,6 @@ def run_worker():
                         else:
                             raise ValueError(f"Task type desconhecido: {job.task_type}")
                             
-                        # Finaliza com sucesso
                         job.status = 'completed'
                         job.finished_at = datetime.utcnow()
                         job.payload = None 
@@ -193,16 +208,17 @@ def run_worker():
                         job.finished_at = datetime.utcnow()
                         logging.error(f"Job {job.id} falhou: {str(e)}")
                     
-                    # Salva o resultado
                     db.session.commit()
-                    
-                else:
-                    # Se não tem job, dorme um pouco
-                    time.sleep(2)
             except Exception as e:
                 logging.error(f"Erro no loop principal do worker: {e}")
                 db.session.rollback()
-                time.sleep(5) # Evita spam de logs se o banco cair
+            finally:
+                # Libera a conexão do banco ANTES de dormir para não prender conexões no pool
+                db.session.remove()
+
+        if not had_job:
+            time.sleep(5)
 
 if __name__ == '__main__':
     run_worker()
+

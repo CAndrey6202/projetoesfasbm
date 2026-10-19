@@ -101,7 +101,14 @@ class DiarioService:
             .join(Turma, DiarioClasse.turma_id == Turma.id)
             .options(
                 db.joinedload(DiarioClasse.turma),
-                db.joinedload(DiarioClasse.disciplina),
+                db.joinedload(DiarioClasse.disciplina)
+                .selectinload(Disciplina.associacoes_turmas)
+                .joinedload(DisciplinaTurma.instrutor_1)
+                .joinedload(Instrutor.user),
+                db.joinedload(DiarioClasse.disciplina)
+                .selectinload(Disciplina.associacoes_turmas)
+                .joinedload(DisciplinaTurma.instrutor_2)
+                .joinedload(Instrutor.user),
                 db.joinedload(DiarioClasse.instrutor_assinante)
             )
             .where(

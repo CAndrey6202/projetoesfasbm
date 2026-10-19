@@ -116,7 +116,9 @@ def index():
         fadas_comissao = []
     else:
         fadas_comissao_raw = db.session.scalars(
-            select(FadaAvaliacao).where(
+            select(FadaAvaliacao).options(
+                joinedload(FadaAvaliacao.aluno).joinedload(Aluno.user)
+            ).where(
                 or_(
                     FadaAvaliacao.presidente_id == current_user.id,
                     FadaAvaliacao.membro1_id == current_user.id,
