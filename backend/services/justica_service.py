@@ -149,12 +149,15 @@ class JusticaService:
         stmt = select(ProcessoDisciplina).where(
             ProcessoDisciplina.aluno_id == aluno_id,
             ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value,
+            ProcessoDisciplina.decisao_final != 'Justificado',
         )
         processos = db.session.scalars(stmt).all()
         if mapa_vinculos is None:
             mapa_vinculos = {}
 
         for p in processos:
+            if p.decisao_final in ('Justificado', 'IMPROCEDENTE', 'ANULADO', 'ARQUIVADO', 'EXCLUIDO_ANULADO'):
+                continue
             if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite):
                 desconto = 0.0
                 if p.is_crime:
@@ -289,13 +292,13 @@ class JusticaService:
         ndisc = JusticaService.calcular_ndisc_aluno(
             aluno_id, aluno_obj=aluno, processos_list=processos
         )
-        fada_oficial = db.session.scalar(
+        fada_oficial = db.session.scalars(
             select(FadaAvaliacao)
             .where(FadaAvaliacao.aluno_id == aluno_id)
-            .order_by(FadaAvaliacao.data_avaliacao.desc())
-        )
+            .order_by(FadaAvaliacao.id.desc())
+        ).first()
 
-        if fada_oficial:
+        if fada_oficial and fada_oficial.media_final is not None:
             nota_fada = fada_oficial.media_final
             aat = (ndisc + nota_fada) / 2.0
             return round(aat, 2), round(ndisc, 2), round(nota_fada, 4)

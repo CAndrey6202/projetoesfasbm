@@ -921,6 +921,8 @@ def fada_boletim():
             punicoes_validas = [
                 p for p in aluno_processos
                 if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite)
+                and p.decisao_final not in ('Justificado', 'IMPROCEDENTE', 'ANULADO', 'ARQUIVADO', 'EXCLUIDO_ANULADO')
+                and (p.is_crime or p.origem_punicao == "RDBM" or (p.pontos and p.pontos > 0))
             ]
 
             is_pontuado = JusticaService._is_curso_pontuado(turma=aluno.turma)
@@ -933,8 +935,8 @@ def fada_boletim():
 
             if fada_obj and fada_obj.media_final is not None:
                 if fada_obj.status == 'RASCUNHO' and (fada_obj.media_final == 0.0 or not fada_obj.media_final):
-                    fada_val = None
-                    aat = None
+                    fada_val = 8.0
+                    aat = round((ndisc + fada_val) / 2.0, 2)
                 else:
                     fada_val = round(fada_obj.media_final, 4)
                     aat = round((ndisc + fada_val) / 2.0, 2)
@@ -971,6 +973,7 @@ def fada_boletim():
 @login_required
 @can_manage_justice_required
 def salvar_fada():
+    fada_id = request.form.get('fada_id')
     aluno_id = request.form.get('aluno_id')
     notas = request.form.getlist('notas[]')
     obs = request.form.get('observacao')
@@ -984,12 +987,21 @@ def salvar_fada():
     if not aluno_id or len(notas) != 18:
         flash("Dados incompletos.", "danger"); return redirect(url_for('justica.fada_boletim'))
 
-    processos_ativos = db.session.scalars(select(ProcessoDisciplina).where(ProcessoDisciplina.aluno_id == int(aluno_id), ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value)).all()
+    processos_ativos = db.session.scalars(
+        select(ProcessoDisciplina).where(
+            ProcessoDisciplina.aluno_id == int(aluno_id),
+            ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value,
+            ProcessoDisciplina.decisao_final != 'Justificado'
+        )
+    ).all()
     dt_inicio, dt_limite = JusticaService.get_datas_limites(db.session.get(Aluno, int(aluno_id)).turma_id)
     mapa_vinculos = {}
 
     for p in processos_ativos:
-        if JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite):
+        if p.decisao_final in ('Justificado', 'IMPROCEDENTE', 'ANULADO', 'ARQUIVADO', 'EXCLUIDO_ANULADO'):
+            continue
+        tem_desconto = bool(p.is_crime or p.origem_punicao == "RDBM" or (p.pontos and p.pontos > 0))
+        if tem_desconto and JusticaService.verificar_elegibilidade_punicao(p, dt_inicio, dt_limite):
             attr_idx = request.form.get(f'vinculo_infracao_{p.id}')
             if not attr_idx:
                 flash(f"ERRO: A punição (ID {p.id}) deve ser vinculada a um atributo.", "danger")
@@ -1003,27 +1015,67 @@ def salvar_fada():
     notas_float = []
     for i, n_str in enumerate(notas):
         try:
-            val = float(n_str)
+            n_clean = str(n_str).replace(',', '.').strip()
+            val = float(n_clean)
             teto = limites_calculados[i]
             if val > (teto + 0.01):
                 flash(f"ERRO no Atributo {i+1}: Nota {val} excede o limite de {teto:.2f}.", "danger"); return redirect(url_for('justica.fada_boletim'))
             notas_float.append(val)
-        except ValueError:
-            flash("Nota inválida.", "danger"); return redirect(url_for('justica.fada_boletim'))
+        except (ValueError, TypeError):
+            flash(f"Nota inválida no Atributo {i+1}: '{n_str}'. Digite um valor numérico válido (ex: 8.5 ou 8,5).", "danger")
+            return redirect(url_for('justica.fada_boletim'))
 
     try:
-        fada = db.session.scalar(select(FadaAvaliacao).where(FadaAvaliacao.aluno_id==int(aluno_id), FadaAvaliacao.status=='RASCUNHO'))
+        todas_fadas_aluno = db.session.scalars(
+            select(FadaAvaliacao)
+            .where(FadaAvaliacao.aluno_id == int(aluno_id))
+            .order_by(FadaAvaliacao.id.desc())
+        ).all()
+
+        fada = None
+        if fada_id and str(fada_id).isdigit():
+            fada = db.session.get(FadaAvaliacao, int(fada_id))
+
+        if not fada and todas_fadas_aluno:
+            fada = todas_fadas_aluno[0]
+
         media = sum(notas_float) / 18.0
+        attrs = [
+            'expressao', 'planejamento', 'perseveranca', 'apresentacao',
+            'lealdade', 'tato', 'equilibrio', 'disciplina',
+            'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade',
+            'diccao', 'lideranca', 'relacionamento', 'etica',
+            'produtividade', 'eficiencia'
+        ]
 
         if fada:
-            fada.media_final = media; fada.observacao = obs; fada.data_avaliacao = datetime.now().astimezone()
-            fada.presidente_id = pres_id; fada.membro1_id = m1_id; fada.membro2_id = m2_id
-            attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
-            for idx, attr in enumerate(attrs): setattr(fada, attr, notas_float[idx])
+            alvos = [fada]
+            if todas_fadas_aluno and todas_fadas_aluno[0].id != fada.id and todas_fadas_aluno[0].status == 'RASCUNHO':
+                alvos.append(todas_fadas_aluno[0])
+            for alvo in alvos:
+                alvo.media_final = media
+                alvo.observacao = obs
+                alvo.data_avaliacao = datetime.now().astimezone()
+                if alvo.status != 'FINALIZADO':
+                    alvo.status = 'RASCUNHO'
+                if pres_id: alvo.presidente_id = pres_id
+                if m1_id: alvo.membro1_id = m1_id
+                if m2_id: alvo.membro2_id = m2_id
+                for idx, attr in enumerate(attrs):
+                    setattr(alvo, attr, notas_float[idx])
         else:
-            nova = FadaAvaliacao(aluno_id=int(aluno_id), lancador_id=current_user.id, media_final=media, observacao=obs, status='RASCUNHO', presidente_id=pres_id, membro1_id=m1_id, membro2_id=m2_id)
-            attrs = ['expressao', 'planejamento', 'perseveranca', 'apresentacao', 'lealdade', 'tato', 'equilibrio', 'disciplina', 'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade', 'diccao', 'lideranca', 'relacionamento', 'etica', 'produtividade', 'eficiencia']
-            for idx, attr in enumerate(attrs): setattr(nova, attr, notas_float[idx])
+            nova = FadaAvaliacao(
+                aluno_id=int(aluno_id),
+                lancador_id=current_user.id,
+                media_final=media,
+                observacao=obs,
+                status='RASCUNHO',
+                presidente_id=pres_id,
+                membro1_id=m1_id,
+                membro2_id=m2_id
+            )
+            for idx, attr in enumerate(attrs):
+                setattr(nova, attr, notas_float[idx])
             db.session.add(nova)
 
         db.session.commit()
@@ -1037,7 +1089,7 @@ def salvar_fada():
         )
         # ---------------------------
         
-        flash(f"Avaliação salva com sucesso. Média: {media:.4f}", "success")
+        flash(f"Avaliação salva com sucesso! Média Final: {media:.2f}", "success")
     except Exception as e:
         db.session.rollback(); logger.error(f"Erro ao salvar FADA: {e}"); flash(f"Erro ao salvar avaliação: {e}", "danger")
 
@@ -1307,7 +1359,7 @@ def anular_fada(fada_id):
     data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
     detalhes_log = (
         f"FADA ID {fada.id} do aluno {nome_aluno} foi ANULADA por {current_user.nome_completo} "
-        f"(ID: {current_user.id}). Média anterior: {media_anterior:.4f}. "
+        f"(ID: {current_user.id}). Média anterior: {(media_anterior if media_anterior is not None else 8.0):.4f}. "
         f"Motivo: {motivo}"
     )
     LogService.log(
@@ -1316,7 +1368,7 @@ def anular_fada(fada_id):
         school_id=school_id
     )
 
-    # 2. Reseta os atributos preenchidos para recriar/reabrir em branco
+    # 2. Reseta os atributos preenchidos para o padrão 8.00 ao anular
     attrs = [
         'expressao', 'planejamento', 'perseveranca', 'apresentacao',
         'lealdade', 'tato', 'equilibrio', 'disciplina',

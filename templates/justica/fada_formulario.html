@@ -80,9 +80,9 @@
 
         <div id="area-selecao-comissao" class="mt-2 border-top pt-2" style="display: none;">
             <div class="row g-1">
-                <div class="col-4"><label class="small fw-bold">Presidente (Min. 2º Ten)</label><select id="sel_presidente" name="presidente_id" form="formFada" class="form-select form-select-sm fada-select" required onchange="atualizarNomes()"></select></div>
-                <div class="col-4"><label class="small fw-bold">Membro 1 (Min. 2º Sgt)</label><select id="sel_membro1" name="membro1_id" form="formFada" class="form-select form-select-sm fada-select" required onchange="atualizarNomes()"></select></div>
-                <div class="col-4"><label class="small fw-bold">Membro 2 (Min. 2º Sgt)</label><select id="sel_membro2" name="membro2_id" form="formFada" class="form-select form-select-sm fada-select" required onchange="atualizarNomes()"></select></div>
+                <div class="col-4"><label class="small fw-bold">Presidente (Min. 2º Ten)</label><select id="sel_presidente" name="presidente_id" form="formFada" class="form-select form-select-sm fada-select" onchange="atualizarNomes()"></select></div>
+                <div class="col-4"><label class="small fw-bold">Membro 1 (Min. 2º Sgt)</label><select id="sel_membro1" name="membro1_id" form="formFada" class="form-select form-select-sm fada-select" onchange="atualizarNomes()"></select></div>
+                <div class="col-4"><label class="small fw-bold">Membro 2 (Min. 2º Sgt)</label><select id="sel_membro2" name="membro2_id" form="formFada" class="form-select form-select-sm fada-select" onchange="atualizarNomes()"></select></div>
             </div>
         </div>
     </div>
@@ -90,7 +90,7 @@
     <form id="formFada" method="POST" action="{{ url_for('justica.salvar_fada') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="aluno_id" id="fada_aluno_id" value="">
-        <input type="hidden" id="fada_id_atual" value="">
+        <input type="hidden" name="fada_id" id="fada_id_atual" value="">
 
         <div class="text-center mb-3 font-serif lh-1">
             <img src="{{ url_for('static', filename='img/brasao_rs.png') }}" alt="" style="height: 50px; display: none;" class="d-print-block mx-auto mb-1">
@@ -160,7 +160,7 @@
                         <div id="badge_desc_{{ loop.index0 }}" class="mt-1 d-print-none"></div>
                     </td>
                     <td class="p-1">
-                        <input type="number" step="0.01" min="0" max="10"
+                        <input type="text" inputmode="decimal"
                                class="form-control text-center fw-bold fada-input border-0 bg-transparent p-0"
                                id="attr_{{ loop.index0 }}" name="notas[]" value="8.00"
                                oninput="atualizarConceito({{ loop.index0 }})"
@@ -240,7 +240,7 @@
 
         <div class="d-flex justify-content-end gap-2 mt-4 d-print-none" id="fadaActionButtons">
             <button type="button" class="btn btn-secondary" onclick="fecharFadaModal()">Fechar</button>
-            <button type="button" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="if(document.getElementById('formFada').reportValidity()) { document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important'); document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important'); document.getElementById('formFada').submit(); }">Salvar Rascunho</button>
+            <button type="button" class="btn btn-primary fw-bold px-4" id="btn-salvar-fada" onclick="submeterFadaForm()">Salvar Rascunho</button>
         </div>
     </form>
 
@@ -441,12 +441,54 @@ function bloquearEdicao() {
 }
 
 function enviarParaComissao() {
+    const p = document.getElementById('sel_presidente')?.value;
+    const m1 = document.getElementById('sel_membro1')?.value;
+    const m2 = document.getElementById('sel_membro2')?.value;
+    if (!p || !m1 || !m2) {
+        alert("Para enviar para a comissão assinar, selecione todos os 3 membros da comissão (Presidente, Membro 1 e Membro 2) no topo da ficha.");
+        return;
+    }
     const id = document.getElementById('fada_id_atual').value;
     if(confirm("Enviar para a comissão assinar? O documento será travado para edição.")) {
         fetch(`/justica-e-disciplina/fada/enviar-comissao/${id}`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}})
         .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert(d.error); });
     }
 }
+
+window.submeterFadaForm = function() {
+    const form = document.getElementById('formFada');
+    if (!form) return;
+
+    // Normaliza todos os 18 campos para formato decimal com ponto antes de submeter
+    for (let i = 0; i < 18; i++) {
+        const input = document.getElementById(`attr_${i}`);
+        if (input) {
+            let v = (input.value || '').toString().replace(',', '.').trim();
+            if (!v || isNaN(parseFloat(v))) {
+                alert(`Por favor, preencha uma nota válida para o Atributo ${i + 1}.`);
+                input.focus();
+                return;
+            }
+            let num = parseFloat(v);
+            if (num < 0 || num > 10) {
+                alert(`A nota do Atributo ${i + 1} deve estar entre 0.00 e 10.00.`);
+                input.focus();
+                return;
+            }
+            input.value = num.toFixed(2);
+        }
+    }
+
+    if (!form.reportValidity()) {
+        return;
+    }
+
+    const btnSalvar = document.getElementById('btn-salvar-fada');
+    if (btnSalvar) btnSalvar.disabled = true;
+    document.getElementById('fadaActionButtons').style.setProperty('display', 'none', 'important');
+    document.getElementById('loadingContainerFada').style.setProperty('display', 'flex', 'important');
+    form.submit();
+};
 
 function assinarAluno(acao) {
     if (acao === 'recorrer') {
@@ -472,16 +514,27 @@ function assinarAluno(acao) {
 }
 
 function atualizarConceito(idx) {
-    const v = parseFloat(document.getElementById(`attr_${idx}`).value);
+    const input = document.getElementById(`attr_${idx}`);
+    if (!input) return;
+    const raw = (input.value || '').toString().replace(',', '.').trim();
+    const v = parseFloat(raw);
     const el = document.getElementById(`conc_${idx}`);
-    if (v >= 7) { el.innerText = "APROVADO"; el.className = "text-center fw-bold small text-success"; }
+    if (!isNaN(v) && v >= 7) { el.innerText = "APROVADO"; el.className = "text-center fw-bold small text-success"; }
     else { el.innerText = "REPROVADO"; el.className = "text-center fw-bold small text-danger"; }
     calcularMediaFada();
 }
 
 function calcularMediaFada() {
-    let s = 0; document.querySelectorAll('.fada-input').forEach(i => s += parseFloat(i.value||0));
-    document.getElementById('displayMediaFada').innerText = (s/18.0).toFixed(2);
+    let s = 0;
+    let count = 0;
+    document.querySelectorAll('.fada-input').forEach(i => {
+        let raw = (i.value || '0').toString().replace(',', '.').trim();
+        let v = parseFloat(raw);
+        s += isNaN(v) ? 0 : v;
+        count++;
+    });
+    const media = count > 0 ? (s / count) : 0;
+    document.getElementById('displayMediaFada').innerText = media.toFixed(2);
 }
 
 function aplicarDesconto(selectEl) {
@@ -495,7 +548,7 @@ function aplicarDesconto(selectEl) {
             let maxAtual = parseFloat(inputAntigo.getAttribute('max') || 10.0);
             inputAntigo.setAttribute('max', (maxAtual + pontos).toFixed(2));
             
-            let val = parseFloat(inputAntigo.value || 8.0);
+            let val = parseFloat((inputAntigo.value || '8.0').toString().replace(',', '.'));
             inputAntigo.value = Math.min(parseFloat(inputAntigo.getAttribute('max')), val + pontos).toFixed(2);
             atualizarConceito(oldIdx - 1);
         }
@@ -508,7 +561,7 @@ function aplicarDesconto(selectEl) {
             let novoMax = Math.max(0, maxAtual - pontos);
             inputNovo.setAttribute('max', novoMax.toFixed(2));
             
-            let val = parseFloat(inputNovo.value || 8.0);
+            let val = parseFloat((inputNovo.value || '8.0').toString().replace(',', '.'));
             inputNovo.value = Math.min(novoMax, Math.max(0, val - pontos)).toFixed(2);
             atualizarConceito(newIdx - 1);
         }
