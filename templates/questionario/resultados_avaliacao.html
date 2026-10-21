@@ -15,7 +15,7 @@
             <form class="d-flex align-items-center" method="GET">
                 <label for="turma_id" class="me-2 mb-0 fw-semibold">Filtrar por Turma:</label>
                 <select name="turma_id" id="turma_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 200px;">
-                    <option value="">Todas as Turmas (Viso Global)</option>
+                    <option value="">Todas as Turmas (Visão Global)</option>
                     {% for t in turmas_disponiveis %}
                         <option value="{{ t.id }}" {% if turma_id_filter == t.id %}selected{% endif %}>{{ t.nome }}</option>
                     {% endfor %}
@@ -136,7 +136,7 @@
                             <td class="text-center"><span class="badge bg-secondary">{{ instrutor.votos_count }}</span></td>
                             <td class="text-end">
                                 <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseComments{{ loop.index }}">
-                                    Ver Comentrios <i class="fas fa-chevron-down ms-1"></i>
+                                    Ver Comentários <i class="fas fa-chevron-down ms-1"></i>
                                 </button>
                             </td>
                         </tr>
@@ -144,7 +144,7 @@
                             <td colspan="8" class="p-0 border-0">
                                 <div class="collapse" id="collapseComments{{ loop.index }}">
                                     <div class="bg-light p-3 border-bottom border-primary border-3 mb-2">
-                                        <h6 class="fw-bold mb-3 text-dark">Comentrios ({{ instrutor.comentarios|length }})</h6>
+                                        <h6 class="fw-bold mb-3 text-dark">Comentários ({{ instrutor.comentarios|length }})</h6>
                                         {% if instrutor.comentarios %}
                                             <div style="max-height: 200px; overflow-y: auto;" class="pe-2">
                                                 {% for com in instrutor.comentarios %}
@@ -157,7 +157,7 @@
                                                 {% endfor %}
                                             </div>
                                         {% else %}
-                                            <p class="text-muted small mb-0">Nenhum comentrio registrado.</p>
+                                            <p class="text-muted small mb-0">Nenhum comentário registrado.</p>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -226,7 +226,7 @@
         })
         .catch(err => {
             console.error(err);
-            alert("Erro de conexo ao gerar PDF.");
+            alert("Erro de conexão ao gerar PDF.");
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         });

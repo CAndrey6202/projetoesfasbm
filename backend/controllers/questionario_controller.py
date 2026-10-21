@@ -483,7 +483,9 @@ def resultado_avaliacao(id):
         if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
             continue
             
-        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        nome_base = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        id_func = (u.matricula or '').strip()
+        nome_exibicao = f"{nome_base} - {id_func}" if id_func else nome_base
         
         if nome_exibicao not in instrutores_data:
             instrutores_data[nome_exibicao] = {
@@ -563,7 +565,9 @@ def exportar_pdf_resultados_multiplos(id):
     instrutores_data = {}
     for r in respostas:
         u = r.instrutor.user
-        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        nome_base = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        id_func = (u.matricula or '').strip()
+        nome_exibicao = f"{nome_base} - {id_func}" if id_func else nome_base
         
         if nome_exibicao not in instrutores_data:
             instrutores_data[nome_exibicao] = {
@@ -680,7 +684,9 @@ def exportar_pdf_resultados(id):
         if "c al" in nome_guerra or "s ens" in nome_guerra or "sens" in nome_guerra or "c al" in nome_completo or "s ens" in nome_completo:
             continue
             
-        nome_exibicao = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        nome_base = f"{u.posto_graduacao or ''} {u.nome_de_guerra or u.nome_completo or 'Sem Nome'}".strip()
+        id_func = (u.matricula or '').strip()
+        nome_exibicao = f"{nome_base} - {id_func}" if id_func else nome_base
         
         if nome_exibicao not in instrutores_data:
             instrutores_data[nome_exibicao] = {
