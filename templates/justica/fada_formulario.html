@@ -114,6 +114,48 @@
 
         <div id="area-punicoes-fada"></div>
 
+        <!-- CAIXA DE RECURSO DO ALUNO NA FADA -->
+        <div id="box-recurso-fada" class="alert alert-danger border-danger shadow-sm mb-3 d-print-none" style="display: none; font-family: system-ui, -apple-system, sans-serif;">
+            <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-2">
+                <h6 class="fw-bold text-danger mb-0">
+                    <i class="fas fa-gavel me-2"></i>RECURSO DE AVALIAÇÃO FADA INTERPOSTO PELO ALUNO
+                </h6>
+                <span class="badge bg-danger" id="data_recurso_fada_display">EM RECURSO</span>
+            </div>
+            <div class="mb-2">
+                <label class="small fw-bold text-dark d-block mb-1">Motivo / Argumentação do Aluno:</label>
+                <div id="texto_recurso_aluno_display" class="p-2 bg-white border border-danger rounded text-dark fw-semibold" style="white-space: pre-wrap; font-size: 0.9rem;">-</div>
+            </div>
+
+            {% if current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin %}
+            <div class="mt-3 pt-2 border-top border-danger">
+                <div class="small text-dark mb-2">
+                    <i class="fas fa-info-circle text-danger me-1"></i>
+                    <strong>Como julgar:</strong>
+                    <ul class="mb-2 ps-3 small">
+                        <li><strong>Indeferir Recurso:</strong> mantém a nota atual e finaliza a FADA (lançando a nota no boletim).</li>
+                        <li><strong>Deferir Recurso:</strong> você pode ajustar os graus nos 18 atributos na tabela abaixo e finalizar imediatamente (ou reabrir a FADA como rascunho).</li>
+                    </ul>
+                </div>
+                <div class="mb-2">
+                    <label for="parecer_recurso_fada_input" class="form-label small fw-bold text-dark mb-1">Parecer / Fundamentação da Decisão (Obrigatório):</label>
+                    <textarea id="parecer_recurso_fada_input" class="form-control form-control-sm border-danger" rows="2" placeholder="Descreva a decisão e fundamentação sobre o recurso do aluno..."></textarea>
+                </div>
+                <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
+                    <button type="button" class="btn btn-sm btn-danger fw-bold" onclick="submeterJulgamentoRecursoFada('INDEFERIR')">
+                        <i class="fas fa-times-circle me-1"></i> Indeferir Recurso (Manter Nota e Finalizar)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success fw-bold" onclick="submeterJulgamentoRecursoFada('DEFERIR')">
+                        <i class="fas fa-check-circle me-1"></i> Deferir Recurso (Salvar Notas e Finalizar)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" onclick="submeterJulgamentoRecursoFada('DEFERIR_REABRIR')" title="Reabre a ficha como Rascunho para nova colheita de assinaturas da comissão">
+                        <i class="fas fa-undo me-1"></i> Deferir e Reabrir Rascunho
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-2 d-print-none bg-light p-2 rounded border">
             <span class="small text-muted"><i class="fas fa-info-circle text-primary me-1"></i>Clique nos campos da coluna <strong>GRAU</strong> para alterar qualquer nota.</span>
             <button type="button" class="btn btn-sm btn-outline-secondary fw-bold" id="btn-restaurar-padrao" onclick="restaurarPadraoBM()" title="Preenche todos os 18 atributos com a nota padrão 8.00">
@@ -246,6 +288,12 @@
 
 <form id="hiddenFormAssinarMembro" method="POST" enctype="multipart/form-data" style="display:none;"></form>
 <form id="hiddenFormAssAluno" method="POST" style="display:none;"></form>
+<form id="hiddenFormJulgarRecursoFada" method="POST" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="decisao_recurso_fada" id="hidden_decisao_recurso_fada" value="">
+    <input type="hidden" name="parecer_recurso_fada" id="hidden_parecer_recurso_fada" value="">
+    <div id="hidden_notas_recurso_container"></div>
+</form>
 
 </div>
 
@@ -336,7 +384,18 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
         document.getElementById('obs_justificativa').value = dadosFada.observacao;
     }
 
+    const boxRecurso = document.getElementById('box-recurso-fada');
+    if (boxRecurso) {
+        boxRecurso.style.display = 'none';
+    }
+    document.getElementById('botoes-aluno').classList.add('d-none');
+    const areaAssMembro = document.getElementById('areaAssinaturaMembro');
+    if (areaAssMembro) areaAssMembro.style.display = 'none';
+
+    const canManageRecurso = {{ 'true' if (current_user.is_cal or current_user.is_sens or current_user.is_admin_escola or current_user.is_super_admin) else 'false' }};
+
     if (etapa === 'RASCUNHO' || !etapa) {
+        badge.className = 'badge bg-dark ms-1';
         pComissao.style.display = 'block';
         btnSalvar.style.display = 'inline-block';
         document.getElementById('btn-enviar-comissao').style.display = fadaId ? 'inline-block' : 'none';
@@ -348,6 +407,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
         document.getElementById('btn-enviar-comissao').style.display = 'none';
 
         if (etapa === 'COMISSAO') {
+            badge.className = 'badge bg-info text-dark ms-1';
             const souPres = (dadosFada?.presidente_id == currentUserId && !dadosFada?.hash_pres);
             const souM1 = (dadosFada?.membro1_id == currentUserId && !dadosFada?.hash_m1);
             const souM2 = (dadosFada?.membro2_id == currentUserId && !dadosFada?.hash_m2);
@@ -360,6 +420,7 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
         }
 
         if (etapa === 'ALUNO') {
+            badge.className = 'badge bg-warning text-dark ms-1';
             document.getElementById('status-aluno-ass').innerText = "Documento liberado. Assine abaixo.";
             if ("{{ current_user.role }}".toLowerCase().trim() === "aluno") {
                 document.getElementById('botoes-aluno').classList.remove('d-none');
@@ -367,7 +428,31 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
             }
         }
 
+        if (etapa === 'RECURSO') {
+            badge.className = 'badge bg-danger ms-1';
+            badge.innerText = 'EM RECURSO';
+            document.getElementById('status-aluno-ass').innerHTML = `<span class="text-danger fw-bold"><i class="fas fa-exclamation-circle me-1"></i>ALUNO INTERPÔS RECURSO ${dadosFada?.data_assinatura ? 'EM ' + dadosFada.data_assinatura : ''}</span>`;
+            if (boxRecurso) {
+                boxRecurso.style.display = 'block';
+                document.getElementById('texto_recurso_aluno_display').innerText = dadosFada?.texto_recurso || 'Motivo não informado pelo aluno.';
+                const dataRecEl = document.getElementById('data_recurso_fada_display');
+                if (dataRecEl) {
+                    dataRecEl.innerText = dadosFada?.data_assinatura ? `Recurso em ${dadosFada.data_assinatura}` : 'EM RECURSO';
+                }
+                const parecerInput = document.getElementById('parecer_recurso_fada_input');
+                if (parecerInput) {
+                    parecerInput.disabled = false;
+                    parecerInput.value = '';
+                }
+            }
+            if (canManageRecurso) {
+                // Libera edição das notas e observação para caso o gestor queira deferir ajustando a nota
+                document.querySelectorAll('.fada-input, #obs_justificativa').forEach(el => el.disabled = false);
+            }
+        }
+
         if (etapa === 'FINALIZADO') {
+            badge.className = 'badge bg-success ms-1';
             document.getElementById('status-aluno-ass').innerHTML = `<span class="text-success fw-bold">ASSINADO EM ${dadosFada?.data_assinatura || ''}</span>`;
         }
     }
@@ -512,6 +597,57 @@ function assinarAluno(acao) {
     document.getElementById('acao_aluno_input').value = acao;
     document.getElementById('hiddenFormAssAluno').submit();
 }
+
+window.submeterJulgamentoRecursoFada = function(decisao) {
+    const fadaId = document.getElementById('fada_id_atual').value;
+    if (!fadaId) {
+        alert("ID da FADA não encontrado.");
+        return;
+    }
+    const parecerEl = document.getElementById('parecer_recurso_fada_input');
+    const parecer = (parecerEl ? parecerEl.value : '').trim();
+    if (!parecer || parecer.length < 5) {
+        alert("Por favor, preencha o Parecer / Fundamentação da decisão sobre o recurso (mínimo 5 caracteres).");
+        if (parecerEl) parecerEl.focus();
+        return;
+    }
+
+    let msgConfirm = "";
+    if (decisao === 'INDEFERIR') {
+        msgConfirm = "Confirmar INDEFERIMENTO do recurso? A nota atual será mantida e a FADA será finalizada e lançada no boletim.";
+    } else if (decisao === 'DEFERIR') {
+        msgConfirm = "Confirmar DEFERIMENTO do recurso? As notas preenchidas na tabela serão salvas e a FADA será finalizada e lançada no boletim.";
+    } else if (decisao === 'DEFERIR_REABRIR') {
+        msgConfirm = "Confirmar DEFERIMENTO e reabertura da FADA como RASCUNHO?";
+    }
+    if (!confirm(msgConfirm)) return;
+
+    const container = document.getElementById('hidden_notas_recurso_container');
+    container.innerHTML = '';
+    for (let i = 0; i < 18; i++) {
+        const input = document.getElementById(`attr_${i}`);
+        if (input) {
+            let v = (input.value || '8.00').toString().replace(',', '.').trim();
+            let num = parseFloat(v);
+            if (isNaN(num) || num < 0 || num > 10) {
+                alert(`Nota inválida no Atributo ${i + 1}. Informe um valor entre 0.00 e 10.00.`);
+                input.focus();
+                return;
+            }
+            const hiddenNota = document.createElement('input');
+            hiddenNota.type = 'hidden';
+            hiddenNota.name = 'notas[]';
+            hiddenNota.value = num.toFixed(2);
+            container.appendChild(hiddenNota);
+        }
+    }
+
+    const formJulgar = document.getElementById('hiddenFormJulgarRecursoFada');
+    formJulgar.action = `/justica-e-disciplina/fada/julgar-recurso/${fadaId}`;
+    document.getElementById('hidden_decisao_recurso_fada').value = decisao;
+    document.getElementById('hidden_parecer_recurso_fada').value = parecer;
+    formJulgar.submit();
+};
 
 function atualizarConceito(idx) {
     const input = document.getElementById(`attr_${idx}`);

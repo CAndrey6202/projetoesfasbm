@@ -20,7 +20,10 @@
 
 <div class="justice-options mb-4">
                     {% if has_justice %}
-                    <button class="btn btn-primary justice-option-btn {% if active_tab == 'andamento' %}active{% endif %}" data-target="inProgressContent">Em Andamento</button>
+                    <button class="btn btn-primary justice-option-btn {% if active_tab == 'andamento' %}active{% endif %}" data-target="inProgressContent">
+                        Em Andamento
+                        {% if fadas_recurso %}<span class="badge bg-danger ms-1">{{ fadas_recurso|length }} Recurso(s) FADA</span>{% endif %}
+                    </button>
                     <button class="btn btn-warning justice-option-btn {% if active_tab == 'finalizados' %}active{% endif %}" data-target="finalizadosContent">Finalizados</button>
                     {% endif %}
                     
@@ -51,6 +54,7 @@
                         {% if school_type in ['cbfpm', 'cspm'] %}
                         <a href="{{ url_for('justica.fada_boletim') }}" class="btn btn-info text-white justice-option-btn">
                             <i class="fas fa-clipboard-list me-1"></i> Boletim / Avaliar (FADA)
+                            {% if fadas_recurso %}<span class="badge bg-danger ms-1">{{ fadas_recurso|length }} em Recurso</span>{% endif %}
                         </a>
                         {% endif %}
                     {% endif %}
@@ -72,6 +76,64 @@
                             </form>
                         </div>
                     </div>
+
+                    {% if not is_aluno_view and fadas_recurso %}
+                        <div class="mb-4">
+                            <h5 class="text-danger fw-bold mb-2">
+                                <i class="fas fa-exclamation-circle me-2"></i>Recursos de Avaliação FADA Pendentes ({{ fadas_recurso|length }})
+                            </h5>
+                            {% for fada_rec in fadas_recurso %}
+                                {% set fada_rec_data = {
+                                    'aluno_id': fada_rec.aluno_id,
+                                    'aluno_nome': fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '',
+                                    'fada_id': fada_rec.id,
+                                    'status': fada_rec.status,
+                                    'data_assinatura': fada_rec.data_assinatura.strftime('%d/%m/%Y %H:%M') if fada_rec.data_assinatura else '',
+                                    'presidente_id': fada_rec.presidente_id,
+                                    'membro1_id': fada_rec.membro1_id,
+                                    'membro2_id': fada_rec.membro2_id,
+                                    'hash_pres': fada_rec.hash_pres,
+                                    'ass_img_pres': fada_rec.presidente.assinatura_padrao_path if (fada_rec.presidente and fada_rec.presidente.assinatura_padrao_path) else '',
+                                    'ass_img_m1': fada_rec.membro1.assinatura_padrao_path if (fada_rec.membro1 and fada_rec.membro1.assinatura_padrao_path) else '',
+                                    'ass_img_m2': fada_rec.membro2.assinatura_padrao_path if (fada_rec.membro2 and fada_rec.membro2.assinatura_padrao_path) else '',
+                                    'hash_m1': fada_rec.hash_m1,
+                                    'hash_m2': fada_rec.hash_m2,
+                                    'data_ass_pres': fada_rec.data_ass_pres.strftime('%d/%m') if fada_rec.data_ass_pres else '',
+                                    'notas': [fada_rec.expressao, fada_rec.planejamento, fada_rec.perseveranca, fada_rec.apresentacao, fada_rec.lealdade, fada_rec.tato, fada_rec.equilibrio, fada_rec.disciplina, fada_rec.responsabilidade, fada_rec.maturidade, fada_rec.assiduidade, fada_rec.pontualidade, fada_rec.diccao, fada_rec.lideranca, fada_rec.relacionamento, fada_rec.etica, fada_rec.produtividade, fada_rec.eficiencia],
+                                    'observacao': fada_rec.observacao or '',
+                                    'texto_recurso': fada_rec.texto_recurso or '',
+                                    'etapa_atual': fada_rec.status,
+                                    'punicoes': []
+                                } %}
+                                <script>window.fadaRecursoMap = window.fadaRecursoMap || {}; window.fadaRecursoMap[{{ fada_rec.id }}] = {{ fada_rec_data | tojson | safe }};</script>
+                                <div class="card mb-3 shadow-sm border-start border-4 border-danger bg-danger bg-opacity-10">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-2 col-sm-4">
+                                                <small class="text-muted d-block small text-uppercase fw-bold">Data do Recurso</small>
+                                                <strong>{{ fada_rec.data_assinatura.strftime('%d/%m/%Y %H:%M') if fada_rec.data_assinatura else (fada_rec.data_avaliacao.strftime('%d/%m/%Y') if fada_rec.data_avaliacao else 'N/A') }}</strong>
+                                            </div>
+                                            <div class="col-md-3 col-sm-8">
+                                                <small class="text-muted d-block small text-uppercase fw-bold">Aluno / Turma</small>
+                                                <span class="fw-bold">{{ fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '-' }}</span>
+                                                <span class="text-muted small d-block">{{ fada_rec.aluno.turma.nome if (fada_rec.aluno and fada_rec.aluno.turma) else '' }} (FADA ID #{{ fada_rec.id }})</span>
+                                            </div>
+                                            <div class="col-md-4 col-sm-12 mt-2 mt-md-0">
+                                                <small class="text-danger d-block small text-uppercase fw-bold">Motivo do Recurso (FADA)</small>
+                                                <div class="text-dark fw-semibold" style="font-size: 0.9rem;">{{ fada_rec.texto_recurso or 'Motivo não informado' }}</div>
+                                                <span class="badge bg-danger mt-1"><i class="fas fa-exclamation-circle me-1"></i>EM RECURSO (FADA: {{ "{:.2f}".format(fada_rec.media_final or 8.0) }})</span>
+                                            </div>
+                                            <div class="col-md-3 text-md-end text-start mt-3 mt-md-0">
+                                                <button type="button" class="btn btn-sm btn-danger fw-bold text-white" onclick="abrirFadaModal({{ fada_rec.aluno_id }}, {{ (fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '') | tojson }}, {{ fada_rec.id }}, 'RECURSO', window.fadaRecursoMap[{{ fada_rec.id }}])">
+                                                    <i class="fas fa-gavel me-1"></i> Analisar / Julgar FADA
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
 
                     {% if em_andamento %}
                         {% for p in em_andamento %}
@@ -788,6 +850,7 @@
                                                     'data_ass_pres': fada.data_ass_pres.strftime('%d/%m') if fada.data_ass_pres else '',
                                                     'notas': [fada.expressao, fada.planejamento, fada.perseveranca, fada.apresentacao, fada.lealdade, fada.tato, fada.equilibrio, fada.disciplina, fada.responsabilidade, fada.maturidade, fada.assiduidade, fada.pontualidade, fada.diccao, fada.lideranca, fada.relacionamento, fada.etica, fada.produtividade, fada.eficiencia],
                                                     'observacao': fada.observacao,
+                                                    'texto_recurso': fada.texto_recurso or '',
                                                     'etapa_atual': fada.status,
                                                     'punicoes': []
                                                 } %}

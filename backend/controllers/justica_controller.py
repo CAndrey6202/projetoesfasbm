@@ -143,6 +143,25 @@ def index():
         active_edicao = session.get('active_edicao_id')
         edicao_filter = or_(Turma.edicao_id == active_edicao, Turma.edicao_id.is_(None)) if active_edicao else True
 
+        fadas_recurso = db.session.scalars(
+            select(FadaAvaliacao)
+            .join(Aluno, FadaAvaliacao.aluno_id == Aluno.id)
+            .join(Turma, Aluno.turma_id == Turma.id)
+            .options(
+                joinedload(FadaAvaliacao.aluno).joinedload(Aluno.user),
+                joinedload(FadaAvaliacao.aluno).joinedload(Aluno.turma),
+                joinedload(FadaAvaliacao.presidente),
+                joinedload(FadaAvaliacao.membro1),
+                joinedload(FadaAvaliacao.membro2)
+            )
+            .where(
+                Turma.school_id == school_id,
+                edicao_filter,
+                FadaAvaliacao.status == 'RECURSO'
+            )
+            .order_by(FadaAvaliacao.data_assinatura.desc(), FadaAvaliacao.id.desc())
+        ).all()
+
         stmt_andamento = select(ProcessoDisciplina).join(Aluno, ProcessoDisciplina.aluno_id == Aluno.id).join(User, Aluno.user_id == User.id).join(Turma, Aluno.turma_id == Turma.id).options(
             joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.user),
             joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.turma)
@@ -238,7 +257,8 @@ def index():
                            meus_elogios=meus_elogios, is_aluno_view=is_aluno_view,
                            meus_elogios_paginados=meus_elogios_paginados,
                            fadas_aluno=locals().get('fadas_aluno', []),
-                           fadas_comissao=locals().get('fadas_comissao', []))
+                           fadas_comissao=locals().get('fadas_comissao', []),
+                           fadas_recurso=locals().get('fadas_recurso', []))
 
 @justica_bp.route('/registrar-em-massa', methods=['POST'])
 @login_required
@@ -1195,6 +1215,38 @@ def assinar_fada_membro(fada_id):
     flash('Assinatura digital realizada com sucesso!', 'success')
     return redirect(url_for('justica.fada_boletim'))
 
+def _lancar_fada_no_boletim(f):
+    """Injeta a nota AAt final da FADA no boletim (HistoricoDisciplina de Avaliação Atitudinal)."""
+    try:
+        from backend.models.disciplina import Disciplina
+        from backend.models.historico_disciplina import HistoricoDisciplina
+        aluno_obj = db.session.get(Aluno, f.aluno_id)
+        if aluno_obj:
+            disciplina_aat = db.session.scalar(
+                select(Disciplina).where(
+                    Disciplina.turma_id == aluno_obj.turma_id,
+                    Disciplina.materia == 'Avaliação Atitudinal'
+                )
+            )
+            if disciplina_aat:
+                hist = db.session.scalar(
+                    select(HistoricoDisciplina).where(
+                        HistoricoDisciplina.aluno_id == aluno_obj.id,
+                        HistoricoDisciplina.disciplina_id == disciplina_aat.id
+                    )
+                )
+                if hist:
+                    hist.nota_final = f.aat_snapshot
+                else:
+                    novo_hist = HistoricoDisciplina(
+                        aluno_id=aluno_obj.id,
+                        disciplina_id=disciplina_aat.id,
+                        nota_final=f.aat_snapshot
+                    )
+                    db.session.add(novo_hist)
+    except Exception as e:
+        logger.error(f"Erro ao injetar nota da FADA no boletim: {e}")
+
 @justica_bp.route('/fada/assinar-aluno/<int:fada_id>', methods=['POST'])
 @login_required
 def assinar_fada_aluno(fada_id):
@@ -1207,52 +1259,36 @@ def assinar_fada_aluno(fada_id):
         f.status = 'FINALIZADO'
         f.data_assinatura = datetime.now().astimezone(); f.ip_assinatura = request.remote_addr
         f.hash_integridade = hashlib.sha256(f"FINAL-{f.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
-        
-        # --- INTEGRAÇÃO COM O BOLETIM ---
-        try:
-            # Importa os modelos necessários aqui para evitar import circular, se for o caso
-            from backend.models.disciplina import Disciplina
-            from backend.models.historico_disciplina import HistoricoDisciplina
-            from backend.models.aluno import Aluno
-            
-            aluno_obj = db.session.get(Aluno, f.aluno_id)
-            if aluno_obj:
-                # Procura a disciplina "Avaliação Atitudinal" vinculada à turma deste aluno
-                disciplina_aat = db.session.scalar(
-                    select(Disciplina).where(
-                        Disciplina.turma_id == aluno_obj.turma_id,
-                        Disciplina.materia == 'Avaliação Atitudinal'
-                    )
-                )
-                
-                if disciplina_aat:
-                    # Verifica se o aluno já tem um histórico para essa disciplina
-                    hist = db.session.scalar(
-                        select(HistoricoDisciplina).where(
-                            HistoricoDisciplina.aluno_id == aluno_obj.id,
-                            HistoricoDisciplina.disciplina_id == disciplina_aat.id
-                        )
-                    )
-                    
-                    if hist:
-                        hist.nota_final = f.aat_snapshot
-                    else:
-                        novo_hist = HistoricoDisciplina(
-                            aluno_id=aluno_obj.id,
-                            disciplina_id=disciplina_aat.id,
-                            nota_final=f.aat_snapshot
-                        )
-                        db.session.add(novo_hist)
-        except Exception as e:
-            logger.error(f"Erro ao injetar nota da FADA no boletim: {e}")
-        # --------------------------------
-        
+        _lancar_fada_no_boletim(f)
         flash("Assinado com sucesso. Nota lançada no boletim (se a disciplina estiver cadastrada).", "success")
     else:
         f.status = 'RECURSO'
         f.texto_recurso = request.form.get('motivo_recurso')
         f.data_assinatura = datetime.now().astimezone()
-        flash("Recurso enviado.", "warning")
+        flash("Recurso enviado para análise da administração (CAL / SENS / Comando).", "warning")
+
+        # Notifica CAL, SENS e Admin da Escola sobre o recurso da FADA
+        try:
+            aluno_obj = db.session.get(Aluno, f.aluno_id)
+            sid = aluno_obj.turma.school_id if (aluno_obj and aluno_obj.turma) else UserService.get_current_school_id()
+            nome_al = aluno_obj.user.nome_completo if (aluno_obj and aluno_obj.user) else f"ID {f.aluno_id}"
+            if sid:
+                gestores = db.session.scalars(
+                    select(User).join(UserSchool, UserSchool.user_id == User.id).where(
+                        UserSchool.school_id == sid,
+                        User.role != 'aluno'
+                    )
+                ).all()
+                link_fada = url_for('justica.fada_boletim', _external=True)
+                for g_user in gestores:
+                    if g_user.is_cal_in_school(sid) or g_user.is_sens_in_school(sid) or g_user.is_admin_escola_in_school(sid):
+                        NotificationService.create_notification(
+                            user_id=g_user.id,
+                            message=f"RECURSO FADA: O aluno {nome_al} interpôs recurso na Avaliação FADA.",
+                            url=link_fada
+                        )
+        except Exception as e:
+            logger.error(f"Erro ao notificar gestores sobre recurso FADA: {e}")
 
     db.session.commit()
     
@@ -1269,6 +1305,151 @@ def assinar_fada_aluno(fada_id):
     # -------------------------------
     
     return redirect(url_for('justica.index'))
+
+@justica_bp.route('/fada/julgar-recurso/<int:fada_id>', methods=['POST'])
+@login_required
+@can_manage_justice_required
+def julgar_recurso_fada(fada_id):
+    fada = db.session.get(FadaAvaliacao, fada_id)
+    if not fada or fada.status != 'RECURSO':
+        flash("Avaliação FADA não encontrada ou não está em fase de recurso.", "danger")
+        return redirect(request.referrer or url_for('justica.fada_boletim'))
+
+    decisao = request.form.get('decisao_recurso_fada', '').strip().upper()
+    parecer = request.form.get('parecer_recurso_fada', '').strip()
+    if not parecer or len(parecer) < 5:
+        flash("Informe a fundamentação/parecer sobre o recurso da FADA (mínimo 5 caracteres).", "warning")
+        return redirect(request.referrer or url_for('justica.fada_boletim'))
+
+    aluno = fada.aluno
+    nome_aluno = aluno.user.nome_completo if (aluno and aluno.user) else f"ID {fada.aluno_id}"
+    data_atual = datetime.now().strftime('%d/%m/%Y %H:%M')
+    motivo_aluno = fada.texto_recurso or 'Não informado'
+    school_id = UserService.get_current_school_id()
+
+    attrs = [
+        'expressao', 'planejamento', 'perseveranca', 'apresentacao',
+        'lealdade', 'tato', 'equilibrio', 'disciplina',
+        'responsabilidade', 'maturidade', 'assiduidade', 'pontualidade',
+        'diccao', 'lideranca', 'relacionamento', 'etica',
+        'produtividade', 'eficiencia'
+    ]
+
+    if decisao == 'INDEFERIR':
+        aat, ndisc, _ = JusticaService.calcular_aat_final(fada.aluno_id)
+        fada.ndisc_snapshot = ndisc
+        fada.aat_snapshot = aat
+        fada.status = 'FINALIZADO'
+        fada.data_assinatura = datetime.now().astimezone()
+        if not fada.hash_integridade:
+            fada.hash_integridade = hashlib.sha256(f"FINAL-REC-INDEF-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
+
+        carimbo = (
+            f"[RECURSO FADA INDEFERIDO em {data_atual} por {current_user.nome_completo} "
+            f"| Recurso do Aluno: {motivo_aluno} | Parecer: {parecer}]"
+        )
+        fada.observacao = f"{carimbo}\n{fada.observacao}" if (fada.observacao and fada.observacao.strip()) else carimbo
+
+        _lancar_fada_no_boletim(fada)
+        db.session.commit()
+
+        LogService.log(
+            action="Julgou Recurso FADA (Indeferido)",
+            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi INDEFERIDO por {current_user.nome_completo}. Média mantida: {fada.media_final:.2f}. Parecer: {parecer}",
+            school_id=school_id
+        )
+        if aluno and aluno.user:
+            NotificationService.create_notification(
+                user_id=aluno.user.id,
+                message=f"Seu recurso da FADA foi analisado e INDEFERIDO. A avaliação foi finalizada (Média FADA: {fada.media_final:.2f}).",
+                url=url_for('justica.index', tab='fadaContent', _external=True)
+            )
+        flash(f"Recurso da FADA de {nome_aluno} INDEFERIDO. Nota mantida ({fada.media_final:.2f}) e FADA finalizada no boletim!", "info")
+
+    elif decisao == 'DEFERIR':
+        notas = request.form.getlist('notas[]')
+        if len(notas) == 18:
+            notas_float = []
+            for idx, n_str in enumerate(notas):
+                try:
+                    val = float(str(n_str).replace(',', '.').strip())
+                    val = max(0.0, min(10.0, val))
+                    notas_float.append(val)
+                except (ValueError, TypeError):
+                    notas_float.append(getattr(fada, attrs[idx], 8.0) or 8.0)
+            for idx, attr in enumerate(attrs):
+                setattr(fada, attr, notas_float[idx])
+            fada.media_final = sum(notas_float) / 18.0
+
+        db.session.flush()
+        aat, ndisc, _ = JusticaService.calcular_aat_final(fada.aluno_id)
+        fada.ndisc_snapshot = ndisc
+        fada.aat_snapshot = aat
+        fada.status = 'FINALIZADO'
+        fada.data_assinatura = datetime.now().astimezone()
+        if not fada.hash_integridade:
+            fada.hash_integridade = hashlib.sha256(f"FINAL-REC-DEF-{fada.id}-{uuid.uuid4()}".encode()).hexdigest()[:20].upper()
+
+        carimbo = (
+            f"[RECURSO FADA DEFERIDO em {data_atual} por {current_user.nome_completo} "
+            f"| Nova Média FADA: {fada.media_final:.2f} | Recurso do Aluno: {motivo_aluno} | Parecer: {parecer}]"
+        )
+        fada.observacao = f"{carimbo}\n{fada.observacao}" if (fada.observacao and fada.observacao.strip()) else carimbo
+
+        _lancar_fada_no_boletim(fada)
+        db.session.commit()
+
+        LogService.log(
+            action="Julgou Recurso FADA (Deferido)",
+            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi DEFERIDO por {current_user.nome_completo}. Nova Média FADA: {fada.media_final:.2f}. Parecer: {parecer}",
+            school_id=school_id
+        )
+        if aluno and aluno.user:
+            NotificationService.create_notification(
+                user_id=aluno.user.id,
+                message=f"Seu recurso da FADA foi DEFERIDO! Avaliação atualizada e finalizada (Média FADA: {fada.media_final:.2f}).",
+                url=url_for('justica.index', tab='fadaContent', _external=True)
+            )
+        flash(f"Recurso da FADA de {nome_aluno} DEFERIDO com sucesso! Nova Média FADA: {fada.media_final:.2f} lançada no boletim.", "success")
+
+    elif decisao == 'DEFERIR_REABRIR':
+        notas = request.form.getlist('notas[]')
+        if len(notas) == 18:
+            notas_float = []
+            for idx, n_str in enumerate(notas):
+                try:
+                    val = float(str(n_str).replace(',', '.').strip())
+                    val = max(0.0, min(10.0, val))
+                    notas_float.append(val)
+                except (ValueError, TypeError):
+                    notas_float.append(getattr(fada, attrs[idx], 8.0) or 8.0)
+            for idx, attr in enumerate(attrs):
+                setattr(fada, attr, notas_float[idx])
+            fada.media_final = sum(notas_float) / 18.0
+
+        fada.status = 'RASCUNHO'
+        fada.data_ass_pres = None; fada.hash_pres = None; fada.ip_pres = None
+        fada.data_ass_m1 = None; fada.hash_m1 = None; fada.ip_m1 = None
+        fada.data_ass_m2 = None; fada.hash_m2 = None; fada.ip_m2 = None
+        fada.data_assinatura = None; fada.hash_integridade = None; fada.ip_assinatura = None
+
+        carimbo = (
+            f"[RECURSO FADA DEFERIDO (REABERTO P/ RASCUNHO) em {data_atual} por {current_user.nome_completo} "
+            f"| Recurso do Aluno: {motivo_aluno} | Parecer: {parecer}]"
+        )
+        fada.observacao = f"{carimbo}\n{fada.observacao}" if (fada.observacao and fada.observacao.strip()) else carimbo
+        db.session.commit()
+
+        LogService.log(
+            action="Julgou Recurso FADA (Reaberto)",
+            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi DEFERIDO e reaberto como RASCUNHO por {current_user.nome_completo}. Parecer: {parecer}",
+            school_id=school_id
+        )
+        flash(f"Recurso deferido: a FADA de {nome_aluno} foi reaberta como RASCUNHO para ajustes.", "warning")
+    else:
+        flash("Decisão inválida para o recurso da FADA.", "danger")
+
+    return redirect(request.referrer or url_for('justica.fada_boletim'))
 
 @justica_bp.route('/api/infracoes-pendentes/<int:aluno_id>')
 @login_required

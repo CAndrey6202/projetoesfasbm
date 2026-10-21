@@ -87,30 +87,38 @@
                             item.fada_obj.produtividade, item.fada_obj.eficiencia
                         ] if item.fada_obj else [],
                         'observacao': item.fada_obj.observacao if (item.fada_obj and item.fada_obj.observacao) else '',
+                        'texto_recurso': item.fada_obj.texto_recurso if (item.fada_obj and item.fada_obj.texto_recurso) else '',
+                        'data_assinatura': item.fada_obj.data_assinatura.strftime('%d/%m/%Y %H:%M') if (item.fada_obj and item.fada_obj.data_assinatura and item.fada_obj.data_assinatura.strftime is defined) else '',
                         'etapa_atual': status,
                         'punicoes': punicoes_dict
                     } %}
                     
-                    <tr class="text-center">
+                    <tr class="text-center {{ 'table-danger' if status == 'RECURSO' else '' }}">
                         <td>{{ item.aluno.numero or '-' }}</td>
                         <td class="text-start">
-                            <strong>{{ item.aluno.user.posto_graduacao if item.aluno.user else '' }} {{ item.aluno.user.nome_completo if item.aluno.user else '-' }}</strong><br>
+                            <strong>{{ item.aluno.user.posto_graduacao if item.aluno.user else '' }} {{ item.aluno.user.nome_completo if item.aluno.user else '-' }}</strong>
+                            {% if status == 'RECURSO' %}
+                                <span class="badge bg-danger ms-1"><i class="fas fa-gavel me-1"></i>EM RECURSO</span>
+                            {% endif %}
+                            <br>
                             <small class="text-muted">{{ item.turma }}</small>
                         </td>
                         <td class="fw-bold text-primary">{{ "{:.2f}".format(item.ndisc) if item.ndisc is not none else "-" }}</td>
                         <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) if item.fada is not none else "Pendente"}}</td>
                         <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
                         <td>
-                            <div class="d-flex align-items-center justify-content-center gap-2">
+                            <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
                                 <script>window.fadaDataMap = window.fadaDataMap || {}; window.fadaDataMap[{{ item.id }}] = {{ fada_data|tojson|safe }};</script>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="abrirFadaPorId({{ item.id }})">
-                                    <i class="fas fa-edit"></i> Abrir
+                                <button type="button" class="btn btn-sm {{ 'btn-danger fw-bold' if status == 'RECURSO' else 'btn-outline-primary' }}" onclick="abrirFadaPorId({{ item.id }})">
+                                    <i class="fas {{ 'fa-gavel' if status == 'RECURSO' else 'fa-edit' }}"></i> {{ 'Julgar Recurso' if status == 'RECURSO' else 'Abrir' }}
                                 </button>
                                 
                                 {% if status == 'COMISSAO' %}
                                     <span class="badge bg-info text-dark" title="Aguardando Comissão"><i class="fas fa-users"></i></span>
                                 {% elif status == 'ALUNO' %}
                                     <span class="badge bg-warning text-dark" title="Aguardando Aluno"><i class="fas fa-user-edit"></i></span>
+                                {% elif status == 'RECURSO' %}
+                                    <span class="badge bg-danger" title="Recurso interposto pelo aluno"><i class="fas fa-exclamation-circle"></i> EM RECURSO</span>
                                 {% elif status == 'FINALIZADO' %}
                                     <span class="badge bg-success" title="Concluído"><i class="fas fa-check-double"></i></span>
                                     <button type="button" class="btn btn-sm btn-danger btn-fada-pdf" data-url="{{ url_for('justica.exportar_fada_pdf', fada_id=item.fada_obj.id if item.fada_obj else 0) }}" title="Imprimir PDF">
