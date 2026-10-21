@@ -73,18 +73,71 @@ def debug_screen():
 def index():
     # Obtém a escola ativa
     school_id = session.get('active_school_id') or UserService.get_current_school_id()
-    
+
+    # Busca tipos de curso (npccal_type) existentes nas edições desta escola
+    from backend.models.edicao import Edicao
+    edicoes_escola = []
+    if school_id:
+        edicoes_escola = Edicao.query.filter_by(school_id=school_id).order_by(Edicao.id.desc()).all()
+
+    tipos_curso_map = {}
+    tipos_curso = []
+    for ed in edicoes_escola:
+        t_code = (ed.npccal_type or 'outros').strip().lower()
+        if t_code not in tipos_curso_map:
+            item = {
+                'code': t_code,
+                'label': t_code.upper(),
+                'edicoes': [ed.nome]
+            }
+            tipos_curso_map[t_code] = item
+            tipos_curso.append(item)
+        else:
+            tipos_curso_map[t_code]['edicoes'].append(ed.nome)
+
+    if not tipos_curso:
+        tipos_curso.append({'code': 'padrao', 'label': 'PADRÃO', 'edicoes': []})
+
+    selected_course_type = (request.args.get('course_type') or '').strip().lower()
+    valid_codes = [t['code'] for t in tipos_curso]
+    if selected_course_type not in valid_codes:
+        active_ed_id = session.get('active_edicao_id')
+        matched = False
+        if active_ed_id:
+            for ed in edicoes_escola:
+                if str(ed.id) == str(active_ed_id):
+                    c = (ed.npccal_type or 'outros').strip().lower()
+                    if c in valid_codes:
+                        selected_course_type = c
+                        matched = True
+                    break
+        if not matched:
+            selected_course_type = tipos_curso[0]['code']
+
     # Obtém todas as configurações base
     all_base_configs = SiteConfigService.get_all_configs()
     
     configs_by_category = {}
+    horarios_por_tipo = {t['code']: {} for t in tipos_curso}
     
     for config in all_base_configs:
         if config.config_key.startswith('school_'):
             continue
 
-        # Busca valor contextualizado (escola ou global)
-        real_value = SiteConfigService.get_config(config.config_key, config.config_value, school_id=school_id)
+        category = config.category or 'general'
+
+        if category == 'horarios':
+            for t in tipos_curso:
+                horarios_por_tipo[t['code']][config.config_key] = SiteConfigService.get_config(
+                    config.config_key,
+                    config.config_value,
+                    school_id=school_id,
+                    course_type=t['code']
+                )
+            real_value = horarios_por_tipo[selected_course_type].get(config.config_key, config.config_value)
+        else:
+            # Busca valor contextualizado (escola ou global)
+            real_value = SiteConfigService.get_config(config.config_key, config.config_value, school_id=school_id)
         
         config_display = {
             'config_key': config.config_key,
@@ -94,7 +147,6 @@ def index():
             'category': config.category
         }
         
-        category = config.category or 'general'
         if category not in configs_by_category:
             configs_by_category[category] = []
         configs_by_category[category].append(config_display)
@@ -103,7 +155,14 @@ def index():
     from backend.models.image_asset import ImageAsset
     assets = ImageAsset.query.limit(200).all()
 
-    return render_template('customizer/index.html', configs_by_category=configs_by_category, assets=assets)
+    return render_template(
+        'customizer/index.html',
+        configs_by_category=configs_by_category,
+        assets=assets,
+        tipos_curso=tipos_curso,
+        selected_course_type=selected_course_type,
+        horarios_por_tipo=horarios_por_tipo
+    )
 
 @customizer_bp.route('/update', methods=['POST'])
 @login_required
@@ -111,7 +170,7 @@ def index():
 def update():
     """
     Atualiza configurações.
-    Aceita tanto o formato do JS {config_key: 'X', config_value: 'Y'} 
+    Aceita tanto o formato do JS {config_key: 'X', config_value: 'Y', course_type: 'Z'} 
     quanto o formato de Formulário {X: Y}.
     """
     school_id = session.get('active_school_id') or UserService.get_current_school_id()
@@ -127,6 +186,8 @@ def update():
             if not c.config_key.startswith('school_'):
                 valid_keys.add(c.config_key)
         
+        course_type = request.form.get('course_type')
+
         # LÓGICA DE CORREÇÃO:
         # Verifica se veio do Javascript (fetch) que envia chaves 'config_key' e 'config_value'
         key_param = request.form.get('config_key')
@@ -134,7 +195,7 @@ def update():
             val_param = request.form.get('config_value')
             
             if key_param in valid_keys:
-                SiteConfigService.set_config(key_param, val_param, school_id=school_id)
+                SiteConfigService.set_config(key_param, val_param, school_id=school_id, course_type=course_type)
                 return jsonify({'success': True, 'message': 'Configuração atualizada com sucesso.'})
             else:
                 return jsonify({'success': False, 'message': f'Chave inválida: {key_param}'}), 400
@@ -143,7 +204,7 @@ def update():
         updated_count = 0
         for key, value in request.form.items():
             if key in valid_keys:
-                SiteConfigService.set_config(key, value, school_id=school_id)
+                SiteConfigService.set_config(key, value, school_id=school_id, course_type=course_type)
                 updated_count += 1
         
         if updated_count == 0:

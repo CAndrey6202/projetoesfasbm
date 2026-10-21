@@ -688,9 +688,23 @@ class HorarioService:
 
             # Busca intervalos para quebra de grupos
             try:
-                pos_int_1 = int(float(SiteConfigService.get_config('posicao_intervalo_manha', '3', school_id=school_id)))
-                pos_almoco = int(float(SiteConfigService.get_config('posicao_intervalo_almoco', '6', school_id=school_id)))
-                pos_int_2 = int(float(SiteConfigService.get_config('posicao_intervalo_tarde', '9', school_id=school_id)))
+                course_type = None
+                try:
+                    from ..models.edicao import Edicao
+                    ed_id = None
+                    if semana and getattr(semana, 'ciclo', None) and getattr(semana.ciclo, 'edicao_id', None):
+                        ed_id = semana.ciclo.edicao_id
+                    elif disciplina and getattr(disciplina, 'turma', None) and getattr(disciplina.turma, 'edicao_id', None):
+                        ed_id = disciplina.turma.edicao_id
+                    if ed_id:
+                        ed_obj = db.session.get(Edicao, int(ed_id))
+                        if ed_obj and getattr(ed_obj, 'npccal_type', None):
+                            course_type = str(ed_obj.npccal_type).strip().lower()
+                except Exception:
+                    course_type = None
+                pos_int_1 = int(float(SiteConfigService.get_config('posicao_intervalo_manha', '3', school_id=school_id, course_type=course_type)))
+                pos_almoco = int(float(SiteConfigService.get_config('posicao_intervalo_almoco', '6', school_id=school_id, course_type=course_type)))
+                pos_int_2 = int(float(SiteConfigService.get_config('posicao_intervalo_tarde', '9', school_id=school_id, course_type=course_type)))
             except:
                 pos_int_1, pos_almoco, pos_int_2 = 3, 6, 9
                 

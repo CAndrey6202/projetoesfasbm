@@ -25,25 +25,54 @@
     </div>
 
     <div class="customizer-grid">
-        <div class="config-section">
+        <div class="config-section" id="horarios-section">
             <h2>⏰ Horários dos Períodos</h2>
+
+            <div class="config-card mb-4" style="background: #f8fafc; border: 2px solid #3b82f6;">
+                <label class="config-label" for="course-type-select" style="font-size: 1rem; color: #1e3a8a;">
+                    🎓 Tipo do Curso
+                </label>
+                <select id="course-type-select" class="form-select form-control fw-bold mb-2" onchange="selectCourseType(this.value)">
+                    {% for tc in tipos_curso %}
+                    <option value="{{ tc.code }}" {% if tc.code == selected_course_type %}selected{% endif %}>
+                        {{ tc.label }}{% if tc.edicoes %} — ({{ tc.edicoes | join(', ') }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    {% for tc in tipos_curso %}
+                    <button type="button"
+                            class="btn btn-sm course-type-btn {% if tc.code == selected_course_type %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}"
+                            data-course-type="{{ tc.code }}"
+                            onclick="selectCourseType('{{ tc.code }}')">
+                        {{ tc.label }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <small style="color: #475569; font-size: 0.8rem; margin-top: 8px; display: block;">
+                    Selecione ou clique no tipo do curso acima para alterar os horários deste tipo sem alterar os demais.
+                </small>
+            </div>
+
             <div class="config-cards">
                 {% for config in configs_by_category.get('horarios', []) %}
                 <div class="config-card">
                     <label class="config-label">{{ config.description or config.config_key }}</label>
                     
                     {% if 'posicao' in config.config_key %}
-                        <input type="number" class="form-control text-input" 
+                        <input type="number" class="form-control text-input horario-input" 
                                value="{{ config.config_value or '' }}"
                                data-config-key="{{ config.config_key }}" 
                                data-config-type="text"
-                               placeholder="Ex: 3" min="1" max="15" style="max-width: 150px;">
+                               data-is-horario="true"
+                               placeholder="Ex: 3" min="1" max="18" style="max-width: 150px;">
                         <small style="color: #64748b; font-size: 0.8rem; margin-top: 5px; display: block;">Digite o NÚMERO do período. (Ex: 3 = aparecerá após o 3º período).</small>
                     {% else %}
-                        <input type="text" class="form-control text-input" 
+                        <input type="text" class="form-control text-input horario-input" 
                                value="{{ config.config_value or '' }}"
                                data-config-key="{{ config.config_key }}" 
                                data-config-type="text"
+                               data-is-horario="true"
                                placeholder="HH:MM-HH:MM">
                     {% endif %}
                 </div>
@@ -270,20 +299,71 @@
 
 <script>
 let pendingChanges = {};
+let currentCourseType = {{ (selected_course_type or 'padrao') | tojson }};
+let horariosPorTipo = {{ (horarios_por_tipo or {}) | tojson }};
 
-function updateConfig(key, value, type) {
-    pendingChanges[key] = { value: value, type: type };
+function selectCourseType(courseType) {
+    currentCourseType = courseType;
+    const selectEl = document.getElementById('course-type-select');
+    if (selectEl && selectEl.value !== courseType) {
+        selectEl.value = courseType;
+    }
+
+    document.querySelectorAll('.course-type-btn').forEach(btn => {
+        if (btn.dataset.courseType === courseType) {
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-primary', 'fw-bold');
+        } else {
+            btn.classList.remove('btn-primary', 'fw-bold');
+            btn.classList.add('btn-outline-secondary');
+        }
+    });
+
+    const mapForType = horariosPorTipo[courseType] || {};
+    document.querySelectorAll('.horario-input').forEach(input => {
+        const key = input.dataset.configKey;
+        const pendingKey = `${courseType}::${key}`;
+        if (pendingChanges[pendingKey]) {
+            input.value = pendingChanges[pendingKey].value;
+        } else {
+            input.value = mapForType[key] !== undefined && mapForType[key] !== null ? mapForType[key] : '';
+        }
+        const card = input.closest('.config-card');
+        if (card) {
+            if (pendingChanges[pendingKey]) {
+                card.style.borderColor = '#f59e0b';
+                card.style.backgroundColor = '#fffbeb';
+            } else {
+                card.style.borderColor = '#e2e8f0';
+                card.style.backgroundColor = 'white';
+            }
+        }
+    });
+}
+
+function updateConfig(key, value, type, isHorario = false) {
+    if (isHorario) {
+        const pendingKey = `${currentCourseType}::${key}`;
+        pendingChanges[pendingKey] = { key: key, value: value, type: type, course_type: currentCourseType };
+        if (!horariosPorTipo[currentCourseType]) {
+            horariosPorTipo[currentCourseType] = {};
+        }
+        horariosPorTipo[currentCourseType][key] = value;
+    } else {
+        pendingChanges[key] = { key: key, value: value, type: type, course_type: null };
+    }
     const card = document.querySelector(`[data-config-key="${key}"]`).closest('.config-card');
     card.style.borderColor = '#f59e0b';
     card.style.backgroundColor = '#fffbeb';
 }
 
-document.addEventListener('change', function(e) {
+function handleFieldEvent(e) {
     if (e.target.matches('.image-select, .icon-select, .text-input, .color-input')) {
         const key = e.target.dataset.configKey;
         const value = e.target.value;
         const type = e.target.dataset.configType;
-        updateConfig(key, value, type);
+        const isHorario = e.target.dataset.isHorario === 'true';
+        updateConfig(key, value, type, isHorario);
         
         if (type === 'image') {
             const previewImg = e.target.closest('.image-selector').querySelector('.preview-img');
@@ -312,6 +392,13 @@ document.addEventListener('change', function(e) {
             }
         }
     }
+}
+
+document.addEventListener('change', handleFieldEvent);
+document.addEventListener('input', function(e) {
+    if (e.target.matches('.text-input')) {
+        handleFieldEvent(e);
+    }
 });
 
 document.getElementById('apply-changes').addEventListener('click', function() {
@@ -322,11 +409,14 @@ document.getElementById('apply-changes').addEventListener('click', function() {
     this.disabled = true;
     this.innerHTML = '⏳ Aplicando...';
     
-    const promises = Object.entries(pendingChanges).map(([key, config]) => {
+    const promises = Object.values(pendingChanges).map((config) => {
         const formData = new FormData();
-        formData.append('config_key', key);
+        formData.append('config_key', config.key);
         formData.append('config_value', config.value);
         formData.append('config_type', config.type);
+        if (config.course_type) {
+            formData.append('course_type', config.course_type);
+        }
         return fetch('/customizer/update', { method: 'POST', body: formData, headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}).then(response => response.json());
     });
     
@@ -335,7 +425,13 @@ document.getElementById('apply-changes').addEventListener('click', function() {
             const failed = results.filter(r => !r.success);
             if (failed.length === 0) {
                 alert('✅ Todas as configurações foram aplicadas com sucesso!\n\n🔄 A página será recarregada para mostrar as mudanças.');
-                setTimeout(() => window.location.reload(), 1000);
+                setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    if (currentCourseType) {
+                        url.searchParams.set('course_type', currentCourseType);
+                    }
+                    window.location.href = url.toString();
+                }, 800);
             } else {
                 alert(`❌ Algumas configurações falharam: ${failed.map(f => f.message).join(', ')}`);
             }

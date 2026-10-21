@@ -107,22 +107,65 @@ class SiteConfigService:
     _CONFIG_KEYS = {d[0]: {'type': d[2], 'category': d[4]} for d in _DEFAULT_CONFIGS}
     _DEFAULTS_MAP = {d[0]: d[1] for d in _DEFAULT_CONFIGS}
 
-    _config_cache = TTLCache(maxsize=200, ttl=300)
+    _config_cache = TTLCache(maxsize=500, ttl=300)
 
     @staticmethod
-    def get_config(key: str, default_value: str = None, school_id=None):
+    def _resolve_course_type(key: str, course_type: str = None):
+        is_horario_key = bool(key and (key.startswith('horario_') or key.startswith('posicao_intervalo_')))
+        if course_type is not None:
+            ct = str(course_type).strip().lower()
+            if ct and ct != 'padrao':
+                return ct if is_horario_key else None
+            return None
+
+        if not is_horario_key:
+            return None
+
+        try:
+            from flask import has_request_context, g, session
+            from flask_login import current_user
+            if has_request_context():
+                active_ed = getattr(g, 'active_edicao', None)
+                if active_ed and getattr(active_ed, 'npccal_type', None):
+                    return str(active_ed.npccal_type).strip().lower()
+                ed_id = session.get('active_edicao_id')
+                if ed_id:
+                    from backend.models.edicao import Edicao
+                    ed_obj = db.session.get(Edicao, int(ed_id))
+                    if ed_obj and getattr(ed_obj, 'npccal_type', None):
+                        return str(ed_obj.npccal_type).strip().lower()
+                if current_user and getattr(current_user, 'is_authenticated', False):
+                    aluno_prof = getattr(current_user, 'aluno_profile', None)
+                    if aluno_prof and getattr(aluno_prof, 'edicao', None) and getattr(aluno_prof.edicao, 'npccal_type', None):
+                        return str(aluno_prof.edicao.npccal_type).strip().lower()
+        except Exception:
+            pass
+        return None
+
+    @staticmethod
+    def get_config(key: str, default_value: str = None, school_id=None, course_type: str = None):
         """
         Busca uma configuração.
-        Se school_id for fornecido, tenta buscar 'school_{id}_{key}'.
+        Se school_id e course_type forem fornecidos (para horários), tenta buscar 'school_{id}_type_{course_type}_{key}'.
+        Se não encontrar, tenta buscar 'school_{id}_{key}'.
         Se não encontrar (ou não houver school_id), busca a 'key' global.
-        Utiliza micro-cache em memória com teto de RAM (< 20 KB) isolado por escola.
+        Utiliza micro-cache em memória com teto de RAM (< 20 KB) isolado por escola e tipo de curso.
         """
-        cache_key = (school_id, key)
+        resolved_type = SiteConfigService._resolve_course_type(key, course_type)
+        cache_key = (school_id, resolved_type, key)
         if cache_key in SiteConfigService._config_cache:
             return SiteConfigService._config_cache[cache_key]
 
         result = None
-        if school_id:
+        if school_id and resolved_type:
+            type_key = f"school_{school_id}_type_{resolved_type}_{key}"
+            config = db.session.execute(
+                select(SiteConfig).where(SiteConfig.config_key == type_key)
+            ).scalar_one_or_none()
+            if config is not None:
+                result = config.config_value
+
+        if result is None and school_id:
             school_key = f"school_{school_id}_{key}"
             config = db.session.execute(
                 select(SiteConfig).where(SiteConfig.config_key == school_key)
@@ -225,15 +268,20 @@ class SiteConfigService:
         except Exception: raise ValueError(f"Não foi possível interpretar '{value}' como número.")
         
     @staticmethod
-    def set_config(key: str, value: str, config_type: str = 'text', description: str = None, category: str = 'general', updated_by: int = None, school_id=None):
+    def set_config(key: str, value: str, config_type: str = 'text', description: str = None, category: str = 'general', updated_by: int = None, school_id=None, course_type: str = None):
         """
         Salva uma configuração.
-        Se school_id for fornecido, salva como 'school_{id}_{key}'.
+        Se school_id e course_type forem fornecidos (para horários), salva como 'school_{id}_type_{course_type}_{key}'.
+        Se apenas school_id for fornecido, salva como 'school_{id}_{key}'.
         Caso contrário, sobrescreve a global.
         """
         target_key = key
-        
-        if school_id:
+        is_horario_key = bool(key and (key.startswith('horario_') or key.startswith('posicao_intervalo_')))
+        ctype = str(course_type).strip().lower() if (course_type and str(course_type).strip().lower() != 'padrao') else None
+
+        if school_id and ctype and is_horario_key:
+            target_key = f"school_{school_id}_type_{ctype}_{key}"
+        elif school_id:
             target_key = f"school_{school_id}_{key}"
         
         if config_type == 'image':

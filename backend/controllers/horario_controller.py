@@ -39,39 +39,55 @@ class AprovarHorarioForm(FlaskForm):
     action = HiddenField('Ação', validators=[DataRequired()])
     submit = SubmitField('Enviar')
 
-def _get_horario_context_data():
+def _get_horario_context_data(semana=None, turma=None):
     school_id = UserService.get_current_school_id()
+    course_type = None
+    try:
+        from ..models.edicao import Edicao
+        edicao_id = None
+        if semana and getattr(semana, 'ciclo', None) and getattr(semana.ciclo, 'edicao_id', None):
+            edicao_id = semana.ciclo.edicao_id
+        elif turma and getattr(turma, 'edicao_id', None):
+            edicao_id = turma.edicao_id
+        elif session.get('active_edicao_id'):
+            edicao_id = session.get('active_edicao_id')
+        if edicao_id:
+            ed_obj = db.session.get(Edicao, int(edicao_id))
+            if ed_obj and getattr(ed_obj, 'npccal_type', None):
+                course_type = str(ed_obj.npccal_type).strip().lower()
+    except Exception:
+        course_type = None
 
     tempos = []
     for i in range(1, 19):
         key = f"horario_periodo_{i:02d}"
         periodo_str = f"{i}º"
-        time_str = SiteConfigService.get_config(key, 'N/D', school_id=school_id)
+        time_str = SiteConfigService.get_config(key, 'N/D', school_id=school_id, course_type=course_type)
         tempos.append((periodo_str, time_str))
 
     # --- LÓGICA DIRETA: LER A POSIÇÃO CONFIGURADA PELO GESTOR NO CUSTOMIZER ---
     try:
-        pos_int_1 = int(float(SiteConfigService.get_config('posicao_intervalo_manha', '3', school_id=school_id)))
+        pos_int_1 = int(float(SiteConfigService.get_config('posicao_intervalo_manha', '3', school_id=school_id, course_type=course_type)))
     except (ValueError, TypeError):
         pos_int_1 = 3
         
     try:
-        pos_almoco = int(float(SiteConfigService.get_config('posicao_intervalo_almoco', '6', school_id=school_id)))
+        pos_almoco = int(float(SiteConfigService.get_config('posicao_intervalo_almoco', '6', school_id=school_id, course_type=course_type)))
     except (ValueError, TypeError):
         pos_almoco = 6
         
     try:
-        pos_int_2 = int(float(SiteConfigService.get_config('posicao_intervalo_tarde', '9', school_id=school_id)))
+        pos_int_2 = int(float(SiteConfigService.get_config('posicao_intervalo_tarde', '9', school_id=school_id, course_type=course_type)))
     except (ValueError, TypeError):
         pos_int_2 = 9
     # -------------------------------------------------------------------------
 
     intervalos = {
-        'intervalo_1': SiteConfigService.get_config('horario_intervalo_manha', 'N/D', school_id=school_id),
+        'intervalo_1': SiteConfigService.get_config('horario_intervalo_manha', 'N/D', school_id=school_id, course_type=course_type),
         'pos_int_1': pos_int_1,
-        'almoco': SiteConfigService.get_config('horario_intervalo_almoco', 'N/D', school_id=school_id),
+        'almoco': SiteConfigService.get_config('horario_intervalo_almoco', 'N/D', school_id=school_id, course_type=course_type),
         'pos_almoco': pos_almoco,
-        'intervalo_2': SiteConfigService.get_config('horario_intervalo_tarde', 'N/D', school_id=school_id),
+        'intervalo_2': SiteConfigService.get_config('horario_intervalo_tarde', 'N/D', school_id=school_id, course_type=course_type),
         'pos_int_2': pos_int_2,
     }
     return tempos, intervalos
@@ -330,7 +346,7 @@ def index():
                             if db.session.execute(query_match).first():
                                 can_schedule_in_this_turma = True
 
-    tempos, intervalos = _get_horario_context_data()
+    tempos, intervalos = _get_horario_context_data(semana=semana_selecionada, turma=turma_atual_obj)
     all_disciplinas = []
 
     return render_template('quadro_horario.html',
@@ -479,7 +495,7 @@ def exportar_pdf():
 
     horario_matrix = HorarioService.construir_matriz_horario(pelotao, semana_id, current_user)
     datas_semana = HorarioService.get_datas_da_semana(semana)
-    tempos, intervalos = _get_horario_context_data()
+    tempos, intervalos = _get_horario_context_data(semana=semana)
     
     rendered_html = render_template('horario_pdf.html', 
                                     pelotao_selecionado=pelotao, 
@@ -532,7 +548,7 @@ def exportar_excel():
 
     horario_matrix = HorarioService.construir_matriz_horario(pelotao, semana_id, current_user)
     datas_semana = HorarioService.get_datas_da_semana(semana)
-    tempos, intervalos = _get_horario_context_data()
+    tempos, intervalos = _get_horario_context_data(semana=semana)
     
     try:
         from ..services.xlsx_service import gerar_quadro_horario_xlsx
@@ -615,7 +631,7 @@ def editar_horario_grid(pelotao, semana_id, ciclo_id):
     if not context_data.get('success'):
         flash(context_data.get('message', 'Erro ao carregar dados.'), 'danger')
         return redirect(url_for('horario.index'))
-    tempos, intervalos = _get_horario_context_data()
+    tempos, intervalos = _get_horario_context_data(semana=semana)
     context_data['tempos'] = tempos
     context_data['intervalos'] = intervalos
     return render_template('editar_quadro_horario.html', **context_data)
