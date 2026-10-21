@@ -75,10 +75,21 @@
         {% endif %}
     </div>
 
-    {% if quickchart_url %}
-    <div class="chart-container">
-        <h2>Média Geral de Avaliação por Instrutor</h2>
-        <img src="{{ quickchart_url }}" alt="Gráfico de Médias" class="chart-image">
+    {% if instrutores_data %}
+    <div class="chart-container" style="text-align: left; border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #fafafa;">
+        <h2 style="text-align: center; margin-top: 0; margin-bottom: 15px;">Média Geral de Avaliação por Instrutor</h2>
+        {% for nome_instrutor, data in instrutores_data.items() %}
+            {% set pct = ((data['media'] / 5.0) * 100)|round(1) %}
+            {% set bar_color = '#2ecc71' if data['media'] >= 4 else ('#f39c12' if data['media'] >= 3 else '#e74c3c') %}
+            <div style="margin-bottom: 10px; page-break-inside: avoid;">
+                <div style="font-size: 0.9em; font-weight: bold; margin-bottom: 3px;">
+                    {{ nome_instrutor }} — <span style="color: {{ bar_color }};">{{ "%.2f"|format(data['media']) }} / 5.0</span> ({{ data['votos_count'] }} avaliações)
+                </div>
+                <div style="width: 100%; background-color: #e9ecef; border-radius: 4px; height: 14px; overflow: hidden;">
+                    <div style="width: {{ pct }}%; background-color: {{ bar_color }}; height: 14px;"></div>
+                </div>
+            </div>
+        {% endfor %}
     </div>
     {% endif %}
 

@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 from backend.config import Config
 from backend.models.database import db
+import backend.models  # Garante que todos os modelos (ex: User) estejam registrados no SQLAlchemy
 from backend.models.background_job import BackgroundJob
 
 def create_worker_app():
