@@ -511,10 +511,10 @@ class HorarioService:
 
                     nome_disciplina_atual = disciplina.materia if disciplina else ""
 
-                    if allowed_names and nome_disciplina_atual not in allowed_names:
+                    if not allowed_names or nome_disciplina_atual not in allowed_names:
                         return False, (
                             "⚠️ AGENDAMENTO BLOQUEADO: "
-                            "Apenas disciplinas prioritárias podem agendar nesta semana."
+                            "O quadro desta semana está bloqueado para agendamentos."
                         ), 403
 
             instrutor_id_1, instrutor_id_2 = None, None
@@ -764,6 +764,18 @@ class HorarioService:
         aula = db.session.get(Horario, int(horario_id))
         if not aula or not HorarioService.can_edit_horario(aula, user):
             return False, 'Aula não encontrada ou sem permissão.'
+
+        if not (user.is_sens or user.is_admin_escola) and aula.semana and getattr(aula.semana, 'priority_active', False):
+            raw_priority = getattr(aula.semana, 'priority_disciplines', '[]') or '[]'
+            try:
+                allowed_names = json.loads(raw_priority)
+                if not isinstance(allowed_names, list):
+                    allowed_names = []
+            except Exception:
+                allowed_names = []
+            nome_disc = aula.disciplina.materia if aula.disciplina else ""
+            if not allowed_names or nome_disc not in allowed_names:
+                return False, '⚠️ AGENDAMENTO BLOQUEADO: O quadro desta semana está bloqueado.'
             
         if aula.group_id:
             db.session.query(Horario).filter(Horario.group_id == aula.group_id).delete()

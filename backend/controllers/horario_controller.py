@@ -573,6 +573,33 @@ def editar_horario_grid(pelotao, semana_id, ciclo_id):
         flash("Semana não encontrada.", "danger")
         return redirect(url_for('horario.index'))
 
+    if not (current_user.is_sens or current_user.is_admin_escola) and getattr(semana, 'priority_active', False):
+        try:
+            allowed_names = json.loads(getattr(semana, 'priority_disciplines', '[]') or '[]')
+        except Exception:
+            allowed_names = []
+        my_instrutor_ids = db.session.scalars(
+            select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+        ).all()
+        has_permission = False
+        if allowed_names and my_instrutor_ids:
+            query_match = select(DisciplinaTurma)\
+                .join(Disciplina, DisciplinaTurma.disciplina_id == Disciplina.id)\
+                .join(Turma, Disciplina.turma_id == Turma.id)\
+                .where(
+                    Turma.nome == pelotao,
+                    Disciplina.materia.in_(allowed_names),
+                    or_(
+                        DisciplinaTurma.instrutor_id_1.in_(my_instrutor_ids),
+                        DisciplinaTurma.instrutor_id_2.in_(my_instrutor_ids)
+                    )
+                )
+            if db.session.execute(query_match).first():
+                has_permission = True
+        if not has_permission:
+            flash("Esta semana está bloqueada para agendamentos.", "danger")
+            return redirect(url_for('horario.index', pelotao=pelotao, semana_id=semana_id, ciclo=ciclo_id))
+
     # Garante a existência da matéria e instrutor dummy para período livre no modo de edição
     active_edicao = semana.ciclo.edicao_id if (semana and semana.ciclo) else None
     if active_school and active_edicao:

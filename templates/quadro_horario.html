@@ -10,8 +10,16 @@
                 <i class="fas fa-lock fa-lg"></i>
             </div>
             <div>
-                <h5 class="alert-heading mb-0 fw-bold">Modo de Agendamento Prioritário Ativo</h5>
-                <small>O quadro desta semana está <strong>bloqueado</strong>. Apenas as disciplinas selecionadas abaixo podem realizar agendamentos (em qualquer turma).</small>
+                <h5 class="alert-heading mb-0 fw-bold">
+                    {% if priority_allowed_names %}Modo de Agendamento Prioritário Ativo{% else %}Bloqueio Semanal Ativo{% endif %}
+                </h5>
+                <small>
+                    {% if priority_allowed_names %}
+                        O quadro desta semana está <strong>bloqueado</strong>. Apenas as disciplinas selecionadas abaixo podem realizar agendamentos (em qualquer turma).
+                    {% else %}
+                        O quadro desta semana está <strong>bloqueado</strong> para agendamentos.
+                    {% endif %}
+                </small>
             </div>
         </div>
         
@@ -157,6 +165,23 @@
         {% set dias_loop = [0, 1, 2, 3, 4, 5] %}
     {% elif semana_selecionada.mostrar_domingo %}
         {% set dias_loop = [0, 1, 2, 3, 4, 6] %}
+    {% endif %}
+
+    {% if semana_selecionada and (current_user.is_sens or current_user.is_admin_escola) %}
+    <div class="d-flex align-items-center justify-content-between p-3 bg-light border rounded mb-3 shadow-sm">
+        <div>
+            <label class="form-check-label fw-bold mb-0 text-dark" for="weeklyBlockActive" style="cursor: pointer;">
+                <i class="fas fa-star text-warning"></i> ATIVAR Bloqueio Semanal
+            </label>
+            <div class="small text-muted" style="font-size: 0.85rem;">Trava o quadro inteiro desta semana e bloqueia agendamentos em todas as turmas.</div>
+        </div>
+        <div class="form-check form-switch m-0">
+            <input class="form-check-input scale-125" type="checkbox" id="weeklyBlockActive" 
+                   style="width: 3em; height: 1.5em;"
+                   {% if priority_active %}checked{% endif %}
+                   onchange="toggleBloqueioSemanal(this)">
+        </div>
+    </div>
     {% endif %}
 
     <div class="table-wrapper">
@@ -575,6 +600,35 @@
     function selectAllPriority(state) {
         document.querySelectorAll('.priority-disc-check').forEach(ch => ch.checked = state);
     }
+
+    {% if semana_selecionada and (current_user.is_sens or current_user.is_admin_escola) %}
+    function toggleBloqueioSemanal(checkboxEl) {
+        const active = checkboxEl.checked;
+        checkboxEl.disabled = true;
+
+        fetch('/semana/{{ semana_selecionada.id }}/salvar-prioridade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify({ status: active, disciplinas: [], blocked_blocks: blockedData })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao salvar bloqueio semanal: ' + (data.message || 'Erro desconhecido'));
+                checkboxEl.checked = !active;
+                checkboxEl.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Erro de conexão ao salvar bloqueio semanal.');
+            checkboxEl.checked = !active;
+            checkboxEl.disabled = false;
+        });
+    }
+    {% endif %}
 
     function savePriorityConfig() {
         const active = document.getElementById('priorityActive').checked;
