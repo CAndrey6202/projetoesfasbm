@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Remanejar Alunos por Ciclo{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h1>🔄 Remanejamento de Alunos por Ciclo</h1>
+        <p class="mb-0 text-muted">
+            Troque alunos de turma para o novo ciclo mantendo <strong>100% do histórico</strong> (diários de classe, faltas, notas e relatórios) dos ciclos anteriores intacto.
+        </p>
+    </div>
+    <a href="{{ url_for('turma.listar_turmas') }}" class="btn btn-outline-secondary fw-bold">
+        ← Voltar para Turmas
+    </a>
+</div>
+
+<div class="card shadow-sm border-0 mb-4" style="border-left: 5px solid #2563eb !important;">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('turma.remanejar_ciclo') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary small text-uppercase">
+                    1. Ciclo Encerrado / Anterior (Histórico Congelado)
+                </label>
+                <select name="ciclo_origem_id" class="form-select fw-bold" onchange="this.form.submit()">
+                    {% for c in ciclos %}
+                    <option value="{{ c.id }}" {% if ciclo_origem_id == c.id %}selected{% endif %}>
+                        {{ c.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-primary small text-uppercase">
+                    2. Novo Ciclo Ativo (Onde valerá a Nova Turma)
+                </label>
+                <select name="ciclo_destino_id" class="form-select border-primary fw-bold text-primary" onchange="this.form.submit()">
+                    {% for c in ciclos %}
+                    <option value="{{ c.id }}" {% if ciclo_destino_id == c.id %}selected{% endif %}>
+                        {{ c.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-info mb-0 py-2 px-3 small">
+                    <strong>Como funciona:</strong> Ao salvar, as turmas do ciclo anterior ficam congeladas nos relatórios e cadernos de aula passados, e os alunos passam a integrar as novas turmas no ciclo selecionado.
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('turma.remanejar_ciclo') }}" id="formRemanejamento" onsubmit="return confirmarRemanejamento()">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="ciclo_origem_id" value="{{ ciclo_origem_id }}">
+    <input type="hidden" name="ciclo_destino_id" value="{{ ciclo_destino_id }}">
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <input type="text" id="buscaAlunoInput" class="form-control" style="min-width: 260px; width: auto;" placeholder="🔍 Buscar aluno ou matrícula..." onkeyup="filtrarTabelaRemanejamento()">
+                <select id="filtroTurmaOrigem" class="form-select" style="width: auto;" onchange="filtrarTabelaRemanejamento()">
+                    <option value="">Todas as Turmas (Ciclo Anterior)</option>
+                    {% for t in turmas %}
+                    <option value="{{ t.id }}">{{ t.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-light text-dark border px-3 py-2" id="contadorAlteracoes">
+                    0 alteração(ões) de turma
+                </span>
+                <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">
+                    💾 Salvar Remanejamento do Ciclo
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="tabelaRemanejamento">
+                    <thead class="table-light text-uppercase small">
+                        <tr>
+                            <th class="ps-3">Aluno</th>
+                            <th>Matrícula</th>
+                            <th>Turma no Ciclo Anterior</th>
+                            <th>Histórico por Ciclo</th>
+                            <th style="width: 260px;">Nova Turma no Ciclo Destino</th>
+                            <th class="text-center">Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in alunos_view %}
+                        {% set a = item.aluno %}
+                        {% set nome_exibicao = a.user.nome_completo or a.user.nome_de_guerra or a.user.username %}
+                        <tr class="linha-aluno"
+                            data-search="{{ nome_exibicao|lower }} {{ (a.user.nome_de_guerra or '')|lower }} {{ (a.user.matricula or '')|lower }}"
+                            data-turma-origem="{{ item.turma_origem_id or '' }}">
+                            <td class="ps-3">
+                                <div class="fw-bold text-dark">
+                                    {% if a.user.posto_graduacao %}<span class="text-muted small">{{ a.user.posto_graduacao }}</span> {% endif %}
+                                    {{ nome_exibicao }}
+                                </div>
+                                {% if a.user.nome_de_guerra %}
+                                <small class="text-muted">Guerra: {{ a.user.nome_de_guerra }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ a.user.matricula or 'N/D' }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary px-2 py-1">{{ item.turma_origem_nome }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for c_nome, t_nome in item.historico_ciclos.items() %}
+                                    <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">
+                                        {{ c_nome }}: <strong>{{ t_nome }}</strong>
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <select name="nova_turma_{{ a.id }}"
+                                        class="form-select form-select-sm select-nova-turma fw-bold"
+                                        data-origem="{{ item.turma_origem_id or '' }}"
+                                        onchange="atualizarStatusLinha(this)">
+                                    <option value="">-- Selecione --</option>
+                                    {% for t in turmas %}
+                                    <option value="{{ t.id }}" {% if item.turma_destino_id == t.id %}selected{% endif %}>
+                                        {{ t.nome }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="text-center status-cell">
+                                {% if item.turma_origem_id and item.turma_destino_id and item.turma_origem_id != item.turma_destino_id %}
+                                    <span class="badge bg-warning text-dark">🔄 Remanejado</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">Mantido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                Nenhum aluno encontrado para esta edição.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white py-3 d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">
+                💾 Salvar Remanejamento do Ciclo
+            </button>
+        </div>
+    </div>
+</form>
+
+<style>
+.linha-remanejada {
+    background-color: #fffbeb !important;
+}
+</style>
+
+<script>
+function atualizarStatusLinha(selectEl) {
+    const tr = selectEl.closest('tr');
+    const statusCell = tr.querySelector('.status-cell');
+    const origem = selectEl.getAttribute('data-origem');
+    const destino = selectEl.value;
+
+    if (origem && destino && origem !== destino) {
+        tr.classList.add('linha-remanejada');
+        statusCell.innerHTML = '<span class="badge bg-warning text-dark">🔄 Mudará de Turma</span>';
+    } else {
+        tr.classList.remove('linha-remanejada');
+        statusCell.innerHTML = '<span class="badge bg-light text-muted border">Mantido</span>';
+    }
+    atualizarContadorGlobal();
+}
+
+function atualizarContadorGlobal() {
+    let mudancas = 0;
+    document.querySelectorAll('.select-nova-turma').forEach(sel => {
+        const origem = sel.getAttribute('data-origem');
+        const destino = sel.value;
+        if (origem && destino && origem !== destino) {
+            mudancas++;
+        }
+    });
+    const badge = document.getElementById('contadorAlteracoes');
+    if (badge) {
+        badge.textContent = `${mudancas} alteração(ões) de turma`;
+        badge.className = mudancas > 0
+            ? 'badge bg-warning text-dark border border-warning px-3 py-2 fw-bold'
+            : 'badge bg-light text-dark border px-3 py-2';
+    }
+}
+
+function filtrarTabelaRemanejamento() {
+    const termo = (document.getElementById('buscaAlunoInput').value || '').toLowerCase().trim();
+    const turmaOrigem = document.getElementById('filtroTurmaOrigem').value;
+
+    document.querySelectorAll('#tabelaRemanejamento .linha-aluno').forEach(tr => {
+        const matchTexto = !termo || tr.getAttribute('data-search').includes(termo);
+        const matchTurma = !turmaOrigem || tr.getAttribute('data-turma-origem') === turmaOrigem;
+        tr.style.display = (matchTexto && matchTurma) ? '' : 'none';
+    });
+}
+
+function confirmarRemanejamento() {
+    let mudancas = 0;
+    document.querySelectorAll('.select-nova-turma').forEach(sel => {
+        const origem = sel.getAttribute('data-origem');
+        const destino = sel.value;
+        if (origem && destino && origem !== destino) {
+            mudancas++;
+        }
+    });
+    return confirm(`Confirma o salvamento dos vínculos de turma para o ciclo selecionado (${mudancas} mudança(s) de turma)?\n\nO histórico de diários, faltas e notas dos ciclos anteriores permanecerá 100% preservado.`);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.select-nova-turma').forEach(sel => atualizarStatusLinha(sel));
+});
+</script>
+{% endblock %}

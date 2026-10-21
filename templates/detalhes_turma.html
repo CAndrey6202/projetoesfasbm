@@ -3,15 +3,39 @@
 {% block title %}Detalhes da Turma - {{ turma.nome }}{% endblock %}
 
 {% block content %}
-<div class="content-header">
-    <h1>{{ turma.nome }}</h1>
-    <p>Visualize os alunos e gerencie os cargos desta turma.</p>
+<div class="content-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h1>{{ turma.nome }}</h1>
+        <p class="mb-0">Visualize os alunos e gerencie os cargos desta turma.</p>
+    </div>
+    {% if ciclos %}
+    <form method="GET" action="{{ url_for('turma.detalhes_turma', turma_id=turma.id) }}" class="d-flex align-items-center gap-2 bg-white p-2 rounded border shadow-sm">
+        <label class="small fw-bold text-muted mb-0 text-nowrap">Ciclo:</label>
+        <select name="ciclo_id" class="form-select form-select-sm fw-bold" style="width: auto;" onchange="this.form.submit()">
+            <option value="">Turma Atual (Vigente)</option>
+            {% for c in ciclos %}
+            <option value="{{ c.id }}" {% if ciclo_selecionado_id == c.id %}selected{% endif %}>
+                {{ c.nome }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
 </div>
 
 <div class="turma-details-grid">
     <div class="details-section">
-        <div class="section-header">
-            <h3>Alunos na Turma ({{ turma.alunos|length }})</h3>
+        <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h3>
+                Alunos na Turma ({{ alunos_ordenados|length }})
+                {% if ciclo_selecionado_id %}
+                    {% for c in ciclos %}
+                        {% if c.id == ciclo_selecionado_id %}
+                        <span class="badge bg-primary ms-2" style="font-size: 0.85rem;">{{ c.nome }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </h3>
         </div>
         
         <div class="table-responsive">
@@ -71,7 +95,7 @@
             {% endfor %}
         </div>
         <div class="form-actions" style="border-top: none; margin-top: 1rem;">
-            <a href="{{ url_for('turma.listar_turmas') }}" class="btn btn-secondary">Voltar</a>
+            <a href="{{ url_for('turma.listar_turmas', ciclo_id=ciclo_selecionado_id) if ciclo_selecionado_id else url_for('turma.listar_turmas') }}" class="btn btn-secondary">Voltar</a>
         </div>
     </div>
 </div>
@@ -137,27 +161,20 @@ document.addEventListener('DOMContentLoaded', function() {
     var modalTitle = document.getElementById('cargoModalLabel');
     var modalDataEvento = document.getElementById('modalDataEvento');
 
-    // Atualiza o texto da data conforme a seleção
     function updateDateLabel() {
         modalDataLabel.textContent = (modalAlunoSelect.value === "") ? "Data de Fim da Função" : "Data de Início da Função";
     }
     modalAlunoSelect.addEventListener('change', updateDateLabel);
 
-    // Evento do Bootstrap que dispara quando a modal está prestes a abrir
     cargoModal.addEventListener('show.bs.modal', function (event) {
-        // Botão que acionou a modal
         var button = event.relatedTarget;
-        
-        // Extrai informações dos atributos data-*
         var cargo = button.getAttribute('data-cargo');
         var alunoId = button.getAttribute('data-aluno-id');
 
-        // Atualiza o conteúdo da modal
         modalTitle.textContent = 'Gerenciar Cargo: ' + cargo;
         modalCargoNome.value = cargo;
         modalAlunoSelect.value = alunoId;
         
-        // Define a data de hoje como padrão
         if (!modalDataEvento.value) {
             modalDataEvento.valueAsDate = new Date();
         }

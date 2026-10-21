@@ -9,12 +9,30 @@
 </div>
 
 <div class="table-container">
-    <div class="table-header">
-        <h3>Turmas Cadastradas</h3>
+    <div class="table-header" style="flex-wrap: wrap; gap: 1rem;">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <h3 class="mb-0">Turmas Cadastradas</h3>
+            {% if ciclos %}
+            <form method="GET" action="{{ url_for('turma.listar_turmas') }}" class="d-flex align-items-center gap-2">
+                <label class="small fw-bold text-muted mb-0 text-nowrap">Visualizar por Ciclo:</label>
+                <select name="ciclo_id" class="form-select form-select-sm fw-bold" style="width: auto;" onchange="this.form.submit()">
+                    <option value="">Turma Atual (Vigente)</option>
+                    {% for c in ciclos %}
+                    <option value="{{ c.id }}" {% if ciclo_selecionado_id == c.id %}selected{% endif %}>
+                        {{ c.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+        </div>
         
         {# CORREÇÃO: Adicionado 'is_sens' para liberar gestão de turmas #}
-        {% if current_user.is_sens or current_user.role in ['admin_escola'] %}
-        <div class="header-actions">
+        {% if current_user.is_sens or current_user.role in ['admin_escola', 'super_admin', 'programador'] %}
+        <div class="header-actions" style="flex-wrap: wrap;">
+            <a href="{{ url_for('turma.remanejar_ciclo') }}" class="btn btn-info text-white fw-bold">
+                🔄 Remanejar Alunos por Ciclo
+            </a>
             <a href="{{ url_for('turma.cadastrar_turma') }}" class="btn btn-primary">
                 <span>+</span> Cadastrar Nova Turma
             </a>
@@ -27,8 +45,9 @@
     <div class="turmas-grid">
         {% for turma in turmas %}
         {% set is_my_turma = current_user.role|lower == 'aluno' and current_user.aluno_profile and current_user.aluno_profile.turma_id == turma.id %}
+        {% set qtd_alunos = contagem_alunos_por_turma[turma.id] if contagem_alunos_por_turma and turma.id in contagem_alunos_por_turma else (turma.alunos|length) %}
         
-        <a href="{{ url_for('turma.detalhes_turma', turma_id=turma.id) }}" class="turma-card-link">
+        <a href="{{ url_for('turma.detalhes_turma', turma_id=turma.id, ciclo_id=ciclo_selecionado_id) if ciclo_selecionado_id else url_for('turma.detalhes_turma', turma_id=turma.id) }}" class="turma-card-link">
             <div class="turma-card {% if is_my_turma %}my-turma{% endif %}">
                 
                 {% if is_my_turma %}
@@ -49,7 +68,7 @@
                         <h4>{{ turma.nome }}</h4>
                         <p>{{ turma.ano }}</p>
                     </div>
-                    <span class="aluno-count">{{ turma.alunos|length }} aluno(s)</span>
+                    <span class="aluno-count">{{ qtd_alunos }} aluno(s)</span>
                 </div>
             </div>
         </a>
@@ -189,8 +208,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // Função para o botão "Confirmar" do modal de edição
     function confirmEdit() {
         const select = document.getElementById('turmaEditSelect');
         const turmaId = select.value;
@@ -201,13 +218,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Adiciona o listener ao botão "Confirmar"
     const confirmEditBtn = document.getElementById('confirmEditButton');
     if (confirmEditBtn) {
         confirmEditBtn.addEventListener('click', confirmEdit);
     }
 
-    // Adiciona o listener ao <select> do modal de exclusão
     const deleteSelectEl = document.getElementById('turmaDeleteSelect');
     if (deleteSelectEl) {
         deleteSelectEl.addEventListener('change', function() {

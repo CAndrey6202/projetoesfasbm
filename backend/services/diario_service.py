@@ -92,13 +92,14 @@ class DiarioService:
         return db.session.scalars(query).first()
 
     @staticmethod
-    def get_diarios_pendentes(school_id, user_id=None, turma_id=None, disciplina_id=None, status=None, data_aula=None, page=1, per_page=30):
+    def get_diarios_pendentes(school_id, user_id=None, turma_id=None, disciplina_id=None, status=None, data_aula=None, page=1, per_page=30, ciclo_id=None):
         # --- ALTERAÇÃO REALIZADA AQUI: Captura da edição ---
         active_edicao = session.get('active_edicao_id')
         
         stmt = (
             select(DiarioClasse)
             .join(Turma, DiarioClasse.turma_id == Turma.id)
+            .join(Disciplina, DiarioClasse.disciplina_id == Disciplina.id)
             .options(
                 db.joinedload(DiarioClasse.turma),
                 db.joinedload(DiarioClasse.disciplina)
@@ -147,6 +148,7 @@ class DiarioService:
 
         if turma_id: stmt = stmt.where(DiarioClasse.turma_id == turma_id)
         if disciplina_id: stmt = stmt.where(DiarioClasse.disciplina_id == disciplina_id)
+        if ciclo_id: stmt = stmt.where(Disciplina.ciclo_id == ciclo_id)
 
         # ORDENAÇÃO RIGOROSA PARA AGRUPAMENTO
         stmt = stmt.order_by(
@@ -158,8 +160,8 @@ class DiarioService:
         return db.paginate(stmt, page=page, per_page=per_page, error_out=False)
 
     @staticmethod
-    def get_diarios_agrupados(school_id, user_id=None, turma_id=None, disciplina_id=None, status=None, page=1, per_page=30):
-        pagination = DiarioService.get_diarios_pendentes(school_id, user_id, turma_id, disciplina_id, status, data_aula=None, page=page, per_page=per_page)
+    def get_diarios_agrupados(school_id, user_id=None, turma_id=None, disciplina_id=None, status=None, page=1, per_page=30, ciclo_id=None):
+        pagination = DiarioService.get_diarios_pendentes(school_id, user_id, turma_id, disciplina_id, status, data_aula=None, page=page, per_page=per_page, ciclo_id=ciclo_id)
         raw_diarios = pagination.items
         
         if not raw_diarios: return [], pagination
@@ -234,7 +236,7 @@ class DiarioService:
         return rep
 
     @staticmethod
-    def get_filtros_disponiveis(school_id, user_id=None, turma_selected_id=None):
+    def get_filtros_disponiveis(school_id, user_id=None, turma_selected_id=None, ciclo_id=None):
         instrutor = DiarioService.get_current_instrutor(user_id) if user_id else None
         active_edicao = session.get('active_edicao_id')
         
@@ -250,6 +252,8 @@ class DiarioService:
         )
         if turma_selected_id:
             stmt_disc = stmt_disc.where(Disciplina.turma_id == turma_selected_id)
+        if ciclo_id:
+            stmt_disc = stmt_disc.where(Disciplina.ciclo_id == ciclo_id)
             
         if instrutor:
             vinculos = select(DisciplinaTurma.disciplina_id).where(

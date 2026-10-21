@@ -69,6 +69,7 @@ from backend.models.frequencia import FrequenciaAluno
 # ### NOVO MODELO ###
 from backend.models.elogio import Elogio
 from backend.models.edicao import Edicao
+from backend.models.aluno_ciclo_turma import AlunoCicloTurma
 from backend.models.chamado_suporte import ChamadoSuporte
 
 # --- NOVO MÓDULO: DESLIGAMENTOS ---
@@ -228,6 +229,10 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(timedelta=timedelta)
 
     with app.app_context():
+        try:
+            AlunoCicloTurma.__table__.create(db.engine, checkfirst=True)
+        except Exception as e:
+            app.logger.warning(f"Aviso ao verificar tabela aluno_ciclo_turmas: {e}")
         AssetService.initialize_upload_folder(app)
         register_blueprints(app)
         register_handlers_and_processors(app)

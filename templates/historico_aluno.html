@@ -5,8 +5,8 @@
 
 {% block content %}
 <div class="content-header">
-    <h1>Minhas Notas</h1>
-    <p>Acompanhe suas notas e médias das disciplinas do Curso ({{ curso_nome }}).</p>
+    <h1>{% if is_own_profile %}Minhas Notas{% else %}Histórico de Notas - {{ aluno.user.nome_completo or aluno.user.username }}{% endif %}</h1>
+    <p>Acompanhe as notas e médias das disciplinas do Curso ({{ curso_nome }}).</p>
 </div>
 
 <div class="media-final-curso-container">
@@ -49,8 +49,21 @@
 </div>
 {% endif %}
 
-<div class="content-header" style="margin-top: 2rem;">
-    <h2>Notas por Disciplina</h2>
+<div class="content-header d-flex flex-wrap justify-content-between align-items-center gap-3" style="margin-top: 2rem;">
+    <h2 class="mb-0">Notas por Disciplina</h2>
+    {% if ciclos %}
+    <form method="GET" action="{{ url_for('historico.minhas_notas') if is_own_profile else url_for('historico.ver_historico_aluno', aluno_id=aluno.id) }}" class="d-flex align-items-center gap-2">
+        <label class="small fw-bold text-muted mb-0 text-nowrap">Filtrar por Ciclo:</label>
+        <select name="ciclo_id" class="form-select form-select-sm fw-bold" style="width: auto;" onchange="this.form.submit()">
+            <option value="">Todos os Ciclos</option>
+            {% for c in ciclos %}
+            <option value="{{ c.id }}" {% if ciclo_selecionado_id == c.id %}selected{% endif %}>
+                {{ c.nome }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
 </div>
 
 <div class="disciplinas-grid">
@@ -60,7 +73,21 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="disciplina-header">
-                <h4>{{ registro.disciplina.materia }}</h4>
+                <div>
+                    <h4>{{ registro.disciplina.materia }}</h4>
+                    <div class="mt-1 d-flex flex-wrap gap-1">
+                        {% if registro.disciplina.ciclo %}
+                        <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
+                            {{ registro.disciplina.ciclo.nome }}
+                        </span>
+                        {% endif %}
+                        {% if registro.disciplina.turma %}
+                        <span class="badge bg-light text-primary border" style="font-size: 0.7rem;">
+                            {{ registro.disciplina.turma.nome }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
                 <span class="status-badge">{{ registro.status|title }}</span>
             </div>
 

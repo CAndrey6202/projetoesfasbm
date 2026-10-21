@@ -52,6 +52,7 @@ class Aluno(db.Model):
     
     # NOVO: Relacionamento com Elogios
     elogios: Mapped[list["Elogio"]] = relationship("Elogio", back_populates="aluno", cascade="all, delete-orphan")
+    ciclo_turmas: Mapped[list["AlunoCicloTurma"]] = relationship("AlunoCicloTurma", back_populates="aluno", cascade="all, delete-orphan")
 
     def __init__(self, user_id: int, opm: str,
                  id_aluno: t.Optional[str] = None, num_aluno: t.Optional[str] = None,

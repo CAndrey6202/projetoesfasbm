@@ -218,6 +218,8 @@ def editar_aluno(aluno_id):
             # Aluno Info (INCLUINDO VNCULO DA EDIO APS A TRANSFERNCIA)
             aluno.opm = form.opm.data
             t_id = form.turma_id.data
+            TurmaService.sincronizar_historico_ciclos(school_id, active_edicao)
+            old_turma_id = aluno.turma_id
             
             if t_id and t_id != 0:
                 aluno.turma_id = t_id
@@ -225,6 +227,16 @@ def editar_aluno(aluno_id):
                 turma_selecionada = db.session.get(Turma, t_id)
                 if turma_selecionada:
                     aluno.edicao_id = turma_selecionada.edicao_id
+                    if old_turma_id and old_turma_id != t_id:
+                        ciclos_escola = TurmaService.get_ciclos_da_escola(school_id, turma_selecionada.edicao_id)
+                        if ciclos_escola:
+                            from ..models.aluno_ciclo_turma import AlunoCicloTurma
+                            ultimo_cid = ciclos_escola[-1].id
+                            v_dest = db.session.scalar(select(AlunoCicloTurma).where(AlunoCicloTurma.aluno_id == aluno.id, AlunoCicloTurma.ciclo_id == ultimo_cid))
+                            if v_dest:
+                                v_dest.turma_id = t_id
+                            else:
+                                db.session.add(AlunoCicloTurma(aluno_id=aluno.id, ciclo_id=ultimo_cid, turma_id=t_id))
             else:
                 aluno.turma_id = None
 
@@ -361,13 +373,21 @@ def responder_avaliacao(id):
         
     # Buscar os instrutores da turma conectando com Disciplina para evitar vazamento entre escolas com turmas de mesmo nome
     from backend.models.disciplina import Disciplina
+    TurmaService.sincronizar_historico_ciclos(campanha.school_id, campanha.edicao_id)
+    turma_campanha_id = aluno.turma.id
+    condicoes = []
+    for cid in (campanha.lista_ciclos_ids or []):
+        tid = TurmaService.get_turma_id_aluno_no_ciclo(aluno.id, cid, default_turma_id=aluno.turma.id)
+        if tid:
+            turma_campanha_id = tid
+            condicoes.append(and_(Disciplina.ciclo_id == cid, Disciplina.turma_id == tid))
     query_vinculos = db.session.query(DisciplinaTurma).join(
         Disciplina, DisciplinaTurma.disciplina_id == Disciplina.id
-    ).filter(
-        Disciplina.turma_id == aluno.turma.id
     )
-    if campanha.lista_ciclos_ids:
-        query_vinculos = query_vinculos.filter(Disciplina.ciclo_id.in_(campanha.lista_ciclos_ids))
+    if condicoes:
+        query_vinculos = query_vinculos.filter(or_(*condicoes))
+    else:
+        query_vinculos = query_vinculos.filter(Disciplina.turma_id == aluno.turma.id)
     vinculos = query_vinculos.all()
     
     registros = []
@@ -411,7 +431,7 @@ def responder_avaliacao(id):
         try:
             resp_geral = RespostaAvaliacaoGeral(
                 campanha_id=campanha.id,
-                turma_id=aluno.turma.id,
+                turma_id=turma_campanha_id,
                 token_sigilo=token,
                 nota_organizacao=int(request.form.get('nota_espaco_fisico', 3)),
                 nota_tecnologia=int(request.form.get('nota_tecnologia', 3)),
@@ -432,7 +452,7 @@ def responder_avaliacao(id):
                 resp_inst = RespostaAvaliacao(
                     campanha_id=campanha.id,
                     instrutor_id=inst_id,
-                    turma_id=aluno.turma.id,
+                    turma_id=turma_campanha_id,
                     token_sigilo=token,
                     nota_relacionamento=int(request.form.get(f'nota_relacionamento_{inst_id}', 3)),
                     nota_dominio=int(request.form.get(f'nota_dominio_{inst_id}', 3)),

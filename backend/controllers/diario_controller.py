@@ -81,12 +81,12 @@ def assinar(diario_id):
         flash("Este bloco de diários já foi assinado ou não está disponível para edição.", "info")
         return redirect(url_for('diario.listar_pendentes'))
 
-    alunos_query = db.session.scalars(
-        db.select(Aluno)
-        .join(User)
-        .where(Aluno.turma_id == diario.turma_id)
-        .order_by(Aluno.num_aluno, User.nome_de_guerra)
-    ).all()
+    from ..services.turma_service import TurmaService
+    alunos_query = TurmaService.get_alunos_da_turma_no_ciclo(
+        turma_id=diario.turma_id,
+        ciclo_id=diario.disciplina.ciclo_id if diario.disciplina else None,
+        diarios_bloco=diarios_bloco
+    )
 
     freq_map = {}
     for a in alunos_query:

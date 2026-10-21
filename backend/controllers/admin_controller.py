@@ -2,7 +2,7 @@
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, session
 from flask_login import login_required, current_user
-from sqlalchemy import select, func, case, desc, and_, distinct
+from sqlalchemy import select, func, case, desc, and_, or_, distinct
 from sqlalchemy.orm import joinedload, aliased  
 from collections import defaultdict
 from datetime import datetime
@@ -17,8 +17,10 @@ from backend.models.diario_classe import DiarioClasse
 from backend.models.frequencia import FrequenciaAluno
 from backend.models.user import User
 from backend.models.instrutor import Instrutor
+from backend.models.aluno_ciclo_turma import AlunoCicloTurma
 from backend.services.user_service import UserService
 from backend.services.diario_service import DiarioService
+from backend.services.turma_service import TurmaService
 
 admin_escola_bp = Blueprint('admin_escola', __name__, url_prefix='/admin-escola')
 
@@ -58,25 +60,32 @@ def espelho_diarios():
         return redirect(url_for('main.dashboard'))
 
     active_edicao = session.get('active_edicao_id')
+    TurmaService.sincronizar_historico_ciclos(school_id, active_edicao)
+    ciclos = TurmaService.get_ciclos_da_escola(school_id, active_edicao)
+
+    page = request.args.get('page', 1, type=int)
+    ciclo_id = request.args.get('ciclo_id', type=int)
+    turma_id = request.args.get('turma_id', type=int)
+    disciplina_id = request.args.get('disciplina_id', type=int)
+    data_str = request.args.get('data')
+    status_diario = request.args.get('status_diario')
 
     # =========================================================================
-    # CORREÇÃO: Subquery isolada para contar faltas REAIS (evita duplicação)
+    # Subquery isolada para contar faltas REAIS na turma onde a aula ocorreu
     # =========================================================================
-    
-    # Esta subquery consolida as faltas por aluno e disciplina ANTES de cruzar com as outras tabelas
     subquery_faltas = db.session.query(
         FrequenciaAluno.aluno_id,
         DiarioClasse.disciplina_id,
+        DiarioClasse.turma_id.label('diario_turma_id'),
         func.count(FrequenciaAluno.id).label('contagem')
     ).join(DiarioClasse, FrequenciaAluno.diario_id == DiarioClasse.id)\
      .filter(
          FrequenciaAluno.presente == False,
          DiarioClasse.is_deleted == False
      )\
-     .group_by(FrequenciaAluno.aluno_id, DiarioClasse.disciplina_id).subquery()
+     .group_by(FrequenciaAluno.aluno_id, DiarioClasse.disciplina_id, DiarioClasse.turma_id).subquery()
 
-    # Query principal unindo Alunos com a contagem exata da subquery
-    stats_query = db.session.query(
+    stats_q = db.session.query(
         Aluno.id.label('aluno_id'),
         User.nome_completo,
         User.nome_de_guerra,
@@ -85,14 +94,21 @@ def espelho_diarios():
         Disciplina.materia,
         Disciplina.carga_horaria_prevista,
         subquery_faltas.c.contagem
-    ).join(Turma, Aluno.turma_id == Turma.id)\
-     .join(User, Aluno.user_id == User.id)\
+    ).join(User, Aluno.user_id == User.id)\
      .join(subquery_faltas, Aluno.id == subquery_faltas.c.aluno_id)\
+     .join(Turma, subquery_faltas.c.diario_turma_id == Turma.id)\
      .join(Disciplina, subquery_faltas.c.disciplina_id == Disciplina.id)\
      .filter(
          Turma.school_id == school_id,
          Turma.edicao_id == active_edicao
-     ).all()
+     )
+
+    if ciclo_id:
+        stats_q = stats_q.filter(Disciplina.ciclo_id == ciclo_id)
+    if turma_id:
+        stats_q = stats_q.filter(Turma.id == turma_id)
+
+    stats_query = stats_q.all()
 
     alunos_map = defaultdict(lambda: {
         'nome_completo': '', 
@@ -123,6 +139,8 @@ def espelho_diarios():
             data['nome_de_guerra'] = nome_de_guerra
             data['matricula'] = matricula
             data['turma'] = turma_nome
+        elif turma_nome and turma_nome not in data['turma']:
+            data['turma'] = f"{data['turma']} / {turma_nome}"
         
         data['total_global_faltas'] += faltas
         
@@ -162,16 +180,8 @@ def espelho_diarios():
     # =========================================================================
     # PARTE 2: LÓGICA DA LISTA DE DIÁRIOS OPTIMIZADA
     # =========================================================================
-    page = request.args.get('page', 1, type=int)
-    turma_id = request.args.get('turma_id', type=int)
-    disciplina_id = request.args.get('disciplina_id', type=int)
-    data_str = request.args.get('data')
-    status_diario = request.args.get('status_diario')
-
     per_page = 20
 
-    # Convertemos a data antes para enviar o filtro direto se o Service aceitar,
-    # ou filtramos minimamente se necessário.
     data_filtro = None
     if data_str:
         try:
@@ -179,10 +189,6 @@ def espelho_diarios():
         except ValueError:
             pass
 
-    # Ajustamos para trazer apenas os itens da PÁGINA ATUAL direto do banco,
-    # em vez de trazer 10.000 registros para a RAM.
-    # NOTA: Se o seu DiarioService permitir passar 'data' ou já fizer paginação real por lá,
-    # use os parâmetros reais. Se não permitir, usamos uma busca menor (ex: 100 ou 200 itens max por vez)
     resultado_service = DiarioService.get_diarios_pendentes(
         school_id=school_id,
         user_id=None, 
@@ -191,7 +197,8 @@ def espelho_diarios():
         status=status_diario,
         data_aula=data_filtro,
         page=page,         
-        per_page=per_page
+        per_page=per_page,
+        ciclo_id=ciclo_id
     )
 
     diarios_paginados = resultado_service.items
@@ -211,13 +218,25 @@ def espelho_diarios():
 
     pagination = FakePagination(diarios_paginados, page, per_page, total_items)
     
-    turmas, disciplinas = DiarioService.get_filtros_disponiveis(school_id, user_id=None, turma_selected_id=turma_id)
+    turmas, disciplinas = DiarioService.get_filtros_disponiveis(
+        school_id,
+        user_id=None,
+        turma_selected_id=turma_id,
+        ciclo_id=ciclo_id
+    )
+    turmas_dict = {t.id: t.nome for t in turmas}
 
-    # OTIMIZAÇÃO DOS ALUNOS: Trazemos apenas as colunas textuais exatas que vamos usar
-    # Isso impede o SQLAlchemy de instanciar objetos "vivos" pesados de Aluno/User na RAM
+    # Mapa de turma no ciclo selecionado (quando houver filtro de ciclo)
+    mapa_turma_ciclo = {}
+    if ciclo_id:
+        vinculos_ciclo = db.session.scalars(
+            select(AlunoCicloTurma).where(AlunoCicloTurma.ciclo_id == ciclo_id)
+        ).all()
+        mapa_turma_ciclo = {v.aluno_id: v.turma_id for v in vinculos_ciclo}
+
     todos_alunos_query = db.session.execute(
-        select(Aluno.id, Turma.nome, User.nome_completo, User.nome_de_guerra, User.matricula)
-        .join(Turma)
+        select(Aluno.id, Aluno.turma_id, Turma.nome, User.nome_completo, User.nome_de_guerra, User.matricula)
+        .join(Turma, Aluno.turma_id == Turma.id)
         .join(User, Aluno.user_id == User.id)
         .where(
             Turma.school_id == school_id,
@@ -228,7 +247,11 @@ def espelho_diarios():
 
     todos_alunos_json = []
     for row in todos_alunos_query:
-        aluno_id, t_nome, u_nome, u_guerra, u_matricula = row
+        aluno_id, a_turma_id, t_nome_atual, u_nome, u_guerra, u_matricula = row
+        turma_efetiva_id = mapa_turma_ciclo.get(aluno_id, a_turma_id) if ciclo_id else a_turma_id
+        if turma_id and turma_efetiva_id != turma_id:
+            continue
+        t_nome_efetivo = turmas_dict.get(turma_efetiva_id, t_nome_atual)
         nome_display = u_nome or u_guerra or "Sem Nome"
         matricula_display = u_matricula or "N/D"
 
@@ -236,9 +259,11 @@ def espelho_diarios():
             'id': aluno_id,
             'nome': nome_display,
             'matricula': matricula_display,
-            'turma': t_nome,
+            'turma': t_nome_efetivo,
             'faltas': alunos_map[aluno_id]['total_global_faltas'] if aluno_id in alunos_map else 0
         })
+
+    todos_alunos_json.sort(key=lambda x: (x['turma'] or '', x['nome'] or ''))
 
     return render_template(
         'admin/espelho_diarios.html', 
@@ -246,6 +271,8 @@ def espelho_diarios():
         todos_alunos=todos_alunos_json,
         diarios=diarios_paginados,
         pagination=pagination,
+        ciclos=ciclos,
+        ciclo_id=ciclo_id,
         turmas=turmas,
         disciplinas=disciplinas,
         turma_id=turma_id,
@@ -267,8 +294,9 @@ def detalhe_faltas_aluno(aluno_id):
         return "Aluno não encontrado", 404
 
     school_id = UserService.get_current_school_id()
+    ciclo_id = request.args.get('ciclo_id', type=int)
 
-    faltas_query = db.session.scalars(
+    stmt_faltas = (
         select(FrequenciaAluno)
         .join(DiarioClasse, FrequenciaAluno.diario_id == DiarioClasse.id)
         .join(Turma, DiarioClasse.turma_id == Turma.id)
@@ -279,15 +307,26 @@ def detalhe_faltas_aluno(aluno_id):
             DiarioClasse.is_deleted == False,
             Turma.school_id == school_id 
         )
-        .order_by(Disciplina.materia, DiarioClasse.data_aula.desc())
+    )
+    if ciclo_id:
+        stmt_faltas = stmt_faltas.where(Disciplina.ciclo_id == ciclo_id)
+
+    faltas_query = db.session.scalars(
+        stmt_faltas.order_by(Disciplina.materia, DiarioClasse.data_aula.desc())
     ).unique().all()
     
     disciplinas_map = {}
     for f in faltas_query:
         disc = f.diario.disciplina
+        turma_diario = f.diario.turma
+        ciclo_nome = disc.ciclo.nome if getattr(disc, 'ciclo', None) else None
+        turma_nome = turma_diario.nome if turma_diario else None
+        sufixo = " - ".join(filter(None, [ciclo_nome, turma_nome]))
+        nome_disc_exibicao = f"{disc.materia} ({sufixo})" if sufixo else disc.materia
+
         if disc.id not in disciplinas_map:
             disciplinas_map[disc.id] = {
-                'nome': disc.materia,
+                'nome': nome_disc_exibicao,
                 'carga_horaria': disc.carga_horaria_prevista or 1,
                 'total_faltas': 0,
                 'dias': []
@@ -338,12 +377,11 @@ def editar_diario_bloco(diario_id):
         .order_by(DiarioClasse.periodo, DiarioClasse.id) 
     ).all()
 
-    alunos = db.session.scalars(
-        select(Aluno)
-        .join(User)
-        .where(Aluno.turma_id == ref_diario.turma_id)
-        .order_by(Aluno.num_aluno, User.nome_de_guerra)
-    ).all()
+    alunos = TurmaService.get_alunos_da_turma_no_ciclo(
+        turma_id=ref_diario.turma_id,
+        ciclo_id=ref_diario.disciplina.ciclo_id if ref_diario.disciplina else None,
+        diarios_bloco=diarios_bloco
+    )
 
     if request.method == 'POST':
         conteudo = request.form.get('conteudo')
@@ -466,6 +504,7 @@ def imprimir_relatorio():
     school_id = UserService.get_current_school_id()
     turma_id = request.args.get('turma_id', type=int)
     disciplina_id = request.args.get('disciplina_id', type=int)
+    ciclo_id = request.args.get('ciclo_id', type=int)
     
     if not turma_id or not disciplina_id:
         flash("Para gerar o Relatório Oficial, selecione Turma e Disciplina nos filtros.", "warning")
@@ -474,13 +513,16 @@ def imprimir_relatorio():
     turma = db.session.get(Turma, turma_id)
     disciplina = db.session.get(Disciplina, disciplina_id)
     
-    diarios = DiarioService.get_diarios_agrupados(
+    diarios_res = DiarioService.get_diarios_agrupados(
         school_id=school_id,
         user_id=None, 
         turma_id=turma_id,
         disciplina_id=disciplina_id,
-        status=None 
+        status=None,
+        per_page=1000,
+        ciclo_id=ciclo_id
     )
+    diarios = diarios_res[0] if isinstance(diarios_res, tuple) else diarios_res
     
     total_aulas = sum(d.total_aulas_bloco for d in diarios)
     
@@ -493,4 +535,3 @@ def imprimir_relatorio():
         total_aulas=total_aulas,
         data_emissao=datetime.now()
     )
-

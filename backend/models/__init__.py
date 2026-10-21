@@ -23,6 +23,7 @@ from .diario_classe import DiarioClasse
 from .frequencia import FrequenciaAluno
 from .fada_avaliacao import FadaAvaliacao
 from .ciclo import Ciclo
+from .aluno_ciclo_turma import AlunoCicloTurma
 from .questionario import Questionario
 from .pergunta import Pergunta
 from .opcao_resposta import OpcaoResposta
@@ -48,7 +49,7 @@ __all__ = [
     "Instrutor", "DisciplinaTurma", "ProcessoDisciplina", "DisciplineRule",
     "AvaliacaoAtitudinal", "Notification", "SiteConfig", "PasswordResetToken",
     "PushSubscription", "ImageAsset", "DiarioClasse", "FrequenciaAluno",
-    "FadaAvaliacao", "Ciclo", "Questionario", "Pergunta", "OpcaoResposta",
+    "FadaAvaliacao", "Ciclo", "AlunoCicloTurma", "Questionario", "Pergunta", "OpcaoResposta",
     "Resposta", "Elogio", 
     # CORREÇÃO AQUI: Adicionado ConfiguracaoEnvio
     "QuestaoBanco", "DelegacaoProva", "RascunhoProva", "ConfiguracaoEnvio",

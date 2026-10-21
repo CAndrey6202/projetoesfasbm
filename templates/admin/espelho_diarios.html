@@ -121,6 +121,15 @@
 
     <form method="GET" action="{{ url_for('admin_escola.espelho_diarios') }}" class="row g-2 align-items-end">
                 <div class="col-md-2">
+                    <label class="form-label fw-bold small text-uppercase">Ciclo</label>
+                    <select class="form-select" name="ciclo_id" onchange="this.form.submit()">
+                        <option value="">-- Todos --</option>
+                        {% for c in ciclos %}
+                        <option value="{{ c.id }}" {% if ciclo_id == c.id %}selected{% endif %}>{{ c.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label fw-bold small text-uppercase">Turma</label>
                     <select class="form-select" name="turma_id" onchange="this.form.submit()">
                         <option value="">-- Todas --</option>
@@ -130,7 +139,7 @@
                     </select>
                 </div>
                 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-bold small text-uppercase">Disciplina</label>
                     <select class="form-select" name="disciplina_id" onchange="this.form.submit()">
                         <option value="">-- Todas --</option>
@@ -154,9 +163,9 @@
                     </select>
                 </div>
 
-                <div class="col-md-3 d-flex gap-2">
+                <div class="col-md-2 d-flex gap-2">
                     {% if turma_id and disciplina_id %}
-                        <a href="{{ url_for('admin_escola.imprimir_relatorio', turma_id=turma_id, disciplina_id=disciplina_id) }}" 
+                        <a href="{{ url_for('admin_escola.imprimir_relatorio', turma_id=turma_id, disciplina_id=disciplina_id, ciclo_id=ciclo_id) }}" 
                            target="_blank" class="btn btn-dark flex-grow-1 shadow-sm" title="Gerar Relatório Oficial (PDF)">
                             <i class="fas fa-print me-1"></i> Imprimir
                         </a>
@@ -286,7 +295,7 @@
                         
                         {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin_escola.espelho_diarios', page=pagination.prev_num, turma_id=turma_id, disciplina_id=disciplina_id, data=data_selecionada, status_diario=status_diario) }}">Anterior</a>
+                            <a class="page-link" href="{{ url_for('admin_escola.espelho_diarios', page=pagination.prev_num, ciclo_id=ciclo_id, turma_id=turma_id, disciplina_id=disciplina_id, data=data_selecionada, status_diario=status_diario) }}">Anterior</a>
                         </li>
                         {% endif %}
                         
@@ -294,7 +303,7 @@
                         
                         {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin_escola.espelho_diarios', page=pagination.next_num, turma_id=turma_id, disciplina_id=disciplina_id, data=data_selecionada, status_diario=status_diario) }}">Próxima</a>
+                            <a class="page-link" href="{{ url_for('admin_escola.espelho_diarios', page=pagination.next_num, ciclo_id=ciclo_id, turma_id=turma_id, disciplina_id=disciplina_id, data=data_selecionada, status_diario=status_diario) }}">Próxima</a>
                         </li>
                         {% endif %}
                         
@@ -529,7 +538,9 @@
         if (!modalInstance) modalInstance = new bootstrap.Modal(modalEl);
         document.getElementById('modalConteudo').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger"></div></div>';
         modalInstance.show();
-        fetch(`/admin-escola/detalhe-faltas/${alunoId}`).then(r => r.text()).then(html => document.getElementById('modalConteudo').innerHTML = html);
+        const cicloFiltro = "{{ ciclo_id or '' }}";
+        const urlDetalhe = cicloFiltro ? `/admin-escola/detalhe-faltas/${alunoId}?ciclo_id=${cicloFiltro}` : `/admin-escola/detalhe-faltas/${alunoId}`;
+        fetch(urlDetalhe).then(r => r.text()).then(html => document.getElementById('modalConteudo').innerHTML = html);
     }
 
     function abrirModalDevolucao(diarioId) {
