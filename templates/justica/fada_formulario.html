@@ -495,19 +495,23 @@ function popularSelectsComissao(dados) {
                 sel.appendChild(opt);
             });
         }
-        sel.onchange = atualizarNomes;
+        sel.onchange = () => atualizarNomes(dados);
     });
-    atualizarNomes();
+    atualizarNomes(dados);
 }
 
-function atualizarNomes() {
+function atualizarNomes(dados) {
     const p = document.getElementById('sel_presidente');
     const m1 = document.getElementById('sel_membro1');
     const m2 = document.getElementById('sel_membro2');
 
-    document.getElementById('lbl_presidente').innerText = p.options[p.selectedIndex]?.text.replace('Selecione...', 'Presidente') || "Presidente";
-    document.getElementById('lbl_membro1').innerText = m1.options[m1.selectedIndex]?.text.replace('Selecione...', 'Membro 1') || "Membro 1";
-    document.getElementById('lbl_membro2').innerText = m2.options[m2.selectedIndex]?.text.replace('Selecione...', 'Membro 2') || "Membro 2";
+    const pText = p.options[p.selectedIndex]?.text.replace('Selecione...', '').trim();
+    const m1Text = m1.options[m1.selectedIndex]?.text.replace('Selecione...', '').trim();
+    const m2Text = m2.options[m2.selectedIndex]?.text.replace('Selecione...', '').trim();
+
+    document.getElementById('lbl_presidente').innerText = pText || dados?.presidente_nome || "Presidente";
+    document.getElementById('lbl_membro1').innerText = m1Text || dados?.membro1_nome || "Membro 1";
+    document.getElementById('lbl_membro2').innerText = m2Text || dados?.membro2_nome || "Membro 2";
 }
 
 function renderHash(elId, hash, imgPath) {

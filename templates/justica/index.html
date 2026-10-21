@@ -92,6 +92,9 @@
                                     'presidente_id': fada_rec.presidente_id,
                                     'membro1_id': fada_rec.membro1_id,
                                     'membro2_id': fada_rec.membro2_id,
+                                    'presidente_nome': ((fada_rec.presidente.posto_graduacao or '') ~ ' ' ~ (fada_rec.presidente.nome_completo or '')).strip() if fada_rec.presidente else '',
+                                    'membro1_nome': ((fada_rec.membro1.posto_graduacao or '') ~ ' ' ~ (fada_rec.membro1.nome_completo or '')).strip() if fada_rec.membro1 else '',
+                                    'membro2_nome': ((fada_rec.membro2.posto_graduacao or '') ~ ' ' ~ (fada_rec.membro2.nome_completo or '')).strip() if fada_rec.membro2 else '',
                                     'hash_pres': fada_rec.hash_pres,
                                     'ass_img_pres': fada_rec.presidente.assinatura_padrao_path if (fada_rec.presidente and fada_rec.presidente.assinatura_padrao_path) else '',
                                     'ass_img_m1': fada_rec.membro1.assinatura_padrao_path if (fada_rec.membro1 and fada_rec.membro1.assinatura_padrao_path) else '',
@@ -120,11 +123,11 @@
                                             </div>
                                             <div class="col-md-4 col-sm-12 mt-2 mt-md-0">
                                                 <small class="text-danger d-block small text-uppercase fw-bold">Motivo do Recurso (FADA)</small>
-                                                <div class="text-dark fw-semibold" style="font-size: 0.9rem;">{{ fada_rec.texto_recurso or 'Motivo não informado' }}</div>
+                                                <div class="text-dark fw-semibold border border-danger border-opacity-25 rounded p-2 bg-white" style="font-size: 0.85rem; max-height: 110px; overflow-y: auto;">{{ fada_rec.texto_recurso or 'Motivo não informado' }}</div>
                                                 <span class="badge bg-danger mt-1"><i class="fas fa-exclamation-circle me-1"></i>EM RECURSO (FADA: {{ "{:.2f}".format(fada_rec.media_final or 8.0) }})</span>
                                             </div>
                                             <div class="col-md-3 text-md-end text-start mt-3 mt-md-0">
-                                                <button type="button" class="btn btn-sm btn-danger fw-bold text-white" onclick="abrirFadaModal({{ fada_rec.aluno_id }}, {{ (fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '') | tojson }}, {{ fada_rec.id }}, 'RECURSO', window.fadaRecursoMap[{{ fada_rec.id }}])">
+                                                <button type="button" class="btn btn-sm btn-danger fw-bold text-white" onclick="abrirFadaRecursoPorId({{ fada_rec.id }})">
                                                     <i class="fas fa-gavel me-1"></i> Analisar / Julgar FADA
                                                 </button>
                                             </div>
@@ -1442,6 +1445,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .overlay-content { position: relative; background: #e0e0e0; width: auto; min-width: 230mm; max-width: 95%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 30px; margin-bottom: 30px; display: flex; flex-direction: column; z-index: 100000; }
     .overlay-header { background: #0d6efd; color: white; padding: 10px 20px; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
     .btn-close-custom { background: none; border: none; color: white; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1; }
+    .overlay-body { padding: 20px; display: flex; justify-content: center; background: #525659; }
+    .fada-paper-wrapper { background: white; padding: 0; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
 </style>
 
 <script>
@@ -1450,6 +1455,20 @@ document.addEventListener("DOMContentLoaded", function(){
     const overlay = document.getElementById('overlayFada');
     if (overlay) document.body.appendChild(overlay);
 });
+
+function abrirFadaRecursoPorId(fadaId) {
+    try {
+        const fadaData = (window.fadaRecursoMap && window.fadaRecursoMap[fadaId]) ? window.fadaRecursoMap[fadaId] : null;
+        if (!fadaData) {
+            alert("Dados da FADA não encontrados.");
+            return;
+        }
+        abrirFadaModal(fadaData.aluno_id, fadaData.aluno_nome || '', fadaId, fadaData.status || 'RECURSO', fadaData);
+    } catch (e) {
+        alert("Erro ao abrir FADA: " + e.message);
+        console.error(e);
+    }
+}
 
 function abrirFadaModal(alunoId, nomeAluno, fadaId, status, fadaData) {
     try {
