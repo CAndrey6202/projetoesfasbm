@@ -426,6 +426,152 @@ def editar_diario_bloco(diario_id):
         alunos=alunos
     )
 
+@admin_escola_bp.route('/imprimir-diario/<int:diario_id>', methods=['GET'])
+@login_required
+@sens_permission_required
+def imprimir_diario_bloco(diario_id):
+    ref_diario = db.session.get(DiarioClasse, diario_id)
+    if not ref_diario or ref_diario.is_deleted:
+        flash('Diário de classe não encontrado.', 'danger')
+        return redirect(url_for('admin_escola.espelho_diarios'))
+
+    diarios_bloco = db.session.scalars(
+        select(DiarioClasse)
+        .where(
+            DiarioClasse.turma_id == ref_diario.turma_id,
+            DiarioClasse.disciplina_id == ref_diario.disciplina_id,
+            DiarioClasse.data_aula == ref_diario.data_aula,
+            DiarioClasse.is_deleted == False
+        )
+        .order_by(DiarioClasse.periodo, DiarioClasse.id)
+    ).all()
+
+    if not diarios_bloco:
+        diarios_bloco = [ref_diario]
+
+    alunos = TurmaService.get_alunos_da_turma_no_ciclo(
+        turma_id=ref_diario.turma_id,
+        ciclo_id=ref_diario.disciplina.ciclo_id if ref_diario.disciplina else None,
+        diarios_bloco=diarios_bloco
+    )
+
+    # Identificação dos períodos / tempos de aula
+    periodos_nums = [d.periodo for d in diarios_bloco if d.periodo is not None]
+    if not periodos_nums:
+        periodos_nums = list(range(1, len(diarios_bloco) + 1))
+
+    if len(periodos_nums) == 1:
+        periodos_texto = f"{periodos_nums[0]}º Tempo (1 hora/aula)"
+    elif len(periodos_nums) == 2:
+        periodos_texto = f"{periodos_nums[0]}º e {periodos_nums[1]}º Tempos ({len(periodos_nums)} horas/aula)"
+    else:
+        periodos_texto = f"{', '.join([f'{p}º' for p in periodos_nums[:-1]])} e {periodos_nums[-1]}º Tempos ({len(periodos_nums)} horas/aula)"
+
+    # Identificação do instrutor
+    instrutor_display = "Não Informado"
+    instrutor_completo = "Não Informado"
+    instrutor_user = None
+
+    if ref_diario.instrutor_assinante:
+        instrutor_user = ref_diario.instrutor_assinante
+    elif ref_diario.disciplina and ref_diario.disciplina.associacoes_turmas:
+        for assoc in ref_diario.disciplina.associacoes_turmas:
+            if assoc.disciplina_id == ref_diario.disciplina_id and ref_diario.turma.nome in (assoc.pelotao or ""):
+                if assoc.instrutor_1 and assoc.instrutor_1.user:
+                    instrutor_user = assoc.instrutor_1.user
+                elif assoc.instrutor_2 and assoc.instrutor_2.user:
+                    instrutor_user = assoc.instrutor_2.user
+                break
+
+    if instrutor_user:
+        posto = f"{instrutor_user.posto_graduacao} " if instrutor_user.posto_graduacao else ""
+        guerra = instrutor_user.nome_de_guerra or instrutor_user.nome_completo or ""
+        instrutor_display = f"{posto}{guerra}".strip()
+        instrutor_completo = f"{posto}{instrutor_user.nome_completo}".strip()
+
+    # Identificação do responsável pelo lançamento (chefe / digitador)
+    responsavel_display = "Não Informado"
+    responsavel_completo = "Não Informado"
+    if ref_diario.responsavel:
+        r_u = ref_diario.responsavel
+        r_posto = f"{r_u.posto_graduacao} " if r_u.posto_graduacao else ""
+        r_guerra = r_u.nome_de_guerra or r_u.nome_completo or ""
+        responsavel_display = f"{r_posto}{r_guerra}".strip()
+        responsavel_completo = f"{r_posto}{r_u.nome_completo}".strip()
+
+    # Apuração de presenças e faltas por tempo
+    alunos_faltosos = []
+    alunos_presentes = []
+
+    for aluno in alunos:
+        tempos_falta = []
+        justificativas = []
+
+        for d in diarios_bloco:
+            freq = next((f for f in d.frequencias if f.aluno_id == aluno.id), None)
+            if freq and not freq.presente:
+                p_label = f"{d.periodo}º" if d.periodo else f"{diarios_bloco.index(d) + 1}º"
+                tempos_falta.append(p_label)
+                if freq.justificativa:
+                    justificativas.append(f"{p_label}: {freq.justificativa}")
+
+        if tempos_falta:
+            if len(tempos_falta) == len(diarios_bloco) and len(diarios_bloco) > 1:
+                tempos_desc = f"Todos os períodos ({', '.join(tempos_falta)})"
+            elif len(tempos_falta) == 1:
+                tempos_desc = f"{tempos_falta[0]} Tempo"
+            else:
+                tempos_desc = f"{', '.join(tempos_falta[:-1])} e {tempos_falta[-1]} Tempos"
+
+            alunos_faltosos.append({
+                'aluno': aluno,
+                'numero': aluno.num_aluno or '--',
+                'nome_guerra': aluno.user.nome_de_guerra or aluno.user.nome_completo,
+                'nome_completo': aluno.user.nome_completo,
+                'tempos_falta': tempos_falta,
+                'tempos_desc': tempos_desc,
+                'justificativa': "; ".join(justificativas) if justificativas else "Não informada"
+            })
+        else:
+            alunos_presentes.append(aluno)
+
+    total_alunos = len(alunos)
+    total_faltosos = len(alunos_faltosos)
+    total_presentes = total_alunos - total_faltosos
+    porcentagem_presenca = round((total_presentes / total_alunos * 100), 1) if total_alunos > 0 else 100.0
+
+    dias_semana_pt = {
+        0: "Segunda-feira",
+        1: "Terça-feira",
+        2: "Quarta-feira",
+        3: "Quinta-feira",
+        4: "Sexta-feira",
+        5: "Sábado",
+        6: "Domingo"
+    }
+    dia_semana_str = dias_semana_pt.get(ref_diario.data_aula.weekday(), "")
+    school = db.session.get(School, ref_diario.turma.school_id)
+
+    return render_template(
+        'admin/imprimir_diario.html',
+        ref=ref_diario,
+        diarios=diarios_bloco,
+        school=school,
+        periodos_texto=periodos_texto,
+        dia_semana_str=dia_semana_str,
+        data_aula_formatada=ref_diario.data_aula.strftime('%d/%m/%Y'),
+        instrutor_display=instrutor_display,
+        instrutor_completo=instrutor_completo,
+        responsavel_display=responsavel_display,
+        responsavel_completo=responsavel_completo,
+        alunos_faltosos=alunos_faltosos,
+        total_alunos=total_alunos,
+        total_faltosos=total_faltosos,
+        total_presentes=total_presentes,
+        porcentagem_presenca=porcentagem_presenca,
+        data_emissao=datetime.now()
+    )
+
 @admin_escola_bp.route('/retornar-diario', methods=['POST'])
 @login_required
 @sens_permission_required

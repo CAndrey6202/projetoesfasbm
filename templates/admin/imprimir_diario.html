@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Diário de Classe Oficial - {{ ref.disciplina.materia }} - {{ ref.turma.nome }} ({{ data_aula_formatada }})</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 1.2cm 1.5cm;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            color: #111;
+            background-color: #f4f6f9;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+
+        .paper-sheet {
+            background: #ffffff;
+            max-width: 860px;
+            margin: 25px auto;
+            padding: 40px 45px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        /* CABEÇALHO OFICIAL */
+        .header-doc {
+            border-bottom: 2px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+        }
+
+        .logo-header {
+            max-height: 70px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .header-text h5 {
+            font-size: 13pt;
+            letter-spacing: 0.5px;
+        }
+
+        .header-text h6 {
+            font-size: 11pt;
+        }
+
+        .header-school {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin-top: 3px;
+        }
+
+        /* TÍTULO DO DOCUMENTO */
+        .doc-title-box {
+            background-color: #f0f3f6;
+            border: 1px solid #000;
+            padding: 8px;
+            margin: 15px 0 20px 0;
+            text-align: center;
+        }
+
+        .doc-title-box h4 {
+            font-size: 13pt;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+
+        .doc-title-box .subtitle {
+            font-size: 9.5pt;
+            font-style: italic;
+            color: #333;
+        }
+
+        /* TABELAS OFICIAIS */
+        .table-info {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 10.5pt;
+        }
+
+        .table-info td {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            vertical-align: middle;
+        }
+
+        .table-info .lbl {
+            background-color: #f7f7f7;
+            font-weight: bold;
+            width: 165px;
+            text-transform: uppercase;
+            font-size: 9pt;
+            color: #222;
+        }
+
+        .table-info .val {
+            color: #000;
+        }
+
+        /* BLOCOS DE SEÇÃO */
+        .section-block {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-size: 11pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: #e9ecef;
+            border: 1px solid #000;
+            border-bottom: none;
+            padding: 4px 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .section-content {
+            border: 1px solid #000;
+            padding: 12px 14px;
+            background-color: #fff;
+            min-height: 60px;
+            font-size: 10.5pt;
+            white-space: pre-wrap;
+            text-align: justify;
+        }
+
+        /* EFETIVO E FREQUÊNCIA */
+        .efetivo-bar {
+            display: flex;
+            justify-content: space-between;
+            background-color: #f8f9fa;
+            border: 1px solid #000;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 10pt;
+        }
+
+        .table-faltas {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            margin-bottom: 10px;
+            font-size: 10pt;
+        }
+
+        .table-faltas th, .table-faltas td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+        }
+
+        .table-faltas th {
+            background-color: #f0f0f0;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 9pt;
+        }
+
+        .presenca-100 {
+            border: 1px solid #000;
+            background-color: #f9fff9;
+            padding: 12px 15px;
+            font-size: 10.5pt;
+            text-align: justify;
+        }
+
+        .certifico-text {
+            font-size: 9.5pt;
+            font-style: italic;
+            text-align: justify;
+            color: #222;
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+
+        /* ASSINATURAS */
+        .signatures-container {
+            margin-top: 35px;
+            page-break-inside: avoid;
+        }
+
+        .signatures-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            text-align: center;
+        }
+
+        .signature-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 9.5pt;
+        }
+
+        .sig-space {
+            height: 55px;
+        }
+
+        .sig-image {
+            max-height: 55px;
+            margin-bottom: 5px;
+            object-fit: contain;
+        }
+
+        .sig-line {
+            width: 100%;
+            border-top: 1px solid #000;
+            margin-bottom: 5px;
+        }
+
+        .sig-name {
+            font-weight: bold;
+            font-size: 10pt;
+            color: #000;
+        }
+
+        .sig-role {
+            font-size: 8.5pt;
+            color: #444;
+            text-transform: uppercase;
+        }
+
+        .sig-badge {
+            font-size: 7.5pt;
+            color: #198754;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* RODAPÉ DO DOCUMENTO */
+        .doc-footer {
+            margin-top: 30px;
+            border-top: 1px dashed #777;
+            padding-top: 8px;
+            font-size: 8.5pt;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* BARRA DE AÇÕES (NO-PRINT) */
+        .action-bar {
+            background-color: #212529;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        @media print {
+            body {
+                background: transparent;
+                padding: 0;
+            }
+            .paper-sheet {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container my-3 no-print">
+    <div class="action-bar d-flex justify-content-between align-items-center">
+        <div>
+            <span class="fs-5 fw-bold"><i class="fas fa-print me-2 text-warning"></i> Visualização de Impressão Oficial</span>
+            <span class="badge bg-secondary ms-2">Formato A4 Padrão</span>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-warning fw-bold shadow-sm">
+                <i class="fas fa-print me-1"></i> Imprimir / Salvar em PDF
+            </button>
+            <button onclick="window.close()" class="btn btn-outline-light">
+                <i class="fas fa-times me-1"></i> Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="paper-sheet">
+
+    <!-- CABEÇALHO OFICIAL DO ESTADO / BRIGADA MILITAR -->
+    <div class="header-doc d-flex align-items-center justify-content-between">
+        <img src="{{ url_for('static', filename='img/brasao_estado.png') }}" class="logo-header" alt="Estado do Rio Grande do Sul" onerror="this.style.display='none'">
+        
+        <div class="header-text text-center flex-grow-1 px-3">
+            <h5 class="fw-bold mb-0">ESTADO DO RIO GRANDE DO SUL</h5>
+            <h6 class="fw-bold mb-0">SECRETARIA DA SEGURANÇA PÚBLICA</h6>
+            <h6 class="fw-bold mb-0">BRIGADA MILITAR &bull; DEPARTAMENTO DE ENSINO</h6>
+            <div class="header-school">{{ school.nome if school else 'ESCOLA DE FORMAÇÃO DA BRIGADA MILITAR' }}</div>
+            <div style="font-size: 8.5pt; color: #555;">Sistema de Gestão de Ensino &bull; SisGEn</div>
+        </div>
+
+        <img src="{{ url_for('static', filename='img/brasao_bm.png') }}" class="logo-header" alt="Brigada Militar" onerror="this.style.display='none'">
+    </div>
+
+    <!-- TÍTULO FORMAL -->
+    <div class="doc-title-box">
+        <h4 class="fw-bold text-uppercase">DIÁRIO DE CLASSE OFICIAL</h4>
+        <div class="subtitle">Comprovante de Ministração de Aula e Registro de Frequência Escolar</div>
+    </div>
+
+    <!-- IDENTIFICAÇÃO DA ATIVIDADE ACADÊMICA -->
+    <table class="table-info">
+        <tr>
+            <td class="lbl">Disciplina:</td>
+            <td class="val fw-bold" colspan="3" style="font-size: 11pt;">{{ ref.disciplina.materia }}</td>
+        </tr>
+        <tr>
+            <td class="lbl">Turma / Pelotão:</td>
+            <td class="val fw-bold">{{ ref.turma.nome }}</td>
+            <td class="lbl">Ciclo / Edição:</td>
+            <td class="val">{{ ref.disciplina.ciclo.nome if ref.disciplina and ref.disciplina.ciclo else (ref.turma.edicao.nome if ref.turma and ref.turma.edicao else 'Ensino Regular') }}</td>
+        </tr>
+        <tr>
+            <td class="lbl">Data da Instrução:</td>
+            <td class="val"><strong>{{ data_aula_formatada }}</strong> ({{ dia_semana_str }})</td>
+            <td class="lbl">Período(s) de Aula:</td>
+            <td class="val"><strong>{{ periodos_texto }}</strong></td>
+        </tr>
+        <tr>
+            <td class="lbl">Docente / Instrutor(a):</td>
+            <td class="val"><strong>{{ instrutor_completo }}</strong></td>
+            <td class="lbl">Digitador / Chefe:</td>
+            <td class="val">{{ responsavel_completo }}</td>
+        </tr>
+    </table>
+
+    <!-- SEÇÃO 1: CONTEÚDO MINISTRADO -->
+    <div class="section-block">
+        <div class="section-title">1. CONTEÚDO PROGRAMÁTICO MINISTRADO</div>
+        <div class="section-content">{% if ref.conteudo_ministrado and ref.conteudo_ministrado.strip() %}{{ ref.conteudo_ministrado }}{% else %}<em class="text-muted">Nenhum conteúdo específico discriminado para este registro.</em>{% endif %}</div>
+    </div>
+
+    <!-- SEÇÃO 2: OBSERVAÇÕES E OCORRÊNCIAS -->
+    <div class="section-block">
+        <div class="section-title">2. OBSERVAÇÕES E OCORRÊNCIAS PEDAGÓGICAS</div>
+        <div class="section-content">{% if ref.observacoes and ref.observacoes.strip() %}{{ ref.observacoes }}{% else %}<span class="text-muted">Sem alterações ou ocorrências disciplinares/pedagógicas registradas durante o período letivo.</span>{% endif %}</div>
+    </div>
+
+    <!-- SEÇÃO 3: CONTROLE DE FREQUÊNCIA E EFETIVO -->
+    <div class="section-block">
+        <div class="section-title">3. CONTROLE DE FREQUÊNCIA E EFETIVO DISCENTE</div>
+        
+        <div class="efetivo-bar">
+            <span><strong>Efetivo Matriculado:</strong> {{ total_alunos }} discentes</span>
+            <span><strong>Efetivo Presente:</strong> {{ total_presentes }} discentes</span>
+            <span><strong>Discentes Ausentes:</strong> {{ total_faltosos }}</span>
+            <span><strong>Índice de Frequência:</strong> {{ porcentagem_presenca }}%</span>
+        </div>
+
+        {% if total_faltosos > 0 %}
+            <div style="border: 1px solid #000; padding: 10px; background-color: #fff;">
+                <p class="mb-1 fw-bold text-danger" style="font-size: 10pt;">
+                    <i class="fas fa-exclamation-circle me-1"></i> Relação Nominal de Discentes com Ausência Registrada:
+                </p>
+                <table class="table-faltas">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Nº</th>
+                            <th style="width: 38%;">Nome do Aluno</th>
+                            <th style="width: 27%;">Períodos em Falta</th>
+                            <th style="width: 25%;">Justificativa / Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in alunos_faltosos %}
+                        <tr>
+                            <td class="text-center fw-bold">{{ f.numero }}</td>
+                            <td>
+                                <strong>{{ f.nome_guerra }}</strong>
+                                {% if f.nome_completo != f.nome_guerra %}
+                                    <br><small class="text-muted">{{ f.nome_completo }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold text-danger">{{ f.tempos_desc }}</td>
+                            <td><small>{{ f.justificativa }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="certifico-text">
+                    Certifico, para os devidos fins regulamentares e apuração da carga horária discente conforme as normas do Regulamento de Ensino, que os alunos acima relacionados não compareceram às instruções ministradas nos períodos indicados.
+                </p>
+            </div>
+        {% else %}
+            <div class="presenca-100">
+                <strong><i class="fas fa-check-circle text-success me-1"></i> CERTIDÃO DE EFETIVO INTEGRAL (100% DE PRESENÇA):</strong>
+                Certifico que todos os <strong>{{ total_alunos }}</strong> discentes integrantes do efetivo desta turma compareceram integralmente e participaram de todas as instruções ministradas nesta data, não havendo faltas ou ausências a serem registradas.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- SEÇÃO 4: ASSINATURAS E HOMOLOGAÇÃO -->
+    <div class="signatures-container">
+        <div class="signatures-row">
+            
+            <!-- INSTRUTOR DOCENTE -->
+            <div class="signature-item">
+                {% if ref.status == 'assinado' and ref.assinatura_path %}
+                    <img src="{{ url_for('static', filename=ref.assinatura_path) }}" class="sig-image" alt="Assinatura Digital">
+                    <div class="sig-badge mb-1"><i class="fas fa-certificate me-1"></i> Assinado Digitalmente</div>
+                {% else %}
+                    <div class="sig-space"></div>
+                {% endif %}
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ instrutor_display }}</div>
+                <div class="sig-role">Docente / Instrutor(a)</div>
+                <div class="sig-date text-muted" style="font-size: 8pt;">
+                    {% if ref.status == 'assinado' and ref.data_assinatura %}
+                        Validado em {{ ref.data_assinatura.strftime('%d/%m/%Y às %H:%M') }}
+                    {% else %}
+                        Validação Docente
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- RESPONSÁVEL PREENCHIMENTO -->
+            <div class="signature-item">
+                <div class="sig-space"></div>
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ responsavel_display }}</div>
+                <div class="sig-role">Chefe de Turma / Digitador</div>
+                <div class="sig-date text-muted" style="font-size: 8pt;">Lançamento em Sistema</div>
+            </div>
+
+            <!-- SEÇÃO DE ENSINO -->
+            <div class="signature-item">
+                <div class="sig-space"></div>
+                <div class="sig-line"></div>
+                <div class="sig-name">Coordenação Pedagógica</div>
+                <div class="sig-role">Seção de Ensino (SENS)</div>
+                <div class="sig-date text-muted" style="font-size: 8pt;">Visto e Homologação</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- RODAPÉ TÉCNICO -->
+    <div class="doc-footer">
+        <div>
+            Documento emitido em {{ data_emissao.strftime('%d/%m/%Y às %H:%M:%S') }} &bull; SisGEn Brigada Militar
+        </div>
+        <div>
+            Diário ID: #{{ ref.id }} &bull; Autenticação interna via banco de dados escolar
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -257,6 +257,13 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-2">
+                                    <a href="{{ url_for('admin_escola.imprimir_diario_bloco', diario_id=diario.id) }}" 
+                                       target="_blank" 
+                                       class="btn btn-outline-dark btn-sm px-2 fw-bold shadow-sm"
+                                       title="Imprimir Diário de Classe Oficial">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+
                                     <a href="{{ url_for('admin_escola.editar_diario_bloco', diario_id=diario.id) }}" 
                                        class="btn btn-primary btn-sm px-3 fw-bold shadow-sm">
                                         <i class="fas fa-edit me-1"></i> Editar
