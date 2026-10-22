@@ -30,15 +30,18 @@ class SemanaService:
 
         if semana_id_str and str(semana_id_str).isdigit():
             semana = db.session.get(Semana, int(semana_id_str))
-            if semana and semana.ciclo and semana.ciclo.school_id == active_school_id and semana.ciclo.edicao_id == active_edicao:
-                return semana
+            if semana and semana.ciclo and semana.ciclo.school_id == active_school_id:
+                if not active_edicao or semana.ciclo.edicao_id == active_edicao or semana.ciclo.edicao_id is None:
+                    return semana
 
         today = date.today()
         stmt = (
             select(Semana)
             .join(Ciclo)
-            .where(Ciclo.school_id == active_school_id, Ciclo.edicao_id == active_edicao)
+            .where(Ciclo.school_id == active_school_id)
         )
+        if active_edicao:
+            stmt = stmt.where(or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None))
         
         if ciclo_id:
             stmt = stmt.where(Semana.ciclo_id == ciclo_id)

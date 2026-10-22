@@ -4,7 +4,7 @@ import typing as t
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from .database import db
 from flask import session, has_request_context
 
@@ -163,7 +163,18 @@ class User(UserMixin, db.Model):
         if self.is_super_admin and session.get('is_dec_mode') and school_id:
             return True
         role = self.get_role_in_school(school_id)
-        return role == self.ROLE_INSTRUTOR
+        if role == self.ROLE_INSTRUTOR:
+            return True
+        # Se possuir registro ativo na tabela de instrutores para esta escola (ou global)
+        if hasattr(self, 'id') and self.id:
+            from .instrutor import Instrutor
+            stmt = select(Instrutor.id).where(Instrutor.user_id == self.id)
+            if school_id:
+                stmt = stmt.where(or_(Instrutor.school_id == school_id, Instrutor.school_id == None))
+            has_record = db.session.scalar(stmt)
+            if has_record:
+                return True
+        return False
 
     def is_staff_in_school(self, school_id: int | None) -> bool:
         """Staff inclui SENS, CAL e Comandante"""

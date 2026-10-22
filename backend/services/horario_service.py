@@ -42,9 +42,13 @@ class HorarioService:
             my_instrutor_ids = db.session.scalars(
                 select(Instrutor.id).where(
                     Instrutor.user_id == user.id,
-                    Instrutor.school_id == school_id
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
                 )
             ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == user.id)
+                ).all()
 
         if my_instrutor_ids:
             return (
@@ -170,9 +174,13 @@ class HorarioService:
             preloaded_instrutor_ids = db.session.scalars(
                 select(Instrutor.id).where(
                     Instrutor.user_id == user.id,
-                    Instrutor.school_id == school_id
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
                 )
             ).all()
+            if not preloaded_instrutor_ids:
+                preloaded_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == user.id)
+                ).all()
 
         for aula in all_aulas:
             try:
@@ -301,9 +309,13 @@ class HorarioService:
             my_instrutor_ids = db.session.scalars(
                 select(Instrutor.id).where(
                     Instrutor.user_id == user.id,
-                    Instrutor.school_id == school_id
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
                 )
             ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == user.id)
+                ).all()
 
             if my_instrutor_ids:
                 disciplinas_do_instrutor = db.session.scalars(
@@ -344,9 +356,13 @@ class HorarioService:
             my_instrutor_ids = db.session.scalars(
                 select(Instrutor.id).where(
                     Instrutor.user_id == user.id,
-                    Instrutor.school_id == school_id
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
                 )
             ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == user.id)
+                ).all()
             if my_instrutor_ids:
                 instrutor_logado_id = my_instrutor_ids[0]
 
@@ -534,9 +550,13 @@ class HorarioService:
                 my_instrutor_ids = db.session.scalars(
                     select(Instrutor.id).where(
                         Instrutor.user_id == user.id,
-                        Instrutor.school_id == school_id
+                        or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
                     )
                 ).all()
+                if not my_instrutor_ids:
+                    my_instrutor_ids = db.session.scalars(
+                        select(Instrutor.id).where(Instrutor.user_id == user.id)
+                    ).all()
 
                 if not my_instrutor_ids:
                     return False, 'Perfil de instrutor não encontrado.', 403

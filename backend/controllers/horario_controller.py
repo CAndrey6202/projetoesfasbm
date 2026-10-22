@@ -180,7 +180,30 @@ def index():
     school_id = UserService.get_current_school_id()
     local_role = current_user.get_role_in_school(school_id) if school_id else None
 
-    if (local_role == 'aluno') or (current_user.role == 'aluno' and not current_user.is_staff):
+    # Identifica se o usuário atua como instrutor na escola ou no sistema
+    is_instrutor = False
+    if school_id:
+        if local_role == 'instrutor' or current_user.is_instrutor_in_school(school_id):
+            is_instrutor = True
+        else:
+            my_instrutor_ids = db.session.scalars(
+                select(Instrutor.id).where(
+                    Instrutor.user_id == current_user.id,
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
+                )
+            ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+                ).all()
+            if my_instrutor_ids:
+                is_instrutor = True
+
+    # Trata como aluno APENAS se tiver papel de aluno E NÃO for staff NEM instrutor
+    is_aluno_context = (local_role == 'aluno' and not is_instrutor and not current_user.is_staff) or \
+                       (not local_role and current_user.role == 'aluno' and not is_instrutor and not current_user.is_staff)
+
+    if is_aluno_context:
         if not current_user.aluno_profile or not current_user.aluno_profile.turma:
             flash("Você não está matriculado em nenhuma turma.", 'warning')
             return redirect(url_for('main.dashboard'))
@@ -201,26 +224,37 @@ def index():
         if not current_user.is_staff:
             todas_as_turmas = []
             my_instrutor_ids = db.session.scalars(
-                select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+                select(Instrutor.id).where(
+                    Instrutor.user_id == current_user.id,
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
+                )
             ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+                ).all()
 
             if my_instrutor_ids:
                 try:
-                    turmas_vinculadas = db.session.scalars(
+                    query_turmas = (
                         select(Turma)
                         .join(Disciplina, Disciplina.turma_id == Turma.id)
                         .join(DisciplinaTurma, DisciplinaTurma.disciplina_id == Disciplina.id)
                         .where(
                             Turma.school_id == school_id,
-                            Turma.edicao_id == active_edicao,
                             or_(
                                 DisciplinaTurma.instrutor_id_1.in_(my_instrutor_ids),
                                 DisciplinaTurma.instrutor_id_2.in_(my_instrutor_ids)
                             )
                         )
-                        .distinct()
-                        .order_by(Turma.nome)
-                    ).all()
+                    )
+                    if active_edicao:
+                        query_com_edicao = query_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
+                        turmas_vinculadas = db.session.scalars(query_com_edicao.distinct().order_by(Turma.nome)).all()
+                        if not turmas_vinculadas:
+                            turmas_vinculadas = db.session.scalars(query_turmas.distinct().order_by(Turma.nome)).all()
+                    else:
+                        turmas_vinculadas = db.session.scalars(query_turmas.distinct().order_by(Turma.nome)).all()
 
                     todas_as_turmas = list(turmas_vinculadas)
                 except Exception as e:
@@ -236,7 +270,13 @@ def index():
 
     turma_atual_obj = None
     if turma_selecionada_nome:
-        turma_atual_obj = db.session.scalar(select(Turma).where(Turma.nome == turma_selecionada_nome, Turma.school_id == school_id, Turma.edicao_id == active_edicao))
+        query_turma = select(Turma).where(Turma.nome == turma_selecionada_nome, Turma.school_id == school_id)
+        if active_edicao:
+            turma_atual_obj = db.session.scalar(query_turma.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None)))
+        if not turma_atual_obj:
+            turma_atual_obj = db.session.scalar(query_turma)
+        if turma_atual_obj and turma_atual_obj.edicao_id and not active_edicao:
+            active_edicao = turma_atual_obj.edicao_id
 
     ciclo_selecionado_id = request.args.get('ciclo', session.get('ultimo_ciclo_horario'), type=int)
 
@@ -246,6 +286,10 @@ def index():
             or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
         ).order_by(Ciclo.nome)
     ).all()
+    if not ciclos and school_id:
+        ciclos = db.session.scalars(
+            select(Ciclo).where(Ciclo.school_id == school_id).order_by(Ciclo.nome)
+        ).all()
 
     if not ciclo_selecionado_id or ciclo_selecionado_id not in [c.id for c in ciclos]:
         ciclo_selecionado_id = ciclos[0].id if ciclos else None
@@ -286,13 +330,16 @@ def index():
 
     if school_id:
         try:
+            query_mat = select(Disciplina.materia).join(Turma).where(Turma.school_id == school_id)
+            if active_edicao:
+                query_mat = query_mat.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
             all_materias_names = db.session.scalars(
-                select(Disciplina.materia)
-                .join(Turma)
-                .where(Turma.school_id == school_id, Turma.edicao_id == active_edicao)
-                .distinct()
-                .order_by(Disciplina.materia)
+                query_mat.distinct().order_by(Disciplina.materia)
             ).all()
+            if not all_materias_names:
+                all_materias_names = db.session.scalars(
+                    select(Disciplina.materia).join(Turma).where(Turma.school_id == school_id).distinct().order_by(Disciplina.materia)
+                ).all()
         except Exception:
             all_materias_names = []
 
@@ -307,25 +354,36 @@ def index():
             can_schedule_in_this_turma = True
         else:
             my_instrutor_ids = db.session.scalars(
-                select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+                select(Instrutor.id).where(
+                    Instrutor.user_id == current_user.id,
+                    or_(Instrutor.school_id == school_id, Instrutor.school_id == None)
+                )
             ).all()
+            if not my_instrutor_ids:
+                my_instrutor_ids = db.session.scalars(
+                    select(Instrutor.id).where(Instrutor.user_id == current_user.id)
+                ).all()
 
             if my_instrutor_ids:
-                instrutor_turmas_vinculadas = db.session.scalars(
+                query_instrutor_turmas = (
                     select(Turma)
                     .join(Disciplina, Disciplina.turma_id == Turma.id)
                     .join(DisciplinaTurma, DisciplinaTurma.disciplina_id == Disciplina.id)
                     .where(
                         Turma.school_id == school_id,
-                        Turma.edicao_id == active_edicao,
                         or_(
                             DisciplinaTurma.instrutor_id_1.in_(my_instrutor_ids),
                             DisciplinaTurma.instrutor_id_2.in_(my_instrutor_ids)
                         )
                     )
-                    .distinct()
-                    .order_by(Turma.nome)
-                ).all()
+                )
+                if active_edicao:
+                    query_com_edicao = query_instrutor_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
+                    instrutor_turmas_vinculadas = db.session.scalars(query_com_edicao.distinct().order_by(Turma.nome)).all()
+                    if not instrutor_turmas_vinculadas:
+                        instrutor_turmas_vinculadas = db.session.scalars(query_instrutor_turmas.distinct().order_by(Turma.nome)).all()
+                else:
+                    instrutor_turmas_vinculadas = db.session.scalars(query_instrutor_turmas.distinct().order_by(Turma.nome)).all()
 
                 if any(t.nome == turma_selecionada_nome for t in instrutor_turmas_vinculadas):
                     if not priority_active:
@@ -336,6 +394,7 @@ def index():
                                 .join(Disciplina, DisciplinaTurma.disciplina_id == Disciplina.id)\
                                 .join(Turma, Disciplina.turma_id == Turma.id)\
                                 .where(
+                                    Turma.school_id == school_id,
                                     Turma.nome == turma_selecionada_nome,
                                     Disciplina.materia.in_(priority_allowed_names),
                                     or_(
