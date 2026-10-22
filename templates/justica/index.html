@@ -83,9 +83,14 @@
                                 <i class="fas fa-exclamation-circle me-2"></i>Recursos de Avaliação FADA Pendentes ({{ fadas_recurso|length }})
                             </h5>
                             {% for fada_rec in fadas_recurso %}
+                                {% set rec_school_obj = fada_rec.aluno.turma.school if (fada_rec.aluno and fada_rec.aluno.turma and fada_rec.aluno.turma.school) else g.active_school %}
+                                {% set raw_rec_school = rec_school_obj.nome if rec_school_obj else (fada_rec.aluno.opm if (fada_rec.aluno and fada_rec.aluno.opm and fada_rec.aluno.opm != '-' and fada_rec.aluno.opm != 'Não informado') else '') %}
+                                {% set rec_opm_val = (raw_rec_school.split(' - ')[-1].strip() if ' - ' in raw_rec_school else raw_rec_school) or 'SisGEn' %}
                                 {% set fada_rec_data = {
                                     'aluno_id': fada_rec.aluno_id,
                                     'aluno_nome': fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '',
+                                    'opm_nome': rec_opm_val,
+                                    'escola_nome': raw_rec_school,
                                     'fada_id': fada_rec.id,
                                     'status': fada_rec.status,
                                     'data_assinatura': fada_rec.data_assinatura.strftime('%d/%m/%Y %H:%M') if fada_rec.data_assinatura else '',
@@ -842,7 +847,14 @@
                                             </td>
                                             <td class="text-center">
                                                 
+                                                {% set aluno_school_obj = current_user.aluno_profile.turma.school if (current_user.aluno_profile and current_user.aluno_profile.turma and current_user.aluno_profile.turma.school) else g.active_school %}
+                                                {% set raw_aluno_school = aluno_school_obj.nome if aluno_school_obj else (current_user.aluno_profile.opm if (current_user.aluno_profile and current_user.aluno_profile.opm and current_user.aluno_profile.opm != '-' and current_user.aluno_profile.opm != 'Não informado') else '') %}
+                                                {% set aluno_opm_display = (raw_aluno_school.split(' - ')[-1].strip() if ' - ' in raw_aluno_school else raw_aluno_school) or 'SisGEn' %}
                                                 {% set fada_data = {
+                                                    'aluno_id': current_user.aluno_profile.id if current_user.aluno_profile else None,
+                                                    'aluno_nome': current_user.nome_completo or '',
+                                                    'opm_nome': aluno_opm_display,
+                                                    'escola_nome': raw_aluno_school,
                                                     'data_assinatura': fada.data_assinatura.strftime('%d/%m/%Y %H:%M') if fada.data_assinatura else '',
                                                     'presidente_id': fada.presidente_id,
                                                     'membro1_id': fada.membro1_id,

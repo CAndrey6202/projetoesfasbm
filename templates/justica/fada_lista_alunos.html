@@ -64,9 +64,15 @@
                         }) %}
                     {% endfor %}
 
+                    {% set school_obj = item.aluno.turma.school if (item.aluno and item.aluno.turma and item.aluno.turma.school) else g.active_school %}
+                    {% set raw_school_nome = school_obj.nome if school_obj else (item.aluno.opm if (item.aluno and item.aluno.opm and item.aluno.opm != '-' and item.aluno.opm != 'Não informado') else '') %}
+                    {% set aluno_opm_val = (raw_school_nome.split(' - ')[-1].strip() if ' - ' in raw_school_nome else raw_school_nome) or 'SisGEn' %}
+
                     {% set fada_data = {
                         'aluno_id': item.id,
                         'aluno_nome': item.aluno.user.nome_completo if item.aluno.user else '',
+                        'opm_nome': aluno_opm_val,
+                        'escola_nome': raw_school_nome,
                         'fada_id': (item.fada_obj.id if item.fada_obj else None),
                         'status': status,
                         'presidente_id': item.fada_obj.presidente_id if (item.fada_obj and item.fada_obj.presidente_id) else '',

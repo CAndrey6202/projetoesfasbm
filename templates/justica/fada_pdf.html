@@ -142,7 +142,8 @@
 
     <div class="header">
         <h1>Ficha de Avaliação de Desempenho do Aluno (FADA)</h1>
-        <p>{{ escola.name if escola else 'Instituição de Ensino' }}</p>
+        {% set esc_nome = escola.nome if escola else (aluno.turma.school.nome if (aluno.turma and aluno.turma.school) else (g.active_school.nome if g.active_school else 'Instituição de Ensino')) %}
+        <p>{{ esc_nome }}</p>
         <p>Documento Oficial Escolar</p>
     </div>
 
@@ -150,6 +151,8 @@
         <span class="badge-finalizado">Status: FINALIZADO</span>
         <div class="info-row"><span>Aluno:</span> {{ aluno.user.nome_completo if aluno.user else 'N/A' }}</div>
         <div class="info-row"><span>Matrícula:</span> {{ aluno.user.matricula if aluno.user else 'N/A' }}</div>
+        {% set opm_sigla = (esc_nome.split(' - ')[-1].strip() if ' - ' in esc_nome else esc_nome) or (aluno.opm if (aluno.opm and aluno.opm != '-') else 'SisGEn') %}
+        <div class="info-row"><span>OPM:</span> {{ opm_sigla }}</div>
         <div class="info-row"><span>Turma:</span> {{ aluno.turma.nome if aluno.turma else 'N/A' }}</div>
         <div class="info-row"><span>Data da Emissão:</span> {{ now.strftime('%d/%m/%Y às %H:%M') }}</div>
         <div class="info-row"><span>Doc ID:</span> <span class="hash">{{ fada.hash_integridade }}</span></div>

@@ -101,13 +101,15 @@
             <h5 class="fw-bold mt-3 text-decoration-underline">FICHA DE AVALIAÇÃO DE DESEMPENHO ATITUDINAL</h5>
         </div>
 
+        {% set fada_default_school_nome = g.active_school.nome if g.active_school else '' %}
+        {% set fada_default_opm = (fada_default_school_nome.split(' - ')[-1].strip() if ' - ' in fada_default_school_nome else fada_default_school_nome) or 'SisGEn' %}
         <div class="border border-dark p-2 mb-2 font-serif small">
             <div class="row">
                 <div class="col-8"><strong>ALUNO:</strong> <span id="fada_nome_aluno_display">...</span></div>
                 <div class="col-4"><strong>QUALIFICAÇÃO:</strong> Sd PM</div>
             </div>
             <div class="row mt-1">
-                <div class="col-8"><strong>OPM:</strong> <span id="fada_opm_display">EsFES/PoA (SisGEn)</span></div>
+                <div class="col-8"><strong>OPM:</strong> <span id="fada_opm_display">{{ fada_default_opm }}</span></div>
                 <div class="col-4"><strong>DATA DA AVALIAÇÃO:</strong> <span id="fada_data_display"></span></div>
             </div>
         </div>
@@ -341,6 +343,12 @@ window.abrirFadaModalInterno = function(alunoId, nomeAluno, fadaId, etapa, dados
     document.getElementById('fada_id_atual').value = fadaId || '';
     document.getElementById('fada_nome_aluno_display').innerText = nomeAluno;
     document.getElementById('fada_data_display').innerText = new Date().toLocaleDateString('pt-BR');
+
+    // Atualiza OPM dinamicamente conforme os dados do aluno/escola
+    const opmSpan = document.getElementById('fada_opm_display');
+    if (opmSpan) {
+        opmSpan.innerText = dadosFada?.opm_nome || dadosFada?.escola_nome || '{{ fada_default_opm }}';
+    }
 
     const pControl = document.getElementById('painel-controle');
     const pComissao = document.getElementById('area-selecao-comissao');

@@ -28,7 +28,9 @@
     <div class="header">
         ESTADO DO RIO GRANDE DO SUL<br>
         SECRETARIA DA SEGURANÇA PÚBLICA<br>
-        BRIGADA MILITAR - DE - EsFAS
+        {% set pdf_tpl_school = g.active_school.nome if g.active_school else 'DEC' %}
+        {% set pdf_tpl_opm = (pdf_tpl_school.split(' - ')[-1].strip() if ' - ' in pdf_tpl_school else pdf_tpl_school) %}
+        BRIGADA MILITAR - DE - {{ pdf_tpl_opm }}
     </div>
 
     <div class="title">ATA DE RESULTADOS FINAIS - AVALIAÇÃO ATITUDINAL</div>
