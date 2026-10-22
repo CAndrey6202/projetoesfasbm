@@ -65,8 +65,21 @@
                     {% endfor %}
 
                     {% set school_obj = item.aluno.turma.school if (item.aluno and item.aluno.turma and item.aluno.turma.school) else g.active_school %}
+                    {% set edicao_obj = item.aluno.turma.edicao if (item.aluno and item.aluno.turma and item.aluno.turma.edicao) else (item.aluno.edicao if (item.aluno and item.aluno.edicao) else g.active_edicao) %}
                     {% set raw_school_nome = school_obj.nome if school_obj else (item.aluno.opm if (item.aluno and item.aluno.opm and item.aluno.opm != '-' and item.aluno.opm != 'Não informado') else '') %}
-                    {% set aluno_opm_val = (raw_school_nome.split(' - ')[-1].strip() if ' - ' in raw_school_nome else raw_school_nome) or 'SisGEn' %}
+                    {% set school_parts = raw_school_nome.split(' - ') if raw_school_nome else [] %}
+                    {% set curso_tag = (edicao_obj.npccal_type|upper if (edicao_obj and edicao_obj.npccal_type) else (edicao_obj.nome if edicao_obj else '')) %}
+                    {% if school_parts|length >= 3 %}
+                        {% set aluno_opm_val = (school_parts[1:] | join(' - ')).strip() %}
+                    {% elif school_parts|length == 2 %}
+                        {% set base_sigla = school_parts[1].strip() %}
+                        {% set aluno_opm_val = (base_sigla ~ ' - ' ~ curso_tag) if (curso_tag and (curso_tag not in base_sigla)) else base_sigla %}
+                    {% elif school_parts|length == 1 and school_parts[0] %}
+                        {% set base_sigla = school_parts[0].strip() %}
+                        {% set aluno_opm_val = (base_sigla ~ ' - ' ~ curso_tag) if (curso_tag and (curso_tag not in base_sigla)) else base_sigla %}
+                    {% else %}
+                        {% set aluno_opm_val = 'SisGEn' %}
+                    {% endif %}
 
                     {% set fada_data = {
                         'aluno_id': item.id,

@@ -151,7 +151,20 @@
         <span class="badge-finalizado">Status: FINALIZADO</span>
         <div class="info-row"><span>Aluno:</span> {{ aluno.user.nome_completo if aluno.user else 'N/A' }}</div>
         <div class="info-row"><span>Matrícula:</span> {{ aluno.user.matricula if aluno.user else 'N/A' }}</div>
-        {% set opm_sigla = (esc_nome.split(' - ')[-1].strip() if ' - ' in esc_nome else esc_nome) or (aluno.opm if (aluno.opm and aluno.opm != '-') else 'SisGEn') %}
+        {% set esc_parts = esc_nome.split(' - ') if esc_nome else [] %}
+        {% set pdf_edic = aluno.turma.edicao if (aluno.turma and aluno.turma.edicao) else (aluno.edicao if aluno.edicao else g.active_edicao) %}
+        {% set pdf_curso = (pdf_edic.npccal_type|upper if (pdf_edic and pdf_edic.npccal_type) else (pdf_edic.nome if pdf_edic else '')) %}
+        {% if esc_parts|length >= 3 %}
+            {% set opm_sigla = (esc_parts[1:] | join(' - ')).strip() %}
+        {% elif esc_parts|length == 2 %}
+            {% set base_s = esc_parts[1].strip() %}
+            {% set opm_sigla = (base_s ~ ' - ' ~ pdf_curso) if (pdf_curso and (pdf_curso not in base_s)) else base_s %}
+        {% elif esc_parts|length == 1 and esc_parts[0] %}
+            {% set base_s = esc_parts[0].strip() %}
+            {% set opm_sigla = (base_s ~ ' - ' ~ pdf_curso) if (pdf_curso and (pdf_curso not in base_s)) else base_s %}
+        {% else %}
+            {% set opm_sigla = (aluno.opm if (aluno.opm and aluno.opm != '-') else 'SisGEn') %}
+        {% endif %}
         <div class="info-row"><span>OPM:</span> {{ opm_sigla }}</div>
         <div class="info-row"><span>Turma:</span> {{ aluno.turma.nome if aluno.turma else 'N/A' }}</div>
         <div class="info-row"><span>Data da Emissão:</span> {{ now.strftime('%d/%m/%Y às %H:%M') }}</div>

@@ -29,7 +29,14 @@
         ESTADO DO RIO GRANDE DO SUL<br>
         SECRETARIA DA SEGURANÇA PÚBLICA<br>
         {% set pdf_tpl_school = g.active_school.nome if g.active_school else 'DEC' %}
-        {% set pdf_tpl_opm = (pdf_tpl_school.split(' - ')[-1].strip() if ' - ' in pdf_tpl_school else pdf_tpl_school) %}
+        {% set pdf_tpl_parts = pdf_tpl_school.split(' - ') if pdf_tpl_school else [] %}
+        {% if pdf_tpl_parts|length >= 3 %}
+            {% set pdf_tpl_opm = (pdf_tpl_parts[1:] | join(' - ')).strip() %}
+        {% elif pdf_tpl_parts|length == 2 %}
+            {% set pdf_tpl_opm = pdf_tpl_parts[1].strip() %}
+        {% else %}
+            {% set pdf_tpl_opm = pdf_tpl_school %}
+        {% endif %}
         BRIGADA MILITAR - DE - {{ pdf_tpl_opm }}
     </div>
 

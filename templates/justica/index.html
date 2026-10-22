@@ -84,8 +84,21 @@
                             </h5>
                             {% for fada_rec in fadas_recurso %}
                                 {% set rec_school_obj = fada_rec.aluno.turma.school if (fada_rec.aluno and fada_rec.aluno.turma and fada_rec.aluno.turma.school) else g.active_school %}
+                                {% set rec_edicao_obj = fada_rec.aluno.turma.edicao if (fada_rec.aluno and fada_rec.aluno.turma and fada_rec.aluno.turma.edicao) else (fada_rec.aluno.edicao if (fada_rec.aluno and fada_rec.aluno.edicao) else g.active_edicao) %}
                                 {% set raw_rec_school = rec_school_obj.nome if rec_school_obj else (fada_rec.aluno.opm if (fada_rec.aluno and fada_rec.aluno.opm and fada_rec.aluno.opm != '-' and fada_rec.aluno.opm != 'Não informado') else '') %}
-                                {% set rec_opm_val = (raw_rec_school.split(' - ')[-1].strip() if ' - ' in raw_rec_school else raw_rec_school) or 'SisGEn' %}
+                                {% set rec_parts = raw_rec_school.split(' - ') if raw_rec_school else [] %}
+                                {% set rec_curso = (rec_edicao_obj.npccal_type|upper if (rec_edicao_obj and rec_edicao_obj.npccal_type) else (rec_edicao_obj.nome if rec_edicao_obj else '')) %}
+                                {% if rec_parts|length >= 3 %}
+                                    {% set rec_opm_val = (rec_parts[1:] | join(' - ')).strip() %}
+                                {% elif rec_parts|length == 2 %}
+                                    {% set rec_base = rec_parts[1].strip() %}
+                                    {% set rec_opm_val = (rec_base ~ ' - ' ~ rec_curso) if (rec_curso and (rec_curso not in rec_base)) else rec_base %}
+                                {% elif rec_parts|length == 1 and rec_parts[0] %}
+                                    {% set rec_base = rec_parts[0].strip() %}
+                                    {% set rec_opm_val = (rec_base ~ ' - ' ~ rec_curso) if (rec_curso and (rec_curso not in rec_base)) else rec_base %}
+                                {% else %}
+                                    {% set rec_opm_val = 'SisGEn' %}
+                                {% endif %}
                                 {% set fada_rec_data = {
                                     'aluno_id': fada_rec.aluno_id,
                                     'aluno_nome': fada_rec.aluno.user.nome_completo if (fada_rec.aluno and fada_rec.aluno.user) else '',
@@ -848,8 +861,21 @@
                                             <td class="text-center">
                                                 
                                                 {% set aluno_school_obj = current_user.aluno_profile.turma.school if (current_user.aluno_profile and current_user.aluno_profile.turma and current_user.aluno_profile.turma.school) else g.active_school %}
+                                                {% set aluno_edicao_obj = current_user.aluno_profile.turma.edicao if (current_user.aluno_profile and current_user.aluno_profile.turma and current_user.aluno_profile.turma.edicao) else (current_user.aluno_profile.edicao if (current_user.aluno_profile and current_user.aluno_profile.edicao) else g.active_edicao) %}
                                                 {% set raw_aluno_school = aluno_school_obj.nome if aluno_school_obj else (current_user.aluno_profile.opm if (current_user.aluno_profile and current_user.aluno_profile.opm and current_user.aluno_profile.opm != '-' and current_user.aluno_profile.opm != 'Não informado') else '') %}
-                                                {% set aluno_opm_display = (raw_aluno_school.split(' - ')[-1].strip() if ' - ' in raw_aluno_school else raw_aluno_school) or 'SisGEn' %}
+                                                {% set al_parts = raw_aluno_school.split(' - ') if raw_aluno_school else [] %}
+                                                {% set al_curso = (aluno_edicao_obj.npccal_type|upper if (aluno_edicao_obj and aluno_edicao_obj.npccal_type) else (aluno_edicao_obj.nome if aluno_edicao_obj else '')) %}
+                                                {% if al_parts|length >= 3 %}
+                                                    {% set aluno_opm_display = (al_parts[1:] | join(' - ')).strip() %}
+                                                {% elif al_parts|length == 2 %}
+                                                    {% set al_base = al_parts[1].strip() %}
+                                                    {% set aluno_opm_display = (al_base ~ ' - ' ~ al_curso) if (al_curso and (al_curso not in al_base)) else al_base %}
+                                                {% elif al_parts|length == 1 and al_parts[0] %}
+                                                    {% set al_base = al_parts[0].strip() %}
+                                                    {% set aluno_opm_display = (al_base ~ ' - ' ~ al_curso) if (al_curso and (al_curso not in al_base)) else al_base %}
+                                                {% else %}
+                                                    {% set aluno_opm_display = 'SisGEn' %}
+                                                {% endif %}
                                                 {% set fada_data = {
                                                     'aluno_id': current_user.aluno_profile.id if current_user.aluno_profile else None,
                                                     'aluno_nome': current_user.nome_completo or '',
