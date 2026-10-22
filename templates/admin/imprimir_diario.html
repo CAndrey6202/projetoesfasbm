@@ -194,6 +194,15 @@
             text-align: center;
         }
 
+        .signature-single {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 10pt;
+            margin: 0 auto;
+        }
+
         .signature-item {
             flex: 1;
             display: flex;
@@ -412,48 +421,14 @@
         {% endif %}
     </div>
 
-    <!-- SEÇÃO 4: ASSINATURAS E HOMOLOGAÇÃO -->
-    <div class="signatures-container">
-        <div class="signatures-row">
-            
-            <!-- INSTRUTOR DOCENTE -->
-            <div class="signature-item">
-                {% if ref.status == 'assinado' and ref.assinatura_path %}
-                    <img src="{{ url_for('static', filename=ref.assinatura_path) }}" class="sig-image" alt="Assinatura Digital">
-                    <div class="sig-badge mb-1"><i class="fas fa-certificate me-1"></i> Assinado Digitalmente</div>
-                {% else %}
-                    <div class="sig-space"></div>
-                {% endif %}
-                <div class="sig-line"></div>
-                <div class="sig-name">{{ instrutor_display }}</div>
-                <div class="sig-role">Docente / Instrutor(a)</div>
-                <div class="sig-date text-muted" style="font-size: 8pt;">
-                    {% if ref.status == 'assinado' and ref.data_assinatura %}
-                        Validado em {{ ref.data_assinatura.strftime('%d/%m/%Y às %H:%M') }}
-                    {% else %}
-                        Validação Docente
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- RESPONSÁVEL PREENCHIMENTO -->
-            <div class="signature-item">
-                <div class="sig-space"></div>
-                <div class="sig-line"></div>
-                <div class="sig-name">{{ responsavel_display }}</div>
-                <div class="sig-role">Chefe de Turma / Digitador</div>
-                <div class="sig-date text-muted" style="font-size: 8pt;">Lançamento em Sistema</div>
-            </div>
-
-            <!-- SEÇÃO DE ENSINO -->
-            <div class="signature-item">
-                <div class="sig-space"></div>
-                <div class="sig-line"></div>
-                <div class="sig-name">Coordenação Pedagógica</div>
-                <div class="sig-role">Seção de Ensino (SENS)</div>
-                <div class="sig-date text-muted" style="font-size: 8pt;">Visto e Homologação</div>
-            </div>
-
+    <!-- SEÇÃO 4: HOMOLOGAÇÃO E VISTO -->
+    <div class="signatures-container text-center">
+        <div class="signature-single mx-auto" style="max-width: 380px;">
+            <div class="sig-space" style="height: 55px;"></div>
+            <div class="sig-line"></div>
+            <div class="sig-name">Coordenação Pedagógica</div>
+            <div class="sig-role">Seção de Ensino (SENS)</div>
+            <div class="sig-date text-muted" style="font-size: 8.5pt;">Visto e Homologação Escolar</div>
         </div>
     </div>
 
