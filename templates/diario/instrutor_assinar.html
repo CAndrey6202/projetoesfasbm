@@ -106,7 +106,9 @@
                 <div class="card border-0 bg-light shadow-sm mb-4">
                     <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-clipboard-list me-2"></i> Auditoria de Frequência</span>
-                        <span class="badge bg-light text-dark">{{ alunos_list|length }} Alunos</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-light text-dark">{{ alunos_list|length }} Alunos</span>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -122,15 +124,19 @@
                                 </thead>
                                 <tbody>
                                     {% for aluno in alunos_list %}
-                                    <tr>
-                                        <td class="text-start ps-3 fw-bold text-muted">{{ aluno.num_aluno or '--' }}</td>
+                                    <tr data-aluno-id="{{ aluno.id }}" 
+                                        data-aluno-nome="{{ aluno.user.nome_de_guerra or aluno.user.nome_completo }}"
+                                        data-aluno-num="{{ aluno.num_aluno if aluno.num_aluno is not none else '' }}">
+                                        <td class="text-start ps-3 fw-bold text-muted">{{ aluno.num_aluno if aluno.num_aluno is not none else '--' }}</td>
                                         <td class="text-start fw-bold">{{ aluno.user.nome_de_guerra or aluno.user.nome_completo }}</td>
                                         
                                         {% for d in diarios_bloco %}
                                         <td>
                                             <div class="form-check form-switch d-flex justify-content-center m-0 p-0">
-                                                <input class="form-check-input ms-0 shadow-sm" type="checkbox" 
+                                                <input class="form-check-input ms-0 shadow-sm check-presenca-instrutor" type="checkbox" 
                                                        name="presenca_{{ aluno.id }}_{{ d.id }}" value="1" 
+                                                       data-aluno-id="{{ aluno.id }}"
+                                                       data-periodo="{{ d.periodo if d.periodo else loop.index }}"
                                                        {% if freq_map[aluno.id][d.id] %}checked{% endif %}>
                                             </div>
                                         </td>
@@ -149,10 +155,29 @@
                         <i class="fas fa-info-circle me-1"></i> As faltas marcadas pelo chefe de turma já estão preenchidas. O instrutor pode corrigir clicando nas chaves correspondentes a cada tempo de aula.
                     </div>
                 </div>
+
                 <div class="mb-4">
                     <label for="observacoes" class="form-label text-muted fw-bold">Observações:</label>
                     <textarea class="form-control shadow-sm" id="observacoes" name="observacoes" rows="3">{{ diario.observacoes }}</textarea>
                     <div class="form-text">Registre ocorrências ou detalhes relevantes da aula.</div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label text-danger fw-bold mb-0">
+                            <i class="fas fa-user-times me-1"></i> Aluno Em Falta
+                        </label>
+                        <span id="badge-faltas-instrutor" class="badge bg-secondary">0 faltas</span>
+                    </div>
+                    <textarea class="form-control shadow-sm" id="campo_alunos_falta_instrutor" rows="2" readonly 
+                              style="background-color: #f8f9fa; border-color: #dee2e6; resize: vertical;"
+                              placeholder="Nenhum aluno em falta."></textarea>
+                    <div class="form-text text-muted d-flex justify-content-between align-items-center mt-1">
+                        <span><i class="fas fa-magic text-primary me-1"></i> Preenchido automaticamente conforme a auditoria de frequência acima.</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="copiarFaltasParaObsInstrutor()">
+                            <i class="far fa-copy me-1"></i> Copiar para Observações
+                        </button>
+                    </div>
                 </div>
 
                 <hr class="my-4">
@@ -307,5 +332,99 @@
             }
         }
     }
+
+    function formatarTemposFaltaInstrutor(tempos, totalTempos) {
+        if (totalTempos <= 1) return '';
+        const temposOrdinais = tempos.map(p => `${p}º`);
+        if (temposOrdinais.length === 1) return ` (${temposOrdinais[0]} Tempo)`;
+        if (temposOrdinais.length === totalTempos) return ` (${temposOrdinais.join(', ')} Tempos)`;
+        const ult = temposOrdinais.pop();
+        return ` (${temposOrdinais.join(', ')} e ${ult} Tempos)`;
+    }
+
+    function atualizarAlunosEmFaltaInstrutor() {
+        const campoFalta = document.getElementById('campo_alunos_falta_instrutor');
+        const badgeFaltas = document.getElementById('badge-faltas-instrutor');
+        if (!campoFalta) return;
+
+        const rows = document.querySelectorAll('tbody tr[data-aluno-id]');
+        const listaFaltosos = [];
+
+        rows.forEach(row => {
+            const alunoNome = row.getAttribute('data-aluno-nome');
+            const alunoNum = row.getAttribute('data-aluno-num');
+            const checks = row.querySelectorAll('input.check-presenca-instrutor');
+
+            const temposFaltantes = [];
+            checks.forEach(chk => {
+                if (!chk.checked) {
+                    temposFaltantes.push(chk.getAttribute('data-periodo'));
+                }
+            });
+
+            if (temposFaltantes.length > 0) {
+                let nomeExibicao = alunoNome;
+                if (alunoNum && alunoNum.trim() !== '' && alunoNum !== 'None') {
+                    nomeExibicao = `${alunoNum} - ${alunoNome}`;
+                }
+                const sufixoTempos = formatarTemposFaltaInstrutor(temposFaltantes, checks.length);
+                listaFaltosos.push(`${nomeExibicao}${sufixoTempos}`);
+            }
+        });
+
+        if (listaFaltosos.length === 0) {
+            campoFalta.value = '';
+            campoFalta.placeholder = 'Nenhum aluno em falta (100% de presença).';
+            campoFalta.style.backgroundColor = '#f8f9fa';
+            campoFalta.style.borderColor = '#dee2e6';
+            campoFalta.style.color = '#495057';
+            campoFalta.style.fontWeight = 'normal';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-success';
+                badgeFaltas.innerHTML = '<i class="fas fa-check me-1"></i> Nenhuma falta';
+            }
+        } else {
+            campoFalta.value = listaFaltosos.join(', ');
+            campoFalta.style.backgroundColor = '#fff5f5';
+            campoFalta.style.borderColor = '#f5c2c7';
+            campoFalta.style.color = '#842029';
+            campoFalta.style.fontWeight = '500';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-danger';
+                const textoAlunos = listaFaltosos.length === 1 ? '1 aluno em falta' : `${listaFaltosos.length} alunos em falta`;
+                badgeFaltas.innerHTML = `<i class="fas fa-user-times me-1"></i> ${textoAlunos}`;
+            }
+        }
+    }
+
+    function copiarFaltasParaObsInstrutor() {
+        const campoFalta = document.getElementById('campo_alunos_falta_instrutor');
+        const campoObs = document.getElementById('observacoes');
+        if (!campoFalta || !campoObs) return;
+
+        const textoFaltas = campoFalta.value.trim();
+        if (!textoFaltas) {
+            alert('Não há alunos em falta para copiar.');
+            return;
+        }
+
+        const textoInserir = `Alunos em falta: ${textoFaltas}.`;
+        if (campoObs.value.trim().length > 0) {
+            if (!campoObs.value.includes(textoFaltas)) {
+                campoObs.value = campoObs.value.trim() + '\n' + textoInserir;
+            }
+        } else {
+            campoObs.value = textoInserir;
+        }
+        campoObs.focus();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input.check-presenca-instrutor').forEach(chk => {
+            chk.addEventListener('change', atualizarAlunosEmFaltaInstrutor);
+        });
+
+        atualizarAlunosEmFaltaInstrutor();
+    });
 </script>
 {% endblock %}

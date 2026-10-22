@@ -35,7 +35,25 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark small">Observações / Ocorrências</label>
-                            <textarea name="observacoes" class="form-control bg-light text-dark" rows="3" placeholder="Algum aluno passou mal? Atraso do instrutor?"></textarea>
+                            <textarea name="observacoes" id="obs_chefe" class="form-control bg-light text-dark" rows="3" placeholder="Algum aluno passou mal? Atraso do instrutor?"></textarea>
+                        </div>
+
+                        <div class="mb-0">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold text-danger small mb-0">
+                                    <i class="fas fa-user-times me-1"></i> Aluno Em Falta
+                                </label>
+                                <span id="badge-faltas-chefe" class="badge bg-secondary">0 faltas</span>
+                            </div>
+                            <textarea class="form-control bg-light" id="campo_alunos_falta_chefe" rows="2" readonly 
+                                      style="background-color: #f8f9fa; border-color: #dee2e6; resize: vertical;"
+                                      placeholder="Nenhum aluno em falta."></textarea>
+                            <div class="form-text text-muted d-flex justify-content-between align-items-center mt-1">
+                                <span style="font-size: 0.75rem;"><i class="fas fa-magic text-primary me-1"></i> Atualizado automaticamente.</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="copiarFaltasParaObsChefe()">
+                                    <i class="far fa-copy me-1"></i> Copiar p/ Obs
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -60,7 +78,10 @@
                             </thead>
                             <tbody>
                                 {% for aluno in alunos %}
-                                <tr id="row-{{ aluno.id }}" class="bg-white">
+                                <tr id="row-{{ aluno.id }}" class="bg-white"
+                                    data-aluno-id="{{ aluno.id }}" 
+                                    data-aluno-nome="{{ aluno.user.nome_de_guerra or aluno.user.nome_completo }}"
+                                    data-aluno-num="{{ aluno.num_aluno if aluno.num_aluno is not none else '' }}">
                                     <td class="ps-3">
                                         <div class="fw-bold text-dark">
                                             {% if aluno.user.nome_de_guerra %}
@@ -69,7 +90,7 @@
                                                 {{ aluno.user.nome_completo }}
                                             {% endif %}
                                         </div>
-                                        <small class="text-muted">{{ aluno.num_aluno }} - {{ aluno.user.nome_completo }}</small>
+                                        <small class="text-muted">{{ aluno.num_aluno if aluno.num_aluno is not none else '--' }} - {{ aluno.user.nome_completo }}</small>
                                     </td>
                                     
                                     <td class="text-center">
@@ -91,9 +112,11 @@
 
                                         <div id="periods-{{ aluno.id }}" class="d-none d-flex flex-wrap gap-1 justify-content-center align-items-center">
                                             {% for h in horarios %}
-                                                <input type="checkbox" class="btn-check" 
+                                                <input type="checkbox" class="btn-check check-periodo-chefe" 
                                                        name="presenca_{{ aluno.id }}_{{ h['periodo'] }}" 
                                                        id="btn-check-{{ aluno.id }}-{{ h['periodo'] }}" 
+                                                       data-aluno-id="{{ aluno.id }}"
+                                                       data-periodo="{{ h['periodo'] }}"
                                                        autocomplete="off" checked>
                                                 
                                                 <label class="btn btn-outline-primary btn-sm fw-bold shadow-none" 
@@ -152,6 +175,70 @@
 </style>
 
 <script>
+    function formatarTemposFaltaChefe(tempos, totalTempos) {
+        if (totalTempos <= 1) return '';
+        const temposOrdinais = tempos.map(p => `${p}º`);
+        if (temposOrdinais.length === 1) return ` (${temposOrdinais[0]} Tempo)`;
+        if (temposOrdinais.length === totalTempos) return ` (${temposOrdinais.join(', ')} Tempos)`;
+        const ult = temposOrdinais.pop();
+        return ` (${temposOrdinais.join(', ')} e ${ult} Tempos)`;
+    }
+
+    function atualizarAlunosEmFaltaChefe() {
+        const campoFalta = document.getElementById('campo_alunos_falta_chefe');
+        const badgeFaltas = document.getElementById('badge-faltas-chefe');
+        if (!campoFalta) return;
+
+        const rows = document.querySelectorAll('tbody tr[data-aluno-id]');
+        const listaFaltosos = [];
+
+        rows.forEach(row => {
+            const alunoNome = row.getAttribute('data-aluno-nome');
+            const alunoNum = row.getAttribute('data-aluno-num');
+            const checks = row.querySelectorAll('input.check-periodo-chefe');
+
+            const temposFaltantes = [];
+            checks.forEach(chk => {
+                if (!chk.checked) {
+                    temposFaltantes.push(chk.getAttribute('data-periodo'));
+                }
+            });
+
+            if (temposFaltantes.length > 0) {
+                let nomeExibicao = alunoNome;
+                if (alunoNum && alunoNum.trim() !== '' && alunoNum !== 'None') {
+                    nomeExibicao = `${alunoNum} - ${alunoNome}`;
+                }
+                const sufixoTempos = formatarTemposFaltaChefe(temposFaltantes, checks.length);
+                listaFaltosos.push(`${nomeExibicao}${sufixoTempos}`);
+            }
+        });
+
+        if (listaFaltosos.length === 0) {
+            campoFalta.value = '';
+            campoFalta.placeholder = 'Nenhum aluno em falta (100% de presença).';
+            campoFalta.style.backgroundColor = '#f8f9fa';
+            campoFalta.style.borderColor = '#dee2e6';
+            campoFalta.style.color = '#495057';
+            campoFalta.style.fontWeight = 'normal';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-success';
+                badgeFaltas.innerHTML = '<i class="fas fa-check me-1"></i> Nenhuma falta';
+            }
+        } else {
+            campoFalta.value = listaFaltosos.join(', ');
+            campoFalta.style.backgroundColor = '#fff5f5';
+            campoFalta.style.borderColor = '#f5c2c7';
+            campoFalta.style.color = '#842029';
+            campoFalta.style.fontWeight = '500';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-danger';
+                const textoAlunos = listaFaltosos.length === 1 ? '1 aluno em falta' : `${listaFaltosos.length} alunos em falta`;
+                badgeFaltas.innerHTML = `<i class="fas fa-user-times me-1"></i> ${textoAlunos}`;
+            }
+        }
+    }
+
     function toggleMaster(alunoId) {
         const masterCheck = document.getElementById(`master-${alunoId}`);
         const periodsDiv = document.getElementById(`periods-${alunoId}`);
@@ -159,7 +246,7 @@
         const msgDiv = document.getElementById(`periods-msg-${alunoId}`);
         const label = document.getElementById(`label-master-${alunoId}`);
         const row = document.getElementById(`row-${alunoId}`);
-        const subChecks = periodsDiv.querySelectorAll('input.btn-check');
+        const subChecks = periodsDiv.querySelectorAll('input.check-periodo-chefe');
 
         if (masterCheck.checked) {
             periodsDiv.classList.add('d-none');
@@ -176,14 +263,62 @@
             label.textContent = "EDITAR";
             label.className = "fw-bold text-danger";
             row.classList.add('table-danger-custom');
+            // Se acabou de desmarcar o master e todos os períodos estavam marcados, desmarca todos
+            subChecks.forEach(ch => ch.checked = false);
         }
+        atualizarAlunosEmFaltaChefe();
     }
 
     function marcarTodos(estado) {
         document.querySelectorAll('[id^="master-"]').forEach(m => {
             m.checked = estado;
-            m.dispatchEvent(new Event('change'));
+            const alunoId = m.id.replace('master-', '');
+            const periodsDiv = document.getElementById(`periods-${alunoId}`);
+            const periodsHelp = document.getElementById(`periods-help-${alunoId}`);
+            const msgDiv = document.getElementById(`periods-msg-${alunoId}`);
+            const label = document.getElementById(`label-master-${alunoId}`);
+            const row = document.getElementById(`row-${alunoId}`);
+            const subChecks = periodsDiv ? periodsDiv.querySelectorAll('input.check-periodo-chefe') : [];
+
+            if (estado) {
+                if (periodsDiv) periodsDiv.classList.add('d-none');
+                if (periodsHelp) periodsHelp.classList.add('d-none');
+                if (msgDiv) msgDiv.classList.remove('d-none');
+                if (label) { label.textContent = "PRESENTE"; label.className = "fw-bold text-success"; }
+                if (row) row.classList.remove('table-danger-custom');
+                subChecks.forEach(ch => ch.checked = true);
+            } else {
+                if (periodsDiv) periodsDiv.classList.remove('d-none');
+                if (periodsHelp) periodsHelp.classList.remove('d-none');
+                if (msgDiv) msgDiv.classList.add('d-none');
+                if (label) { label.textContent = "EDITAR"; label.className = "fw-bold text-danger"; }
+                if (row) row.classList.add('table-danger-custom');
+                subChecks.forEach(ch => ch.checked = false);
+            }
         });
+        atualizarAlunosEmFaltaChefe();
+    }
+
+    function copiarFaltasParaObsChefe() {
+        const campoFalta = document.getElementById('campo_alunos_falta_chefe');
+        const campoObs = document.getElementById('obs_chefe');
+        if (!campoFalta || !campoObs) return;
+
+        const textoFaltas = campoFalta.value.trim();
+        if (!textoFaltas) {
+            alert('Não há alunos em falta para copiar.');
+            return;
+        }
+
+        const textoInserir = `Alunos em falta: ${textoFaltas}.`;
+        if (campoObs.value.trim().length > 0) {
+            if (!campoObs.value.includes(textoFaltas)) {
+                campoObs.value = campoObs.value.trim() + '\n' + textoInserir;
+            }
+        } else {
+            campoObs.value = textoInserir;
+        }
+        campoObs.focus();
     }
 
     // ====================================================================
@@ -195,7 +330,6 @@
 
         if (formRegistrar && btnSalvar) {
             formRegistrar.addEventListener('submit', function(e) {
-                // Apenas bloqueia se os campos obrigatórios (como Conteúdo) estiverem preenchidos
                 if (formRegistrar.checkValidity()) {
                     btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Salvando aguarde...';
                     btnSalvar.classList.add('disabled');
@@ -204,6 +338,12 @@
                 }
             });
         }
+
+        document.querySelectorAll('input.check-periodo-chefe').forEach(chk => {
+            chk.addEventListener('change', atualizarAlunosEmFaltaChefe);
+        });
+
+        atualizarAlunosEmFaltaChefe();
     });
 </script>
 {% endblock %}
