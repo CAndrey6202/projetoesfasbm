@@ -137,14 +137,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     btnAnalisar.addEventListener('click', function() {
-        let textoBruto = '';
+        let caixas = [];
         document.querySelectorAll('.texto-bruto-item').forEach(ta => {
             const val = ta.value.trim();
             if (val) {
-                textoBruto += '\n\n' + val;
+                caixas.push(val);
             }
         });
-        textoBruto = textoBruto.trim();
+        let textoBruto = caixas.join('\n\n===NOVA_QUESTAO===\n\n').trim();
 
         const materia = document.getElementById('disciplina_selecionada').value;
 
@@ -203,14 +203,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         questoes.forEach((q, index) => {
             let avisosHtml = '';
-            if (q.avisos && q.avisos.length > 0) {
-                avisosHtml = `<div class="alert alert-warning py-1 px-2 mb-2 small"><i class="fas fa-exclamation-triangle"></i> <strong>Aviso do Motor:</strong> ${q.avisos[0]}</div>`;
+            const temAviso = q.avisos && q.avisos.length > 0;
+            if (temAviso) {
+                avisosHtml = q.avisos.map(av => `<div class="alert alert-warning py-1 px-2 mb-2 small"><i class="fas fa-exclamation-triangle"></i> <strong>Aviso do Motor:</strong> ${av}</div>`).join('');
             }
 
             const qId = index; // Identificador único pra vincular os inputs de rádio
 
             const card = document.createElement('div');
-            card.className = 'card mb-4 border-secondary shadow-sm questao-card';
+            card.className = `card mb-4 ${temAviso ? 'border-warning' : 'border-secondary'} shadow-sm questao-card`;
             card.dataset.index = index;
             card.innerHTML = `
                 <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="card-body pt-2">
                     <div class="mb-3">
-                        <textarea class="form-control fw-bold q-enunciado border-primary bg-light" rows="4" placeholder="Edite o enunciado aqui se necessário...">${q.enunciado}</textarea>
+                        <textarea class="form-control fw-bold q-enunciado border-primary bg-light" rows="4" placeholder="Edite o enunciado aqui se necessário..."></textarea>
                     </div>
                     
                     <p class="mb-1 fw-bold text-muted small">Marque a bolinha verde na resposta correta:</p>
@@ -230,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input class="form-check-input mt-0 q-gabarito" type="radio" name="gabarito_${qId}" value="A" ${q.resposta_correta === 'A' ? 'checked' : ''}>
                                     <span class="ms-2 fw-bold">A)</span>
                                 </div>
-                                <input type="text" class="form-control q-alt-A" value="${q.alternativas.A}">
+                                <input type="text" class="form-control q-alt-A">
                             </div>
                         </div>
                         <div class="col-md-12 mb-2">
@@ -239,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input class="form-check-input mt-0 q-gabarito" type="radio" name="gabarito_${qId}" value="B" ${q.resposta_correta === 'B' ? 'checked' : ''}>
                                     <span class="ms-2 fw-bold">B)</span>
                                 </div>
-                                <input type="text" class="form-control q-alt-B" value="${q.alternativas.B}">
+                                <input type="text" class="form-control q-alt-B">
                             </div>
                         </div>
                         <div class="col-md-12 mb-2">
@@ -248,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input class="form-check-input mt-0 q-gabarito" type="radio" name="gabarito_${qId}" value="C" ${q.resposta_correta === 'C' ? 'checked' : ''}>
                                     <span class="ms-2 fw-bold">C)</span>
                                 </div>
-                                <input type="text" class="form-control q-alt-C" value="${q.alternativas.C}">
+                                <input type="text" class="form-control q-alt-C">
                             </div>
                         </div>
                         <div class="col-md-12 mb-2">
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input class="form-check-input mt-0 q-gabarito" type="radio" name="gabarito_${qId}" value="D" ${q.resposta_correta === 'D' ? 'checked' : ''}>
                                     <span class="ms-2 fw-bold">D)</span>
                                 </div>
-                                <input type="text" class="form-control q-alt-D" value="${q.alternativas.D}">
+                                <input type="text" class="form-control q-alt-D">
                             </div>
                         </div>
                         <div class="col-md-12 mb-2">
@@ -266,12 +267,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input class="form-check-input mt-0 q-gabarito" type="radio" name="gabarito_${qId}" value="E" ${q.resposta_correta === 'E' ? 'checked' : ''}>
                                     <span class="ms-2 fw-bold">E)</span>
                                 </div>
-                                <input type="text" class="form-control q-alt-E" value="${q.alternativas.E}">
+                                <input type="text" class="form-control q-alt-E">
                             </div>
                         </div>
                     </div>
                 </div>
             `;
+            // Preenche valores via DOM para preservar aspas e caracteres especiais com segurança
+            card.querySelector('.q-enunciado').value = q.enunciado || '';
+            card.querySelector('.q-alt-A').value = (q.alternativas && q.alternativas.A) || '';
+            card.querySelector('.q-alt-B').value = (q.alternativas && q.alternativas.B) || '';
+            card.querySelector('.q-alt-C').value = (q.alternativas && q.alternativas.C) || '';
+            card.querySelector('.q-alt-D').value = (q.alternativas && q.alternativas.D) || '';
+            card.querySelector('.q-alt-E').value = (q.alternativas && q.alternativas.E) || '';
             container.appendChild(card);
         });
     }

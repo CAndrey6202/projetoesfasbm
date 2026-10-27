@@ -588,7 +588,12 @@ def salvar_questoes():
         if not instrutor and papel_usuario == 'super_admin':
             instrutor = Instrutor.query.first() # Fallback para testes do admin
 
-        disciplina = Disciplina.query.filter_by(materia=materia).first()
+        disciplina = Disciplina.query.join(Turma).filter(
+            Turma.school_id == escola_id,
+            Disciplina.materia == materia
+        ).first() if escola_id else None
+        if not disciplina:
+            disciplina = Disciplina.query.filter_by(materia=materia).first()
 
         if not disciplina:
             return jsonify({'success': False, 'message': 'Disciplina não encontrada.'}), 404
@@ -647,41 +652,263 @@ def salvar_questoes():
 
 
 def extrair_e_limpar_questoes(texto):
+    if not texto or not str(texto).strip():
+        return []
+
+    # 1. NORMALIZAÇÃO E LIMPEZA (Word, PDF, caracteres invisíveis e segurança contra tags HTML)
+    texto_limpo = re.sub(r'[\u200B-\u200D\uFEFF\u2060]', '', str(texto))
+    texto_limpo = texto_limpo.replace('\r\n', '\n').replace('\r', '\n')
+    texto_limpo = re.sub(r'[\u00A0\u202F\u2007\t]', ' ', texto_limpo)
+    texto_limpo = re.sub(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', '', texto_limpo, flags=re.IGNORECASE | re.DOTALL)
+    texto_limpo = re.sub(r'<[^>]+>', '', texto_limpo)
+
+    SEP = r'[ \t]*[\.\-\–\—\―\)\]\:]'
+
+    # Regex para gabarito explícito em final de linha ou entre parênteses/colchetes
+    # Suporta: Gabarito: C | Resp: C | Resp.: C | Gab: C | Resposta correta: Letra C | Alternativa correta: (C) | Correta - C
+    PADRAO_GABARITO = re.compile(
+        r'(?:^|\n|[ \t]+|[(\[])'
+        r'(?:'
+            r'gabarito(?:[ \t]+oficial)?|'
+            r'gab\.?|'
+            r'resp\.?(?:[ \t]+correta|[ \t]+certa)?|'
+            r'resposta(?:[ \t]+correta|[ \t]+certa|[ \t]+oficial)?|'
+            r'(?:alternativa|op[çc][aã]o)[ \t]+(?:correta|certa)|'
+            r'correta|'
+            r'certa'
+        r')'
+        r'[ \t]*(?:[\:\-\–\—\=][ \t]*|[ \t]+)'
+        r'(?:(?:a[ \t]+)?(?:letra|alternativa|op[çc][aã]o|item)[ \t]+)?'
+        r'[\(\[]?[ \t]*([A-Ea-e])[ \t]*[\)\]\.]?[ \t]*[\)\]]?'
+        r'(?=[ \t]*(?:\n|$))',
+        re.IGNORECASE
+    )
+
+    PADRAO_GABARITO_PARENTESES = re.compile(
+        r'[\(\[]\s*(?:gabarito|gab\.?|resp\.?|resposta(?:\s+correta|\s+certa)?|correta|certa)'
+        r'\s*[\:\-\–\—\=]?\s*(?:letra\s+)?([A-Ea-e])\s*[\.]?\s*[\)\]]',
+        re.IGNORECASE
+    )
+
+    PADRAO_LINHA_SO_GABARITO = re.compile(
+        r'^\s*[\(\[]?\s*(?:'
+            r'gabarito(?:\s+oficial)?|'
+            r'gab\.?|'
+            r'resp\.?(?:\s+correta|\s+certa)?|'
+            r'resposta(?:\s+correta|\s+certa|\s+oficial)?|'
+            r'(?:alternativa|op[çc][aã]o)\s+(?:correta|certa)|'
+            r'correta|'
+            r'certa'
+        r')'
+        r'\s*(?:[\:\-\–\—\=]\s*|\s+)'
+        r'(?:(?:a\s+)?(?:letra|alternativa|op[çc][aã]o|item)\s+)?'
+        r'[\(\[]?\s*([A-Ea-e])\s*[\)\]\.]?\s*[\)\]]?\s*$',
+        re.IGNORECASE
+    )
+
+    def _tem_estrutura_questao(bloco_txt):
+        """Verifica se um bloco já contém ao menos as alternativas A, B, C e D em sequência."""
+        encontrados = 0
+        pos = 0
+        for letra in ['A', 'B', 'C', 'D']:
+            m = re.search(rf'(?:^|\n)\s*[•●▪\*\-]?\s*[\(\[]?{letra}{SEP}\s*\S', bloco_txt[pos:], re.IGNORECASE)
+            if not m:
+                m = re.search(rf'(?:^|\s)[•●▪\*\-]?\s*[\(\[]?{letra}{SEP}\s+\S', bloco_txt[pos:], re.IGNORECASE)
+            if m:
+                encontrados += 1
+                pos += m.end()
+            else:
+                break
+        return encontrados >= 4
+
+    padrao_inicio_questao = re.compile(
+        r'^\s*(?:'
+            r'[\(\[]?(?:quest[aã]o|q\.?|pergunta)\s*(?:n[º°\.]?\s*)?0?\d{1,4}\s*(?:[\.\-\–\—\―\)\]\:]|\º[\.\)\-\s]?|\ª[\.\)\-\s]?)?\s*(?=\S|$)|'
+            r'0?\d{1,4}\s*(?:[\.\-\–\—\―\)\]\:]|\º[\.\)\-\s]|\ª[\.\)\-\s])\s*(?=\S|$)'
+        r')',
+        re.IGNORECASE
+    )
+
+    # 2. FATIAMENTO EM BLOCOS (Respeita caixas separadas e numerações sem quebrar listas internas do enunciado)
+    secoes_manuais = re.split(r'\n*===NOVA_QUESTAO===\n*', texto_limpo)
+    blocos = []
+
+    for secao in secoes_manuais:
+        if not secao.strip():
+            continue
+        linhas = secao.split('\n')
+        bloco_atual = []
+
+        for linha in linhas:
+            eh_inicio = bool(padrao_inicio_questao.match(linha))
+            if eh_inicio and bloco_atual:
+                texto_acumulado = '\n'.join(bloco_atual)
+                # Só inicia nova questão se o bloco anterior já tiver completado as alternativas A-D
+                if _tem_estrutura_questao(texto_acumulado):
+                    blocos.append(texto_acumulado.strip())
+                    linha_sem_num = padrao_inicio_questao.sub('', linha, count=1).strip()
+                    bloco_atual = [linha_sem_num] if linha_sem_num else []
+                    continue
+            elif eh_inicio and not bloco_atual:
+                linha = padrao_inicio_questao.sub('', linha, count=1).strip()
+                if not linha:
+                    continue
+
+            bloco_atual.append(linha)
+
+            # Se a linha atual é um gabarito isolado (ou alternativa E com gabarito na mesma linha)
+            # e o bloco já possui estrutura de alternativas A-D, encerra a questão atual
+            if PADRAO_LINHA_SO_GABARITO.match(linha) or (
+                re.match(r'^\s*[•●▪\*\-]?\s*[\(\[]?[Ee]' + SEP, linha) and PADRAO_GABARITO.search(linha)
+            ):
+                texto_acumulado = '\n'.join(bloco_atual)
+                if _tem_estrutura_questao(texto_acumulado):
+                    blocos.append(texto_acumulado.strip())
+                    bloco_atual = []
+
+        if bloco_atual:
+            texto_restante = '\n'.join(bloco_atual).strip()
+            if texto_restante:
+                blocos.append(texto_restante)
+
+    def _localizar_alternativas(texto_bloco):
+        """
+        Localiza as posições exatas das alternativas A, B, C, D e (opcionalmente) E em ordem estrita.
+        Prioriza marcadores no início de linha para nunca cortar palavras terminadas em a., b., c., d., e.
+        (como 'Alt + Tab.', 'Ctrl + C.', 'Win + E.', 'Android.', 'polícia.').
+        """
+        # Estratégia 1: Marcadores no início de linha
+        padrao_linha_A = re.compile(rf'(?:^|\n)[ \t]*([•●▪\*\-]?\s*[\(\[]?[Aa]{SEP}[ \t]*)')
+        candidatos_A = list(padrao_linha_A.finditer(texto_bloco))
+
+        for cand_a in reversed(candidatos_A):
+            matches = {'A': cand_a}
+            pos_busca = cand_a.end()
+            valido = True
+            for letra in ['B', 'C', 'D']:
+                pat = re.compile(rf'\n[ \t]*([•●▪\*\-]?\s*[\(\[]?[{letra}{letra.lower()}]{SEP}[ \t]*)')
+                m = pat.search(texto_bloco, pos_busca)
+                if m:
+                    matches[letra] = m
+                    pos_busca = m.end()
+                else:
+                    valido = False
+                    break
+            if valido:
+                pat_e = re.compile(rf'\n[ \t]*([•●▪\*\-]?\s*[\(\[]?[Ee]{SEP}[ \t]*)')
+                m_e = pat_e.search(texto_bloco, pos_busca)
+                if m_e:
+                    matches['E'] = m_e
+                return matches
+
+        # Estratégia 2: Alternativas inline (na mesma linha) ou mistas
+        padrao_inline_A = re.compile(rf'(?:^|\s)([•●▪\*\-]?\s*[\(\[]?[Aa]{SEP}\s+)')
+        candidatos_inline_A = list(padrao_inline_A.finditer(texto_bloco))
+
+        for cand_a in reversed(candidatos_inline_A):
+            matches = {'A': cand_a}
+            pos_busca = cand_a.end()
+            valido = True
+            for letra in ['B', 'C', 'D']:
+                pat = re.compile(rf'(?:\n|\s{{2,}}|[.;]\s+)([•●▪\*\-]?\s*[\(\[]?[{letra}{letra.lower()}]{SEP}\s+)')
+                m = pat.search(texto_bloco, pos_busca)
+                if not m:
+                    pat = re.compile(rf'\s+([•●▪\*\-]?\s*[\(\[]?[{letra}{letra.lower()}][ \t]*[\)\]\-\–\—]\s+)')
+                    m = pat.search(texto_bloco, pos_busca)
+                if m:
+                    matches[letra] = m
+                    pos_busca = m.end()
+                else:
+                    valido = False
+                    break
+            if valido:
+                pat_e = re.compile(rf'(?:\n|\s{{2,}}|[.;]\s+|\s+)([•●▪\*\-]?\s*[\(\[]?[Ee]{SEP}\s+)')
+                m_e = pat_e.search(texto_bloco, pos_busca)
+                if m_e:
+                    matches['E'] = m_e
+                return matches
+
+        return None
+
     questoes = []
-
-    # 1. BLINDAGEM DE SEGURANÇA (Evita injeção de scripts e limpa Word)
-    texto_seguro = str(escape(texto))
-    texto_seguro = re.sub(r'[\u200B-\u200D\uFEFF]', '', texto_seguro)
-
-    # 2. PROCESSAMENTO
-    blocos = re.split(r'\n\s*\d+[\.\-\)]\s*', '\n' + texto_seguro)
-    blocos = [b.strip() for b in blocos if b.strip()]
-
     for bloco in blocos:
-        gabarito_match = re.search(r'(?:gabarito|resposta|correta)[\s\:\-]+([A-Ea-e])', bloco, re.IGNORECASE)
-        if gabarito_match:
-            letra_correta = gabarito_match.group(1).upper()
-            bloco_sem_gabarito = re.sub(r'(?:gabarito|resposta|correta)[\s\:\-]+[A-Ea-e].*', '', bloco, flags=re.IGNORECASE | re.DOTALL).strip()
+        if not bloco:
+            continue
+        avisos = []
+        letra_correta = None
+        bloco_trabalho = bloco
 
-            padrao_alt = r'\n?\s*[A-Ea-e][\.\-\)]\s*'
-            partes = re.split(padrao_alt, bloco_sem_gabarito)
+        # 1. Identifica e extrai o gabarito sem apagar nada após ele
+        gab_matches = list(PADRAO_GABARITO.finditer(bloco_trabalho))
+        if gab_matches:
+            ultimo_gab = gab_matches[-1]
+            letra_correta = ultimo_gab.group(1).upper()
+            inicio_g, fim_g = ultimo_gab.span()
+            prefixo = '\n' if bloco_trabalho[inicio_g:fim_g].startswith('\n') else ''
+            bloco_trabalho = (bloco_trabalho[:inicio_g] + prefixo + bloco_trabalho[fim_g:]).strip()
+        else:
+            gab_par = list(PADRAO_GABARITO_PARENTESES.finditer(bloco_trabalho))
+            if gab_par:
+                ultimo_gab = gab_par[-1]
+                letra_correta = ultimo_gab.group(1).upper()
+                inicio_g, fim_g = ultimo_gab.span()
+                bloco_trabalho = (bloco_trabalho[:inicio_g] + ' ' + bloco_trabalho[fim_g:]).strip()
 
-            if len(partes) >= 6:
-                enunciado = partes[0].strip()
-                alt_a, alt_b, alt_c, alt_d, alt_e = [p.strip() for p in partes[1:6]]
+        # 2. Localiza as alternativas A, B, C, D, (E) em ordem
+        alt_matches = _localizar_alternativas(bloco_trabalho)
+        if not alt_matches:
+            continue
 
-                if enunciado.isupper(): enunciado = enunciado.capitalize()
+        ordem_letras = [l for l in ['A', 'B', 'C', 'D', 'E'] if l in alt_matches]
+        enunciado = bloco_trabalho[:alt_matches['A'].start()].strip()
+        enunciado = padrao_inicio_questao.sub('', enunciado, count=1).strip()
 
-                questoes.append({
-                    'enunciado': enunciado,
-                    'alternativas': { 'A': alt_a, 'B': alt_b, 'C': alt_c, 'D': alt_d, 'E': alt_e },
-                    'resposta_correta': letra_correta,
-                    'avisos': []
-                })
+        alternativas = {'A': '', 'B': '', 'C': '', 'D': '', 'E': ''}
+        for i, letra in enumerate(ordem_letras):
+            inicio_texto = alt_matches[letra].end()
+            marcador_bruto = alt_matches[letra].group(1)
+            if '*' in marcador_bruto and not letra_correta:
+                letra_correta = letra
+
+            if i + 1 < len(ordem_letras):
+                prox_letra = ordem_letras[i + 1]
+                fim_texto = alt_matches[prox_letra].start()
+            else:
+                fim_texto = len(bloco_trabalho)
+
+            texto_alt = bloco_trabalho[inicio_texto:fim_texto].strip()
+
+            # Verifica marcação de resposta correta no final da alternativa, ex: (Correta) ou [X]
+            m_marca = re.search(r'\s*(?:[\(\[]\s*(?:correta|certa|x)\s*[\)\]]|\*+)\s*$', texto_alt, re.IGNORECASE)
+            if m_marca:
+                if not letra_correta:
+                    letra_correta = letra
+                texto_alt = texto_alt[:m_marca.start()].strip()
+
+            texto_alt = re.sub(r'\s*\n\s*', ' ', texto_alt).strip()
+            alternativas[letra] = texto_alt
+
+        if 'E' not in alt_matches or not alternativas['E']:
+            avisos.append('Alternativa E não identificada no texto. Verifique se a questão possui 4 ou 5 alternativas.')
+
+        if not letra_correta:
+            letra_correta = 'A'
+            avisos.append('Gabarito não identificado automaticamente no texto. Selecione a alternativa correta abaixo.')
+
+        if enunciado.isupper() and len(enunciado) > 10:
+            enunciado = enunciado.capitalize()
+
+        if enunciado and any(alternativas.values()):
+            questoes.append({
+                'enunciado': enunciado,
+                'alternativas': alternativas,
+                'resposta_correta': letra_correta,
+                'avisos': avisos
+            })
+
     return questoes
 
-    # =========================================================================
-    # ROTAS DO INSTRUTOR RESPONSÁVEL (GERAÇÃO DE PROVAS - MÓDULO 3)
+
     # =========================================================================
 
 @questoes_bp.route('/minhas-provas', methods=['GET'])
