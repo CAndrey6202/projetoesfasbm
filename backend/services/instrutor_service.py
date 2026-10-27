@@ -418,21 +418,100 @@ class InstrutorService:
         if not instrutor:
             return False, "Instrutor não encontrado."
         
-        if instrutor.school_id != UserService.get_current_school_id():
-            return False, "Permissão negada."
+        from flask_login import current_user
+        current_school = UserService.get_current_school_id()
+        is_admin_global = getattr(current_user, 'role', '') in ['super_admin', 'programador'] or getattr(current_user, 'is_sens', False)
+        
+        if not is_admin_global and current_school and instrutor.school_id != current_school:
+            return False, "Permissão negada: Este instrutor pertence a outra escola."
 
         try:
+            from backend.models.disciplina_turma import DisciplinaTurma
+            from backend.models.horario import Horario
+            from backend.models.aluno import Aluno
+
+            user_id = instrutor.user_id
+            school_id = instrutor.school_id
+            user = db.session.get(User, user_id)
+
+            # 1. Desvincula o instrutor das turmas/disciplinas da escola
+            dts = DisciplinaTurma.query.filter(
+                (DisciplinaTurma.instrutor_id_1 == instrutor.id) | 
+                (DisciplinaTurma.instrutor_id_2 == instrutor.id)
+            ).all()
+            for dt in dts:
+                if dt.instrutor_id_1 == instrutor.id:
+                    dt.instrutor_id_1 = None
+                if dt.instrutor_id_2 == instrutor.id:
+                    dt.instrutor_id_2 = None
+
+            # 2. Trata horários agendados
+            horarios_1 = Horario.query.filter_by(instrutor_id=instrutor.id).all()
+            for h in horarios_1:
+                # Se havia 2º instrutor no horário, promove o 2º instrutor para titular
+                if h.instrutor_id_2:
+                    h.instrutor_id = h.instrutor_id_2
+                    h.instrutor_id_2 = None
+                else:
+                    db.session.delete(h)
+
+            horarios_2 = Horario.query.filter_by(instrutor_id_2=instrutor.id).all()
+            for h in horarios_2:
+                h.instrutor_id_2 = None
+
+            # 3. Trata avaliações de campanha vinculadas ao perfil de instrutor
+            try:
+                from backend.models.avaliacao_instrutor import RespostaAvaliacao
+                RespostaAvaliacao.query.filter_by(instrutor_id=instrutor.id).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            # 4. Trata delegações de prova
+            try:
+                from backend.models.banco_questoes import DelegacaoProva, RascunhoProva, QuestaoBanco
+                delegacoes = DelegacaoProva.query.filter_by(instrutor_id=instrutor.id).all()
+                for d in delegacoes:
+                    RascunhoProva.query.filter_by(delegacao_id=d.id).delete(synchronize_session=False)
+                    db.session.delete(d)
+
+                # Reatribui questões cadastradas para não corromper o banco de questões
+                questoes_banco = QuestaoBanco.query.filter_by(instrutor_id=instrutor.id).all()
+                if questoes_banco:
+                    outro_inst = Instrutor.query.filter(Instrutor.school_id == school_id, Instrutor.id != instrutor.id).first()
+                    if outro_inst:
+                        for q in questoes_banco:
+                            q.instrutor_id = outro_inst.id
+                    else:
+                        for q in questoes_banco:
+                            db.session.delete(q)
+            except Exception:
+                pass
+
+            # 5. Flush das alterações nos filhos para desvincular chaves estrangeiras no PostgreSQL
+            db.session.flush()
+
+            # 6. Remove o perfil de instrutor e o vínculo da escola
             db.session.delete(instrutor)
             
-            link = db.session.scalar(select(UserSchool).where(
-                UserSchool.user_id==instrutor.user_id, 
-                UserSchool.school_id==instrutor.school_id
-            ))
-            if link:
-                db.session.delete(link)
+            links = UserSchool.query.filter_by(user_id=user_id, school_id=school_id).all()
+            for l in links:
+                db.session.delete(l)
+
+            # 7. Flush da remoção do instrutor
+            db.session.flush()
+
+            # 8. Se o usuário não tem nenhuma outra escola nem outro perfil e não é admin, remove o usuário órfão
+            if user and user.role == 'instrutor':
+                outros_instrutores = Instrutor.query.filter(Instrutor.user_id == user_id, Instrutor.id != instrutor.id).count()
+                outras_escolas = UserSchool.query.filter(UserSchool.user_id == user_id, UserSchool.school_id != school_id).count()
+                aluno_profile = db.session.scalar(select(Aluno).filter_by(user_id=user_id))
+                
+                if outros_instrutores == 0 and outras_escolas == 0 and not aluno_profile:
+                    db.session.delete(user)
             
             db.session.commit()
-            return True, "Instrutor removido desta escola com sucesso."
+            return True, "Instrutor e seus vínculos foram removidos com sucesso."
         except Exception as e:
             db.session.rollback()
+            current_app.logger.error(f"Erro ao excluir instrutor {instrutor_id}: {str(e)}")
             return False, f"Erro ao excluir: {str(e)}"
