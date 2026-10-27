@@ -159,6 +159,9 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center d-print-none">
                     <h5 class="mb-0"><i class="fas fa-file-alt"></i> Prova Gerada</h5>
                     <div>
+                        <button type="button" id="btn-embaralhar" class="btn btn-info text-white btn-sm fw-bold shadow-sm me-2" title="Redistribuir as alternativas de modo que o gabarito fique equilibrado entre A, B, C, D e E">
+                            <i class="fas fa-random"></i> Redistribuir Respostas (A-E)
+                        </button>
                         <button onclick="window.print()" class="btn btn-light btn-sm fw-bold shadow-sm me-2">
                             <i class="fas fa-print"></i> Imprimir Prova
                         </button>
@@ -418,6 +421,77 @@ $(document).ready(function() {
         
         $('#qtd-display').text($('#lista-prova .questao-item').length);
     }
+
+    $(document).on('click', '#btn-embaralhar', function() {
+        var $itens = $('#lista-prova .questao-item');
+        if ($itens.length === 0) return;
+
+        var letrasBase = ['A', 'B', 'C', 'D', 'E'];
+        var total = $itens.length;
+        var repBase = Math.floor(total / letrasBase.length);
+        var sobra = total % letrasBase.length;
+
+        var alvos = [];
+        letrasBase.forEach(function(l) {
+            for (var i = 0; i < repBase; i++) alvos.push(l);
+        });
+
+        // Embaralha sobra
+        var sobraLetras = [...letrasBase].sort(() => 0.5 - Math.random()).slice(0, sobra);
+        sobraLetras.forEach(function(l) { alvos.push(l); });
+
+        // Embaralha alvos para distribuição não sequencial
+        alvos.sort(() => 0.5 - Math.random());
+
+        $itens.each(function(index) {
+            var $q = $(this);
+            var respAtual = ($q.attr('data-resposta') || 'A').toUpperCase().trim();
+
+            var alts = {
+                'A': $q.find('.alt-a').text().trim(),
+                'B': $q.find('.alt-b').text().trim(),
+                'C': $q.find('.alt-c').text().trim(),
+                'D': $q.find('.alt-d').text().trim(),
+                'E': $q.find('.alt-e').text().trim()
+            };
+
+            var letrasValidas = ['A', 'B', 'C', 'D', 'E'].filter(function(l) { return alts[l] && alts[l].length > 0; });
+            if (letrasValidas.length === 0) letrasValidas = ['A', 'B', 'C', 'D', 'E'];
+
+            var textoCorreto = alts[respAtual] || alts[letrasValidas[0]] || '';
+            var incorretos = [];
+            letrasValidas.forEach(function(l) {
+                if (l !== respAtual && alts[l]) {
+                    incorretos.push(alts[l]);
+                }
+            });
+            incorretos.sort(() => 0.5 - Math.random());
+
+            var letraAlvo = alvos[index];
+            if (!letrasValidas.includes(letraAlvo)) {
+                letraAlvo = letrasValidas[Math.floor(Math.random() * letrasValidas.length)];
+            }
+
+            var novasAlts = {};
+            novasAlts[letraAlvo] = textoCorreto;
+
+            letrasValidas.forEach(function(l) {
+                if (l !== letraAlvo) {
+                    novasAlts[l] = incorretos.shift() || '';
+                }
+            });
+
+            $q.find('.alt-a').text(novasAlts['A'] || '');
+            $q.find('.alt-b').text(novasAlts['B'] || '');
+            $q.find('.alt-c').text(novasAlts['C'] || '');
+            $q.find('.alt-d').text(novasAlts['D'] || '');
+            $q.find('.alt-e').text(novasAlts['E'] || '');
+
+            $q.attr('data-resposta', letraAlvo);
+        });
+
+        renumerarProvaEGabarito();
+    });
 
     $(document).on('click', '.questao-prova', function() {
         $('.questao-prova').removeClass('questao-selecionada');

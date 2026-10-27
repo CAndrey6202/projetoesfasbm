@@ -406,6 +406,109 @@ def painel_dec():
     return render_template('super_admin/painel_dec_questoes.html', escolas=escolas, materias=lista_materias)
 
 
+class QuestaoView:
+    """Objeto de visualização para provas geradas sem afetar o registro original do banco."""
+    def __init__(self, id, enunciado, alternativas, resposta_correta, assunto='Geral'):
+        self.id = id
+        self.enunciado = enunciado
+        self.alternativas = alternativas
+        self.resposta_correta = resposta_correta
+        self.assunto = assunto
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+
+def distribuir_respostas_equilibradas(questoes, rng=None):
+    """
+    Recebe uma lista de questões (modelos QuestaoBanco ou dicts) e redistribui
+    as alternativas de modo que a resposta correta de cada questão seja posicionada
+    de forma equilibrada e homogênea entre as letras A, B, C, D e E.
+    """
+    if not questoes:
+        return []
+
+    if rng is None:
+        import random
+        rng = random.Random()
+
+    total = len(questoes)
+    letras_base = ['A', 'B', 'C', 'D', 'E']
+
+    # 1. Monta lista de letras-alvo com distribuição perfeitamente equilibrada
+    alvos = []
+    repeticoes_base = total // len(letras_base)
+    sobra = total % len(letras_base)
+
+    for l in letras_base:
+        alvos.extend([l] * repeticoes_base)
+
+    sobra_letras = rng.sample(letras_base, k=sobra)
+    alvos.extend(sobra_letras)
+    rng.shuffle(alvos)
+
+    questoes_balanceadas = []
+
+    for i, q in enumerate(questoes):
+        if hasattr(q, 'id'):
+            q_id = q.id
+            q_enunciado = q.enunciado
+            q_alts = dict(q.alternativas or {})
+            q_resp = str(q.resposta_correta or 'A').upper().strip()
+            q_assunto = getattr(q, 'assunto', 'Geral')
+        else:
+            q_id = q.get('id')
+            q_enunciado = q.get('enunciado')
+            q_alts = dict(q.get('alternativas') or {})
+            q_resp = str(q.get('resposta_correta') or 'A').upper().strip()
+            q_assunto = q.get('assunto', 'Geral')
+
+        letras_validas = [l for l in ['A', 'B', 'C', 'D', 'E'] if l in q_alts and str(q_alts[l]).strip()]
+        if not letras_validas:
+            letras_validas = ['A', 'B', 'C', 'D', 'E']
+
+        texto_correto = q_alts.get(q_resp)
+        if not texto_correto:
+            texto_correto = q_alts.get(letras_validas[0], '')
+            q_resp = letras_validas[0]
+
+        textos_incorretos = [
+            texto for letra, texto in q_alts.items()
+            if letra != q_resp and letra in letras_validas and str(texto).strip()
+        ]
+        rng.shuffle(textos_incorretos)
+
+        letra_alvo = alvos[i]
+        if letra_alvo not in letras_validas:
+            letra_alvo = rng.choice(letras_validas)
+
+        novas_alts = {}
+        novas_alts[letra_alvo] = texto_correto
+
+        outras_letras = [l for l in letras_validas if l != letra_alvo]
+        for l in outras_letras:
+            if textos_incorretos:
+                novas_alts[l] = textos_incorretos.pop(0)
+            else:
+                novas_alts[l] = ''
+
+        alts_ordenadas = {k: novas_alts.get(k, '') for k in ['A', 'B', 'C', 'D', 'E']}
+
+        q_view = QuestaoView(
+            id=q_id,
+            enunciado=q_enunciado,
+            alternativas=alts_ordenadas,
+            resposta_correta=letra_alvo,
+            assunto=q_assunto
+        )
+        questoes_balanceadas.append(q_view)
+
+    return questoes_balanceadas
+
+
 @questoes_bp.route('/dec/gerar-prova', methods=['POST'])
 @login_required
 @coordenador_provas_required
@@ -457,6 +560,10 @@ def gerar_prova_dec():
     # Compara por ID para garantir precisão
     sorteadas_ids = {q.id for q in questoes_sorteadas}
     questoes_banco = [q for q in todas_questoes if q.id not in sorteadas_ids]
+
+    # Distribui as respostas corretas de forma equilibrada entre A, B, C, D e E
+    questoes_sorteadas = distribuir_respostas_equilibradas(questoes_sorteadas)
+    questoes_banco = distribuir_respostas_equilibradas(questoes_banco)
     
     return render_template('super_admin/painel_dec_questoes.html', 
                            escolas=escolas, 
@@ -1032,5 +1139,10 @@ def ver_rascunho(delegacao_id):
         q = QuestaoBanco.query.get(qid)
         if q and q.ativo:
             questoes.append(q)
+
+    # Balanceia as respostas para o rascunho com semente determinística
+    import random as rnd_mod
+    rng = rnd_mod.Random(delegacao.id)
+    questoes = distribuir_respostas_equilibradas(questoes, rng=rng)
 
     return render_template('instrutor/rascunho_prova.html', delegacao=delegacao, questoes=questoes)
