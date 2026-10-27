@@ -556,16 +556,28 @@ def minhas_questoes_enviadas():
 @questoes_bp.route('/processar', methods=['POST'])
 @login_required
 def processar_texto():
-    dados = request.get_json()
+    dados = request.get_json() or {}
+    caixas = dados.get('caixas', [])
     texto_bruto = dados.get('texto_bruto', '')
 
-    if not texto_bruto:
+    if not caixas and not texto_bruto:
         return jsonify({'success': False, 'message': 'Nenhum texto recebido.'})
 
-    questoes_processadas = extrair_e_limpar_questoes(texto_bruto)
+    questoes_processadas = []
+
+    # 1. Se recebemos as caixas individualmente (uma para cada textarea preenchida na tela)
+    if caixas and isinstance(caixas, list):
+        for c in caixas:
+            txt = str(c).strip()
+            if txt:
+                extraidas = extrair_e_limpar_questoes(txt)
+                questoes_processadas.extend(extraidas)
+    # 2. Fallback para envio unificado em texto_bruto
+    elif texto_bruto:
+        questoes_processadas = extrair_e_limpar_questoes(texto_bruto)
 
     if not questoes_processadas:
-        return jsonify({'success': False, 'message': 'Padrão de questões não identificado.'})
+        return jsonify({'success': False, 'message': 'Padrão de questões não identificado. Verifique se as alternativas (A, B, C, D) e o gabarito foram informados.'})
 
     return jsonify({'success': True, 'total': len(questoes_processadas), 'questoes': questoes_processadas})
 
@@ -729,7 +741,9 @@ def extrair_e_limpar_questoes(texto):
         re.IGNORECASE
     )
 
-    # 2. FATIAMENTO EM BLOCOS (Respeita caixas separadas e numerações sem quebrar listas internas do enunciado)
+    padrao_alt_A = re.compile(rf'^\s*[•●▪\*\-]?[ \t]*[\(\[]?[Aa]{SEP}\s*\S')
+
+    # 2. FATIAMENTO EM BLOCOS (Respeita caixas separadas, quebras manuais e numerações)
     secoes_manuais = re.split(r'\n*===NOVA_QUESTAO===\n*', texto_limpo)
     blocos = []
 
@@ -741,6 +755,8 @@ def extrair_e_limpar_questoes(texto):
 
         for linha in linhas:
             eh_inicio = bool(padrao_inicio_questao.match(linha))
+            eh_alt_A = bool(padrao_alt_A.match(linha))
+
             if eh_inicio and bloco_atual:
                 texto_acumulado = '\n'.join(bloco_atual)
                 # Só inicia nova questão se o bloco anterior já tiver completado as alternativas A-D
@@ -753,6 +769,28 @@ def extrair_e_limpar_questoes(texto):
                 linha = padrao_inicio_questao.sub('', linha, count=1).strip()
                 if not linha:
                     continue
+
+            # Se o bloco atual já contém alternativas A-D e encontramos um novo 'A)',
+            # significa que uma nova questão começou mesmo sem ter número no enunciado
+            if eh_alt_A and bloco_atual:
+                texto_acumulado = '\n'.join(bloco_atual)
+                if _tem_estrutura_questao(texto_acumulado):
+                    split_idx = -1
+                    for i in range(len(bloco_atual) - 1, -1, -1):
+                        if not bloco_atual[i].strip():
+                            split_idx = i
+                            break
+                    if split_idx != -1:
+                        parte_antiga = '\n'.join(bloco_atual[:split_idx]).strip()
+                        parte_nova = bloco_atual[split_idx + 1:]
+                        if _tem_estrutura_questao(parte_antiga):
+                            blocos.append(parte_antiga)
+                            bloco_atual = parte_nova + [linha]
+                            continue
+                    else:
+                        blocos.append(texto_acumulado.strip())
+                        bloco_atual = [linha]
+                        continue
 
             bloco_atual.append(linha)
 

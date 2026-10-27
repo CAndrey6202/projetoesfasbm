@@ -166,7 +166,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({ texto_bruto: textoBruto })
+            body: JSON.stringify({
+                caixas: caixas,
+                texto_bruto: textoBruto
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -215,7 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
             card.dataset.index = index;
             card.innerHTML = `
                 <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
-                    <h6 class="text-secondary fw-bold">Questão ${index + 1}</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="text-secondary fw-bold mb-0">Questão ${index + 1}</h6>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-remover-card-auditoria" title="Remover questão desta importação">
+                            <i class="fas fa-trash me-1"></i> Remover
+                        </button>
+                    </div>
                     ${avisosHtml}
                 </div>
                 <div class="card-body pt-2">
@@ -280,6 +288,23 @@ document.addEventListener('DOMContentLoaded', function() {
             card.querySelector('.q-alt-C').value = (q.alternativas && q.alternativas.C) || '';
             card.querySelector('.q-alt-D').value = (q.alternativas && q.alternativas.D) || '';
             card.querySelector('.q-alt-E').value = (q.alternativas && q.alternativas.E) || '';
+
+            const btnRemover = card.querySelector('.btn-remover-card-auditoria');
+            if (btnRemover) {
+                btnRemover.addEventListener('click', function() {
+                    card.remove();
+                    const restantes = document.querySelectorAll('.questao-card');
+                    document.getElementById('contador-questoes').textContent = `${restantes.length} identificadas`;
+                    restantes.forEach((c, idx) => {
+                        const h6 = c.querySelector('h6');
+                        if (h6) h6.textContent = `Questão ${idx + 1}`;
+                    });
+                    if (restantes.length === 0) {
+                        btnVoltar.click();
+                    }
+                });
+            }
+
             container.appendChild(card);
         });
     }
