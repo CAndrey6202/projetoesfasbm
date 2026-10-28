@@ -182,6 +182,22 @@ class HorarioService:
                     select(Instrutor.id).where(Instrutor.user_id == user.id)
                 ).all()
 
+        # Busca intervalos para quebra de duracao da matriz (impede que rowspan cruze intervalos como Almoco)
+        try:
+            course_type = None
+            if semana and getattr(semana, 'ciclo', None) and getattr(semana.ciclo, 'edicao_id', None):
+                from ..models.edicao import Edicao
+                ed_obj = db.session.get(Edicao, int(semana.ciclo.edicao_id))
+                if ed_obj and getattr(ed_obj, 'npccal_type', None):
+                    course_type = str(ed_obj.npccal_type).strip().lower()
+            pos_int_1 = int(float(SiteConfigService.get_config('posicao_intervalo_manha', '3', school_id=school_id, course_type=course_type)))
+            pos_almoco = int(float(SiteConfigService.get_config('posicao_intervalo_almoco', '6', school_id=school_id, course_type=course_type)))
+            pos_int_2 = int(float(SiteConfigService.get_config('posicao_intervalo_tarde', '9', school_id=school_id, course_type=course_type)))
+        except Exception:
+            pos_int_1, pos_almoco, pos_int_2 = 3, 6, 9
+
+        break_indices = sorted([pos_int_1 - 1, pos_almoco - 1, pos_int_2 - 1])
+
         for aula in all_aulas:
             try:
                 dia_idx = dias.index(aula.dia_semana)
@@ -227,10 +243,24 @@ class HorarioService:
                 }
 
                 if 0 <= periodo_idx < 18:
-                    horario_matrix[periodo_idx][dia_idx] = aula_info
-                    for i in range(1, aula.duracao):
-                        if (periodo_idx + i) < 18:
-                            horario_matrix[periodo_idx + i][dia_idx] = 'SKIP'
+                    curr_p = periodo_idx
+                    remaining_dur = aula.duracao
+                    while remaining_dur > 0 and curr_p < 18:
+                        valid_bps = [bp for bp in break_indices if bp >= curr_p]
+                        next_bp = min(valid_bps) if valid_bps else 17
+                        chunk_dur = min(remaining_dur, next_bp - curr_p + 1)
+
+                        chunk_info = dict(aula_info)
+                        chunk_info['duracao'] = chunk_dur
+                        chunk_info['is_continuation'] = (curr_p > periodo_idx)
+
+                        horario_matrix[curr_p][dia_idx] = chunk_info
+                        for i in range(1, chunk_dur):
+                            if (curr_p + i) < 18:
+                                horario_matrix[curr_p + i][dia_idx] = 'SKIP'
+
+                        curr_p += chunk_dur
+                        remaining_dur -= chunk_dur
             except (ValueError, IndexError):
                 continue
         return horario_matrix
@@ -429,6 +459,8 @@ class HorarioService:
                         trava_query = trava_query.where(Horario.group_id != aula_edit.group_id)
                     else:
                         trava_query = trava_query.where(Horario.id != horario_id)
+            elif data.get('group_id'):
+                trava_query = trava_query.where(Horario.group_id != data.get('group_id'))
 
             colisao_direta = db.session.scalar(trava_query)
             if colisao_direta:
@@ -729,7 +761,8 @@ class HorarioService:
                 pos_int_1, pos_almoco, pos_int_2 = 3, 6, 9
                 
             break_points = {pos_int_1, pos_almoco, pos_int_2}
-            new_group_id = str(uuid.uuid4()) if duracao > 1 else None
+            group_id_param = data.get('group_id')
+            new_group_id = group_id_param or (str(uuid.uuid4()) if (duracao > 1 or len(periodos_solicitados) > 1) else None)
             
             idx = 0
             while idx < len(periodos_solicitados):

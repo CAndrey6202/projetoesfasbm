@@ -110,10 +110,7 @@
                     {% for col_idx in range(dias_count) %} 
                         {% set aula = horario_matrix[row_idx][col_idx] %}
                         
-                        {% if aula == 'SKIP' %}
-                            <td style="display: none;"></td>
-                        
-                        {% else %}
+                        {% if aula != 'SKIP' %}
                             {% set cell_class = '' %}
                             {% set cell_type = '' %}
                             {% set rowspan_val = aula.duracao %}
@@ -157,6 +154,9 @@
                                 data-aula-id="{{ aula.id or '' }}"
                                 >
                                 <div class="cell-content">
+                                    {% if aula.is_continuation %}
+                                        <small class="badge bg-secondary mb-1" style="font-size: 0.65rem;">(Continuação)</small>
+                                    {% endif %}
                                     {% if aula.blocked %}
                                         <i class="fas fa-lock position-absolute top-0 end-0 m-1 text-danger" title="Bloqueado pelo Administrador" style="opacity: 0.8; font-size: 0.85rem; z-index: 10;"></i>
                                     {% endif %}
@@ -256,6 +256,25 @@
                             <small class="d-block mb-2 text-muted">Marque os tempos que deseja incluir nesta aula:</small>
                             <div class="row g-2">
                                 {% for i in range(1, 19) %}
+                                {% if i == intervalos.pos_int_1 + 1 and i <= max_periodo_semana %}
+                                <div class="col-12 my-1">
+                                    <div class="p-1 text-center bg-light border-top border-bottom text-muted fw-bold" style="font-size: 0.75rem;">
+                                        ☕ Intervalo Manhã ({{ intervalos.intervalo_1 }})
+                                    </div>
+                                </div>
+                                {% elif i == intervalos.pos_almoco + 1 and i <= max_periodo_semana %}
+                                <div class="col-12 my-1">
+                                    <div class="p-1 text-center bg-secondary text-white rounded fw-bold" style="font-size: 0.75rem;">
+                                        🍽️ Almoço ({{ intervalos.almoco }}) — Início do Turno da Tarde
+                                    </div>
+                                </div>
+                                {% elif i == intervalos.pos_int_2 + 1 and i <= max_periodo_semana %}
+                                <div class="col-12 my-1">
+                                    <div class="p-1 text-center bg-light border-top border-bottom text-muted fw-bold" style="font-size: 0.75rem;">
+                                        ☕ Intervalo Tarde ({{ intervalos.intervalo_2 }})
+                                    </div>
+                                </div>
+                                {% endif %}
                                 <div class="col-6 col-sm-4 periodo-check-wrapper" id="check_wrapper_{{ i }}" 
                                      {% if i > max_periodo_semana %}style="display:none;"{% endif %}>
                                     <div class="form-check">
@@ -370,6 +389,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    const breakPointsIntervalos = [
+        parseInt('{{ intervalos.pos_int_1 }}') || 3,
+        parseInt('{{ intervalos.pos_almoco }}') || 5,
+        parseInt('{{ intervalos.pos_int_2 }}') || 8
+    ];
+
     function getSelectedBlocks() {
         let selecionados = [];
         allCheckboxes.forEach(cb => {
@@ -387,11 +412,13 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentLength = 1;
 
         for (let i = 1; i < selecionados.length; i++) {
-            if (selecionados[i] === selecionados[i-1] + 1) {
+            const prev = selecionados[i-1];
+            const curr = selecionados[i];
+            if (curr === prev + 1 && !breakPointsIntervalos.includes(prev)) {
                 currentLength++;
             } else {
                 blocks.push({ periodo: currentStart, duracao: currentLength });
-                currentStart = selecionados[i];
+                currentStart = curr;
                 currentLength = 1;
             }
         }
@@ -516,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    btnSalvar.addEventListener('click', function() {
+    btnSalvar.addEventListener('click', async function() {
         const blocks = getSelectedBlocks();
         if (blocks.length === 0) {
             alert("Selecione pelo menos um período.");
@@ -532,35 +559,45 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const promises = blocks.map((block, index) => {
-            const data = { ...baseData }; 
-            data.periodo = block.periodo;
-            data.duracao = block.duracao;
-            
-            if (index > 0) {
-                data.horario_id = null; 
-            }
+        btnSalvar.disabled = true;
+        const originalBtnText = btnSalvar.innerHTML;
+        btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Salvando...';
 
-            return fetch('/horario/salvar-aula', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
-                body: JSON.stringify(data)
-            }).then(r => r.json());
-        });
+        try {
+            const sharedGroupId = (blocks.length > 1) 
+                ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('grp-' + Date.now() + '-' + Math.floor(Math.random()*100000)))
+                : null;
 
-        Promise.all(promises)
-            .then(results => {
-                const errors = results.filter(r => !r.success);
-                if (errors.length > 0) {
-                    alert('Erro ao salvar: ' + errors[0].message);
-                } else {
-                    location.reload();
+            for (let i = 0; i < blocks.length; i++) {
+                const block = blocks[i];
+                const data = { ...baseData }; 
+                data.periodo = block.periodo;
+                data.duracao = block.duracao;
+                if (sharedGroupId) {
+                    data.group_id = sharedGroupId;
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Erro de comunicação ao salvar.');
-            });
+                
+                if (i > 0) {
+                    data.horario_id = null; 
+                }
+
+                const resp = await fetch('/horario/salvar-aula', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+                    body: JSON.stringify(data)
+                });
+                const result = await resp.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Erro ao salvar aula.');
+                }
+            }
+            location.reload();
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao salvar: ' + (err.message || 'Erro de comunicação ao salvar.'));
+            btnSalvar.disabled = false;
+            btnSalvar.innerHTML = originalBtnText;
+        }
     });
 
     btnRemover.addEventListener('click', function() {
