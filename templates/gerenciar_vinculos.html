@@ -22,6 +22,16 @@
 
     <form method="GET" action="{{ url_for('vinculo.gerenciar_vinculos') }}" class="table-filters" id="filter-form">
         <div class="filter-group">
+            <label for="ciclo_id"><strong>Filtrar por Ciclo:</strong></label>
+            <select name="ciclo_id" id="ciclo_id" class="form-control" onchange="this.form.submit()">
+                <option value="">Todos os Ciclos</option>
+                {% for c in ciclos %}
+                <option value="{{ c.id }}" {% if c.id == ciclo_filtrado_id %}selected{% endif %}>{{ c.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
             <label for="turma_id"><strong>Filtrar por Turma:</strong></label>
             <select name="turma_id" id="turma_id" class="form-control" onchange="this.form.submit()">
                 <option value="">Todas as Turmas</option>
@@ -31,8 +41,8 @@
             </select>
         </div>
 
-        {% if turma_filtrada_id %}
-        <a href="{{ url_for('vinculo.gerenciar_vinculos') }}" class="btn btn-sm btn-danger">Limpar Filtros</a>
+        {% if turma_filtrada_id or ciclo_filtrado_id %}
+        <a href="{{ url_for('vinculo.gerenciar_vinculos') }}" class="btn btn-sm btn-danger" style="margin-bottom: 5px;">Limpar Filtros</a>
         {% endif %}
     </form>
 
@@ -51,7 +61,7 @@
                 <tbody>
                     {% for vinculo in vinculos %}
                     <tr>
-                        <td data-label="Turma">{{ vinculo.pelotao }}</td>
+                        <td data-label="Turma">{{ vinculo.disciplina.turma.nome if vinculo.disciplina and vinculo.disciplina.turma else vinculo.pelotao }}</td>
                         <td data-label="Disciplina">{{ vinculo.disciplina.materia }}</td>
                         <td data-label="Ciclo">{{ vinculo.disciplina.ciclo.nome if vinculo.disciplina.ciclo else 'N/A' }}</td>
                         <td data-label="Instrutor">

@@ -1,12 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from flask_wtf import FlaskForm
 from wtforms import SelectField, SubmitField
 from wtforms.validators import DataRequired, Optional
 
 from ..models.database import db
 from ..models.turma import Turma
+from ..models.ciclo import Ciclo
 from ..models.disciplina import Disciplina
 from ..models.disciplina_turma import DisciplinaTurma
 from ..services.user_service import UserService 
@@ -37,6 +38,7 @@ def gerenciar_vinculos():
         return redirect(url_for('main.dashboard'))
 
     turma_filtrada_id = request.args.get('turma_id', type=int)
+    ciclo_filtrado_id = request.args.get('ciclo_id', type=int)
     
     if turma_filtrada_id:
         turma_check = db.session.get(Turma, turma_filtrada_id)
@@ -45,13 +47,27 @@ def gerenciar_vinculos():
             turma_filtrada_id = None 
 
     active_edicao = session.get('active_edicao_id')
-    vinculos = VinculoService.get_all_vinculos(turma_filtrada_id, school_id, active_edicao)
+
+    ciclos = db.session.scalars(
+        select(Ciclo).where(
+            Ciclo.school_id == school_id,
+            or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
+        ).order_by(Ciclo.nome)
+    ).all()
+    if not ciclos and school_id:
+        ciclos = db.session.scalars(
+            select(Ciclo).where(Ciclo.school_id == school_id).order_by(Ciclo.nome)
+        ).all()
+
+    vinculos = VinculoService.get_all_vinculos(turma_filtrada_id, school_id, active_edicao, ciclo_id=ciclo_filtrado_id)
     turmas = TurmaService.get_turmas_by_school(school_id, active_edicao)
     delete_form = DeleteForm()
     
     return render_template('gerenciar_vinculos.html', 
                            vinculos=vinculos, 
                            turmas=turmas,
+                           ciclos=ciclos,
+                           ciclo_filtrado_id=ciclo_filtrado_id,
                            turma_filtrada_id=turma_filtrada_id,
                            delete_form=delete_form,
                            can_manage_vinculos=True)

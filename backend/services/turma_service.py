@@ -486,6 +486,10 @@ class TurmaService:
                     db.session.query(Horario).filter(
                         Horario.disciplina_id.in_(disciplinas_ids)
                     ).update({Horario.pelotao: new_name}, synchronize_session=False)
+
+                    db.session.query(DisciplinaTurma).filter(
+                        DisciplinaTurma.disciplina_id.in_(disciplinas_ids)
+                    ).update({DisciplinaTurma.pelotao: new_name}, synchronize_session=False)
                     
                     db.session.commit()
             # ---------------------------------------

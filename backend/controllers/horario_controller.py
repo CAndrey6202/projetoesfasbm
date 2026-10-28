@@ -174,6 +174,57 @@ def assegurar_materia_disposicao(school_id, active_edicao, ciclo_id, turma_obj):
         raise e
 
 
+def _obter_ciclo_padrao(school_id, active_edicao, ciclos, ciclo_solicitado=None):
+    """
+    Retorna o ciclo que deve ser exibido por padrão:
+    1. Se passado explicitamente na URL (ciclo_solicitado) e estiver na lista de ciclos válidos.
+    2. Ciclo que contém a data de hoje (via Semana ou data_inicio/data_fim do Ciclo).
+    3. Ciclo salvo na sessão do usuário (se ainda for válido na lista de ciclos).
+    4. Ciclo mais recente por data de início ou maior ID (evitando ficar preso no 1º ciclo por ordem alfabética).
+    """
+    if not ciclos:
+        return None
+
+    ciclos_ids = [c.id for c in ciclos]
+
+    # 1. Parâmetro explícito via URL
+    if ciclo_solicitado and ciclo_solicitado in ciclos_ids:
+        return ciclo_solicitado
+
+    # 2. Busca o ciclo ativo hoje através das semanas
+    today = date.today()
+    stmt_semana = (
+        select(Semana.ciclo_id)
+        .join(Ciclo, Semana.ciclo_id == Ciclo.id)
+        .where(
+            Ciclo.id.in_(ciclos_ids),
+            Semana.data_inicio <= today,
+            Semana.data_fim >= today
+        )
+    )
+    ciclo_da_semana = db.session.scalar(stmt_semana)
+    if ciclo_da_semana and ciclo_da_semana in ciclos_ids:
+        return ciclo_da_semana
+
+    # Se nenhuma semana bate exatamente, verifica se as datas do ciclo cobrem hoje
+    for c in ciclos:
+        if c.data_inicio and c.data_fim and c.data_inicio <= today <= c.data_fim:
+            return c.id
+
+    # 3. Preferência salva na sessão do usuário
+    session_ciclo = session.get('ultimo_ciclo_horario')
+    if session_ciclo and session_ciclo in ciclos_ids:
+        return session_ciclo
+
+    # 4. Ciclo com maior data_inicio (mais recente) ou último da lista
+    ciclos_com_data = [c for c in ciclos if c.data_inicio]
+    if ciclos_com_data:
+        ciclos_com_data.sort(key=lambda x: x.data_inicio, reverse=True)
+        return ciclos_com_data[0].id
+
+    return ciclos[-1].id
+
+
 @horario_bp.route('/')
 @login_required
 def index():
@@ -212,6 +263,7 @@ def index():
         active_edicao = turma_do_aluno.edicao_id
         turma_selecionada_nome = turma_do_aluno.nome
         todas_as_turmas = [turma_do_aluno]
+        turma_atual_obj = turma_do_aluno
     else:
         school_id = UserService.get_current_school_id()
         if not school_id:
@@ -219,6 +271,24 @@ def index():
             return redirect(url_for('main.dashboard'))
 
         active_edicao = session.get('active_edicao_id')
+
+    # Busca ciclos disponíveis para a escola e edição
+    ciclos = db.session.scalars(
+        select(Ciclo).where(
+            Ciclo.school_id == school_id, 
+            or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
+        ).order_by(Ciclo.nome)
+    ).all()
+    if not ciclos and school_id:
+        ciclos = db.session.scalars(
+            select(Ciclo).where(Ciclo.school_id == school_id).order_by(Ciclo.nome)
+        ).all()
+
+    ciclo_param_id = request.args.get('ciclo', type=int)
+    ciclo_selecionado_id = _obter_ciclo_padrao(school_id, active_edicao, ciclos, ciclo_param_id)
+    session['ultimo_ciclo_horario'] = ciclo_selecionado_id
+
+    if not is_aluno_context:
         todas_as_turmas = TurmaService.get_turmas_by_school(school_id, active_edicao)
 
         if not current_user.is_staff:
@@ -249,11 +319,16 @@ def index():
                         )
                     )
                     if active_edicao:
-                        query_com_edicao = query_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
-                        turmas_vinculadas = db.session.scalars(query_com_edicao.distinct().order_by(Turma.nome)).all()
-                        if not turmas_vinculadas:
-                            turmas_vinculadas = db.session.scalars(query_turmas.distinct().order_by(Turma.nome)).all()
-                    else:
+                        query_turmas = query_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
+
+                    # Prioriza turmas vinculadas ao ciclo selecionado
+                    turmas_vinculadas = []
+                    if ciclo_selecionado_id:
+                        query_ciclo = query_turmas.where(Disciplina.ciclo_id == ciclo_selecionado_id)
+                        turmas_vinculadas = db.session.scalars(query_ciclo.distinct().order_by(Turma.nome)).all()
+
+                    # Se não encontrou no ciclo selecionado, busca turmas de qualquer ciclo do instrutor
+                    if not turmas_vinculadas:
                         turmas_vinculadas = db.session.scalars(query_turmas.distinct().order_by(Turma.nome)).all()
 
                     todas_as_turmas = list(turmas_vinculadas)
@@ -261,40 +336,32 @@ def index():
                     current_app.logger.error(f"Erro ao filtrar turmas do instrutor: {e}")
                     pass
 
-        turma_selecionada_nome = request.args.get('pelotao', session.get('ultima_turma_visualizada'))
+        # Determina a turma selecionada
+        turma_selecionada_nome = request.args.get('pelotao')
 
+        # Se veio da URL mas não pertence às turmas disponíveis, descarta para recalcular
+        if turma_selecionada_nome and todas_as_turmas and turma_selecionada_nome not in [t.nome for t in todas_as_turmas]:
+            turma_selecionada_nome = None
+
+        # Se não veio na URL, tenta recuperar da sessão se for válida para o contexto atual
+        if not turma_selecionada_nome:
+            sess_turma = session.get('ultima_turma_visualizada')
+            if sess_turma and todas_as_turmas and sess_turma in [t.nome for t in todas_as_turmas]:
+                turma_selecionada_nome = sess_turma
+
+        # Fallback para a primeira turma disponível
         if not turma_selecionada_nome and todas_as_turmas:
             turma_selecionada_nome = todas_as_turmas[0].nome
-        elif turma_selecionada_nome and turma_selecionada_nome not in [t.nome for t in todas_as_turmas]:
-             turma_selecionada_nome = todas_as_turmas[0].nome if todas_as_turmas else None
 
-    turma_atual_obj = None
-    if turma_selecionada_nome:
-        query_turma = select(Turma).where(Turma.nome == turma_selecionada_nome, Turma.school_id == school_id)
-        if active_edicao:
-            turma_atual_obj = db.session.scalar(query_turma.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None)))
-        if not turma_atual_obj:
-            turma_atual_obj = db.session.scalar(query_turma)
-        if turma_atual_obj and turma_atual_obj.edicao_id and not active_edicao:
-            active_edicao = turma_atual_obj.edicao_id
-
-    ciclo_selecionado_id = request.args.get('ciclo', session.get('ultimo_ciclo_horario'), type=int)
-
-    ciclos = db.session.scalars(
-        select(Ciclo).where(
-            Ciclo.school_id == school_id, 
-            or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
-        ).order_by(Ciclo.nome)
-    ).all()
-    if not ciclos and school_id:
-        ciclos = db.session.scalars(
-            select(Ciclo).where(Ciclo.school_id == school_id).order_by(Ciclo.nome)
-        ).all()
-
-    if not ciclo_selecionado_id or ciclo_selecionado_id not in [c.id for c in ciclos]:
-        ciclo_selecionado_id = ciclos[0].id if ciclos else None
-
-    session['ultimo_ciclo_horario'] = ciclo_selecionado_id
+        turma_atual_obj = None
+        if turma_selecionada_nome:
+            query_turma = select(Turma).where(Turma.nome == turma_selecionada_nome, Turma.school_id == school_id)
+            if active_edicao:
+                turma_atual_obj = db.session.scalar(query_turma.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None)))
+            if not turma_atual_obj:
+                turma_atual_obj = db.session.scalar(query_turma)
+            if turma_atual_obj and turma_atual_obj.edicao_id and not active_edicao:
+                active_edicao = turma_atual_obj.edicao_id
 
     todas_as_semanas = []
     if ciclo_selecionado_id:
@@ -378,11 +445,13 @@ def index():
                     )
                 )
                 if active_edicao:
-                    query_com_edicao = query_instrutor_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
-                    instrutor_turmas_vinculadas = db.session.scalars(query_com_edicao.distinct().order_by(Turma.nome)).all()
-                    if not instrutor_turmas_vinculadas:
-                        instrutor_turmas_vinculadas = db.session.scalars(query_instrutor_turmas.distinct().order_by(Turma.nome)).all()
-                else:
+                    query_instrutor_turmas = query_instrutor_turmas.where(or_(Turma.edicao_id == active_edicao, Turma.edicao_id == None))
+
+                instrutor_turmas_vinculadas = []
+                if ciclo_selecionado_id:
+                    query_inst_ciclo = query_instrutor_turmas.where(Disciplina.ciclo_id == ciclo_selecionado_id)
+                    instrutor_turmas_vinculadas = db.session.scalars(query_inst_ciclo.distinct().order_by(Turma.nome)).all()
+                if not instrutor_turmas_vinculadas:
                     instrutor_turmas_vinculadas = db.session.scalars(query_instrutor_turmas.distinct().order_by(Turma.nome)).all()
 
                 if any(t.nome == turma_selecionada_nome for t in instrutor_turmas_vinculadas):
@@ -402,6 +471,8 @@ def index():
                                         DisciplinaTurma.instrutor_id_2.in_(my_instrutor_ids)
                                     )
                                 )
+                            if ciclo_selecionado_id:
+                                query_match = query_match.where(Disciplina.ciclo_id == ciclo_selecionado_id)
                             if db.session.execute(query_match).first():
                                 can_schedule_in_this_turma = True
 
@@ -868,10 +939,8 @@ def proximas_aulas_admin():
         ).order_by(Ciclo.nome)
     ).all()
     
-    ciclo_selecionado_id = request.args.get('ciclo', session.get('ultimo_ciclo_horario'), type=int)
-    if not ciclo_selecionado_id or ciclo_selecionado_id not in [c.id for c in ciclos]:
-        ciclo_selecionado_id = ciclos[0].id if ciclos else None
-        
+    ciclo_param_id = request.args.get('ciclo', type=int)
+    ciclo_selecionado_id = _obter_ciclo_padrao(school_id, active_edicao, ciclos, ciclo_param_id)
     session['ultimo_ciclo_horario'] = ciclo_selecionado_id
 
     # Parâmetros de Filtro - Agora usando turma_nome em vez de disciplina_id
