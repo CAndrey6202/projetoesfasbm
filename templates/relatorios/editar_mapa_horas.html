@@ -5,77 +5,97 @@
 {% block content %}
 <div class="content-header">
     <h1>Revisão do Mapa de Horas-Aula</h1>
-    <p>Confira os dados e ajuste o campo <strong>"CH Anterior"</strong> se necessário antes de gerar o arquivo final.</p>
+    <p>Confira os dados dos instrutores e ajuste os campos (como <strong>"CH Anterior"</strong>, <strong>"CH Mês"</strong> ou dados cadastrais) se necessário antes de gerar o arquivo final.</p>
 </div>
 
-<div class="table-container" style="max-width: 1000px; margin: 0 auto;">
-    <form id="relatorioForm" method="POST" action="{{ url_for('relatorios.gerar_relatorio_horas_aula', tipo=report_type) }}" target="_blank">
+<div class="table-container" style="max-width: 1050px; margin: 0 auto;">
+    <form id="relatorioForm" method="POST" action="{{ url_for('relatorios.gerar_relatorio_horas_aula', tipo=report_type) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="is_final_export" value="true">
+        <input type="hidden" name="report_type" value="{{ report_type }}">
         
         <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
         <input type="hidden" name="data_fim" value="{{ data_fim }}">
         <input type="hidden" name="nome_mes_ano" value="{{ nome_mes_ano }}">
+        <input type="hidden" name="titulo_curso" value="{{ titulo_curso }}">
         <input type="hidden" name="curso_nome" value="{{ titulo_curso }}">
         <input type="hidden" name="opm" value="{{ opm }}">
         <input type="hidden" name="escola_nome" value="{{ escola_nome }}">
         <input type="hidden" name="cidade" value="{{ cidade }}">
-        <input type="hidden" name="comandante_nome" value="{{ comandante_nome }}">
-        <input type="hidden" name="comandante_funcao" value="{{ comandante_funcao }}">
-        <input type="hidden" name="auxiliar_nome" value="{{ auxiliar_nome }}">
-        <input type="hidden" name="auxiliar_funcao" value="{{ auxiliar_funcao }}">
-        <input type="hidden" name="telefone" value="{{ telefone }}">
+        <input type="hidden" name="comandante_nome" value="{{ comandante_nome or '' }}">
+        <input type="hidden" name="comandante_funcao" value="{{ comandante_funcao or '' }}">
+        <input type="hidden" name="auxiliar_nome" value="{{ auxiliar_nome or '' }}">
+        <input type="hidden" name="auxiliar_funcao" value="{{ auxiliar_funcao or '' }}">
+        <input type="hidden" name="telefone" value="{{ telefone or '' }}">
+
+        {% if not dados %}
+        <div class="alert alert-warning" style="padding: 1.5rem; border-radius: 8px; background: #fff3cd; border: 1px solid #ffecb5; color: #664d03; margin-bottom: 2rem;">
+            <h4 style="margin-top: 0;">Nenhum horário encontrado para os filtros informados</h4>
+            <p style="margin-bottom: 0;">Verifique o período de datas, a edição ou o ciclo selecionado e tente novamente.</p>
+        </div>
+        {% endif %}
 
         {% for instrutor in dados %}
             {% set instrutor_idx = loop.index %}
             
-            <div class="card mb-4 shadow-sm" style="border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 2rem; background: white;">
+            <div class="card mb-4 shadow-sm" id="instrutor_card_{{ instrutor_idx }}" style="border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 2rem; background: white;">
                 <div class="card-header" style="background-color: #f8f9fa; padding: 1rem; border-bottom: 1px solid var(--color-border);">
-                    <h4 style="margin: 0; color: var(--color-primary);">
-                        {{ instrutor.posto }} {{ instrutor.nome }} 
-                        <small class="text-muted">(Mat: {{ instrutor.matricula }})</small>
-                    </h4>
                     <input type="hidden" name="instrutor_index" value="{{ instrutor_idx }}">
-                    <input type="hidden" name="instrutor_nome_{{ instrutor_idx }}" value="{{ instrutor.nome }}">
-                    <input type="hidden" name="instrutor_posto_{{ instrutor_idx }}" value="{{ instrutor.posto }}">
-                    <input type="hidden" name="instrutor_matricula_{{ instrutor_idx }}" value="{{ instrutor.matricula }}">
                     <input type="hidden" name="instrutor_identidade_{{ instrutor_idx }}" value="{{ instrutor.identidade }}">
                     <input type="hidden" name="instrutor_cpf_{{ instrutor_idx }}" value="{{ instrutor.cpf }}">
+
+                    <div style="display: grid; grid-template-columns: 180px 150px 1fr; gap: 0.75rem; align-items: end;">
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Posto / Graduação</label>
+                            <input type="text" name="instrutor_posto_{{ instrutor_idx }}" class="form-control form-control-sm" value="{{ instrutor.posto }}" placeholder="Posto/Grad">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Id. Func. (Matrícula)</label>
+                            <input type="text" name="instrutor_matricula_{{ instrutor_idx }}" class="form-control form-control-sm" value="{{ instrutor.matricula }}" placeholder="Matrícula">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome Completo do Servidor</label>
+                            <input type="text" name="instrutor_nome_{{ instrutor_idx }}" class="form-control form-control-sm" value="{{ instrutor.nome }}" placeholder="Nome Completo">
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="card-body" style="padding: 1rem;">
-                    <table class="table table-sm table-bordered">
+                    <table class="table table-sm table-bordered" style="margin-bottom: 0;">
                         <thead style="background-color: #f1f5f9;">
                             <tr>
                                 <th>Disciplina</th>
-                                <th width="150">CH Total</th>
-                                <th width="180" style="background-color: #fff3cd;">CH Anterior (Editável)</th>
-                                <th width="150">CH Mês</th>
-                                <th width="150">Saldo</th>
+                                <th width="130">CH Total</th>
+                                <th width="160" style="background-color: #fff3cd;">CH Anterior (Editável)</th>
+                                <th width="130" style="background-color: #e0f2fe;">CH Mês (Editável)</th>
+                                <th width="110">Saldo</th>
+                                <th width="50" style="text-align: center;">Ação</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody_instrutor_{{ instrutor_idx }}">
                             {% for disc in instrutor.disciplinas %}
                             {% set disc_idx = loop.index %}
-                            <tr>
+                            <tr id="row_{{ instrutor_idx }}_{{ disc_idx }}">
                                 <td>
-                                    {{ disc.nome_disciplina }}
                                     <input type="hidden" name="disciplina_index_{{ instrutor_idx }}" value="{{ disc_idx }}">
-                                    <input type="hidden" name="disc_nome_{{ instrutor_idx }}_{{ disc_idx }}" value="{{ disc.nome_disciplina }}">
+                                    <input type="text" name="disc_nome_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm" value="{{ disc.nome_disciplina }}">
                                 </td>
                                 <td>
-                                    <input type="number" step="0.5" name="ch_total_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm" value="{{ disc.ch_total_disciplina }}" readonly>
+                                    <input type="number" step="0.5" name="ch_total_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm" value="{{ disc.ch_total_disciplina }}" oninput="atualizarSaldo('{{ instrutor_idx }}', '{{ disc_idx }}')">
                                 </td>
                                 <td>
                                     <input type="number" step="0.5" name="ch_anterior_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm border-warning" value="{{ disc.ch_anterior }}" oninput="atualizarSaldo('{{ instrutor_idx }}', '{{ disc_idx }}')">
                                 </td>
                                 <td>
-                                    <input type="number" step="0.5" name="ch_mes_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm" value="{{ disc.ch_mes }}" readonly>
+                                    <input type="number" step="0.5" name="ch_mes_{{ instrutor_idx }}_{{ disc_idx }}" class="form-control form-control-sm border-info" value="{{ disc.ch_mes }}" oninput="atualizarSaldo('{{ instrutor_idx }}', '{{ disc_idx }}')">
                                 </td>
-                                <td>
+                                <td style="vertical-align: middle; text-align: center;">
                                     <span class="badge bg-secondary" id="saldo_{{ instrutor_idx }}_{{ disc_idx }}">
                                         {{ disc.ch_total_disciplina - (disc.ch_anterior + disc.ch_mes) }}h
                                     </span>
+                                </td>
+                                <td style="vertical-align: middle; text-align: center;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Remover linha" onclick="removerDisciplina('{{ instrutor_idx }}', '{{ disc_idx }}')" style="padding: 2px 8px;">✕</button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -86,7 +106,7 @@
         {% endfor %}
 
         <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center; background: #f1f1f1; padding: 1.5rem; border-radius: 8px; position: sticky; bottom: 10px; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);">
-            <a href="javascript:history.back()" class="btn btn-secondary">← Voltar e Corrigir Filtros</a>
+            <a href="{{ url_for('relatorios.gerar_relatorio_horas_aula', tipo=report_type) }}" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="btn btn-secondary">← Voltar e Corrigir Filtros</a>
             
             <div id="loadingContainer" style="display: none; align-items: center; gap: 10px;">
                 <div class="spinner-border text-primary" role="status">
@@ -109,21 +129,27 @@
 
 <style>
     .border-warning { border: 2px solid #ffc107 !important; font-weight: bold; }
-    .table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .border-info { border: 2px solid #38bdf8 !important; font-weight: bold; }
+    .table th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .card { transition: transform 0.2s; }
-    .card:hover { transform: translateY(-2px); }
     .gap-2 { gap: 0.5rem; }
     .d-flex { display: flex; }
 </style>
 
 <script>
 function atualizarSaldo(instrutorIdx, discIdx) {
-    const total = parseFloat(document.getElementsByName(`ch_total_${instrutorIdx}_${discIdx}`)[0].value) || 0;
-    const anterior = parseFloat(document.getElementsByName(`ch_anterior_${instrutorIdx}_${discIdx}`)[0].value) || 0;
-    const mes = parseFloat(document.getElementsByName(`ch_mes_${instrutorIdx}_${discIdx}`)[0].value) || 0;
+    const totalEl = document.getElementsByName(`ch_total_${instrutorIdx}_${discIdx}`)[0];
+    const anteriorEl = document.getElementsByName(`ch_anterior_${instrutorIdx}_${discIdx}`)[0];
+    const mesEl = document.getElementsByName(`ch_mes_${instrutorIdx}_${discIdx}`)[0];
+    if (!totalEl || !anteriorEl || !mesEl) return;
+
+    const total = parseFloat(totalEl.value) || 0;
+    const anterior = parseFloat(anteriorEl.value) || 0;
+    const mes = parseFloat(mesEl.value) || 0;
     
     const saldo = total - (anterior + mes);
     const badge = document.getElementById(`saldo_${instrutorIdx}_${discIdx}`);
+    if (!badge) return;
     
     badge.textContent = saldo.toFixed(1) + 'h';
     
@@ -136,8 +162,20 @@ function atualizarSaldo(instrutorIdx, discIdx) {
     }
 }
 
+function removerDisciplina(instrutorIdx, discIdx) {
+    const row = document.getElementById(`row_${instrutorIdx}_${discIdx}`);
+    if (row) {
+        row.remove();
+    }
+    const tbody = document.getElementById(`tbody_instrutor_${instrutorIdx}`);
+    if (tbody && tbody.querySelectorAll('tr').length === 0) {
+        const card = document.getElementById(`instrutor_card_${instrutorIdx}`);
+        if (card) card.remove();
+    }
+}
+
 document.getElementById('relatorioForm').addEventListener('submit', function(e) {
-    // Só interceptamos se o botão clicado foi o de PDF
+    // Só interceptamos via AJAX se o botão clicado foi o de PDF
     if (e.submitter && e.submitter.value === 'download') {
         e.preventDefault(); // Evita que a página recarregue
         

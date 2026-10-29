@@ -1,6 +1,6 @@
 # backend/controllers/relatorios_controller.py
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify, session
 from flask_login import login_required, current_user
 from datetime import datetime
 from typing import Optional
@@ -11,10 +11,15 @@ import json
 from weasyprint import HTML
 from werkzeug.utils import secure_filename
 import uuid
+from sqlalchemy import select, or_
+from sqlalchemy.orm import joinedload
 
 from ..services.relatorio_service import RelatorioService
 from ..models.background_job import BackgroundJob
 from ..models.database import db
+from ..models.school import School
+from ..models.edicao import Edicao
+from ..models.ciclo import Ciclo
 from ..services.instrutor_service import InstrutorService
 from ..services.site_config_service import SiteConfigService
 from ..services.user_service import UserService
@@ -62,10 +67,13 @@ def gerar_relatorio_horas_aula():
     if report_type == 'por_instrutor':
         todos_instrutores = InstrutorService.get_all_instrutores_sem_paginacao(current_user)
 
+    school_obj = db.session.get(School, school_id)
+    school_nome_default = (school_obj.nome.strip() if school_obj and school_obj.nome else "Escola de Formação e Aperfeiçoamento de Sargentos")
+
     report_defaults = {
         "curso_nome": "Curso Técnico em Segurança Pública",
-        "opm": "Escola de Formação e Aperfeiçoamento de Sargentos",
-        "escola_nome": "Escola de Formação e Aperfeiçoamento de Sargentos",
+        "opm": school_nome_default,
+        "escola_nome": school_nome_default,
         "telefone": "(55) 3220-6462",
         "cidade": SiteConfigService.get_config('report_cidade_estado', 'Santa Maria - RS') or 'Santa Maria - RS',
         "comandante_funcao": SiteConfigService.get_config('report_comandante_cargo', 'Comandante da EsFAS-SM') or 'Comandante da EsFAS-SM',
@@ -82,6 +90,17 @@ def gerar_relatorio_horas_aula():
         action = request.form.get('action')
         ciclo_id_str = request.form.get('ciclo_id')
         ciclo_id = int(ciclo_id_str) if (ciclo_id_str and ciclo_id_str.isdigit()) else None
+
+        edicao_id_str = request.form.get('edicao_id')
+        if edicao_id_str == 'todas' or (report_type == 'por_instrutor' and not edicao_id_str):
+            edicao_id_filter = None
+            ignore_active_edicao = True
+        elif edicao_id_str and edicao_id_str.isdigit():
+            edicao_id_filter = int(edicao_id_str)
+            ignore_active_edicao = False
+        else:
+            edicao_id_filter = None
+            ignore_active_edicao = False
 
         try:
             data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
@@ -102,7 +121,13 @@ def gerar_relatorio_horas_aula():
             instrutor_ids_filter = [int(_id) for _id in instrutor_ids_raw if _id.isdigit()]
 
         dados_relatorio = RelatorioService.get_horas_aula_por_instrutor(
-            data_inicio, data_fim, mode_rr, instrutor_ids_filter, ciclo_id
+            data_inicio,
+            data_fim,
+            mode_rr,
+            instrutor_ids_filter,
+            ciclo_id,
+            edicao_id=edicao_id_filter,
+            ignore_active_edicao=ignore_active_edicao,
         )
 
         meses = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -125,7 +150,8 @@ def gerar_relatorio_horas_aula():
             "telefone": (request.form.get('telefone') or report_defaults["telefone"]),
             "valor_hora_aula": SiteConfigService.get_valor_hora_aula(),
             "report_type": report_type,
-            "ciclo_id": ciclo_id_str or ""
+            "ciclo_id": ciclo_id_str or "",
+            "edicao_id": edicao_id_str or ""
         }
 
         # Preview gera direto com o HTML do PDF
@@ -135,24 +161,27 @@ def gerar_relatorio_horas_aula():
         # Download (XLSX ou PDF) vai para a tela de EDIÇÃO
         return render_template('relatorios/editar_mapa_horas.html', **contexto)
 
-    from flask import session
-    from ..models.ciclo import Ciclo
-    from sqlalchemy import select, or_
-
     active_edicao = session.get('active_edicao_id')
+    edicoes = db.session.scalars(
+        select(Edicao).where(Edicao.school_id == school_id).order_by(Edicao.id.desc())
+    ).all()
+
     ciclos = db.session.scalars(
-        select(Ciclo).where(
-            Ciclo.school_id == school_id,
-            or_(Ciclo.edicao_id == active_edicao, Ciclo.edicao_id == None)
-        ).order_by(Ciclo.nome)
+        select(Ciclo)
+        .options(joinedload(Ciclo.edicao))
+        .where(Ciclo.school_id == school_id)
+        .order_by(Ciclo.edicao_id.desc(), Ciclo.nome)
     ).all()
 
     return render_template(
         'relatorios/horas_aula_form.html',
         tipo_relatorio=tipo_relatorio_titulo,
+        report_type=report_type,
         todos_instrutores=todos_instrutores,
         form_defaults=report_defaults,
         ciclos=ciclos,
+        edicoes=edicoes,
+        active_edicao=active_edicao,
     )
 
 
@@ -190,7 +219,8 @@ def processar_exportacao_final(form_data):
                     "ch_mes": safe_float(form_data.get(f"ch_mes_{idx}_{d_idx}")),
                     "ch_total_disciplina": safe_float(form_data.get(f"ch_total_{idx}_{d_idx}"))
                 })
-            dados_editados.append(instrutor_item)
+            if instrutor_item["disciplinas"]:
+                dados_editados.append(instrutor_item)
 
         # Ordena em Python de forma segura e garantida por matrícula
         dados_editados.sort(key=lambda x: str(x.get("matricula") or ""))
@@ -203,9 +233,11 @@ def processar_exportacao_final(form_data):
 
         valor_hora_aula = safe_float(SiteConfigService.get_valor_hora_aula())
 
+        titulo_curso_val = str(form_data.get('titulo_curso') or form_data.get('curso_nome') or "")
+
         contexto = {
             "dados": dados_editados,
-            "titulo_curso": str(form_data.get('titulo_curso') or ""),
+            "titulo_curso": titulo_curso_val,
             "nome_mes_ano": str(form_data.get('nome_mes_ano') or ""),
             "data_assinatura": f"{data_fim.day} de {form_data.get('nome_mes_ano') or ''}",
             "comandante_nome": str(form_data.get('comandante_nome') or ""),
@@ -217,6 +249,9 @@ def processar_exportacao_final(form_data):
             "telefone": str(form_data.get('telefone') or ""),
             "cidade": str(form_data.get('cidade') or ""),
             "escola_nome": str(form_data.get('escola_nome') or ""),
+            "data_inicio": str(form_data.get('data_inicio') or ""),
+            "data_fim": str(form_data.get('data_fim') or ""),
+            "report_type": str(form_data.get('report_type') or "mensal"),
         }
 
         if action == 'download':
@@ -267,6 +302,7 @@ def processar_exportacao_final(form_data):
         return render_template('relatorios/editar_mapa_horas.html', **contexto)
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
-
-    return redirect(url_for('relatorios.index'))
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(e)})
+        flash(f'Erro ao processar exportação: {str(e)}', 'danger')
+        return redirect(url_for('relatorios.index'))

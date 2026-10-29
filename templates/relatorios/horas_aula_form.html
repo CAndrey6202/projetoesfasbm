@@ -9,7 +9,7 @@
 </div>
 
 <div class="table-container" style="max-width: 800px; margin: 0 auto;">
-    <form method="POST" action="{{ url_for('relatorios.gerar_relatorio_horas_aula', tipo=request.args.get('tipo')) }}" target="_blank">
+    <form id="horasAulaForm" method="POST" action="{{ url_for('relatorios.gerar_relatorio_horas_aula', tipo=request.args.get('tipo')) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-group">
@@ -21,44 +21,62 @@
             <input type="date" name="data_fim" id="data_fim" class="form-control" required>
         </div>
 
+        {% if edicoes %}
+        <div class="form-group">
+            <label for="edicao_id"><strong>Filtrar por Edição:</strong></label>
+            <select name="edicao_id" id="edicao_id" class="form-select form-control">
+                <option value="todas" {% if tipo_relatorio == 'Por Instrutor' %}selected{% endif %}>Todas as Edições da Escola</option>
+                {% for ed in edicoes %}
+                    <option value="{{ ed.id }}" {% if tipo_relatorio != 'Por Instrutor' and ed.id == active_edicao %}selected{% endif %}>
+                        {{ ed.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
         <div class="form-group">
             <label for="ciclo_id"><strong>Filtrar por Ciclo (Opcional):</strong></label>
             <select name="ciclo_id" id="ciclo_id" class="form-select form-control">
                 <option value="">Todos os Ciclos</option>
                 {% for ciclo in ciclos %}
-                    <option value="{{ ciclo.id }}">{{ ciclo.nome }}</option>
+                    <option value="{{ ciclo.id }}" data-edicao-id="{{ ciclo.edicao_id or '' }}">
+                        {{ ciclo.nome }}{% if ciclo.edicao %} ({{ ciclo.edicao.nome }}){% endif %}
+                    </option>
                 {% endfor %}
             </select>
         </div>
 
         {% if tipo_relatorio == 'Por Instrutor' %}
         <div class="form-group">
-            <label for="instrutor_ids"><strong>Selecione os Instrutores:</strong></label>
+            <label><strong>Selecione os Instrutores:</strong></label>
 
-            <div class="custom-multiselect">
-                <div class="select-button">
+            <div class="custom-multiselect" id="instrutorMultiselect">
+                <div class="select-button" id="selectButton" tabindex="0">
                     <span id="select-button-text">Nenhum instrutor selecionado</span>
                     <span class="arrow">▼</span>
                 </div>
-                <div class="dropdown-content">
-                    <input type="text" id="search-input" class="form-control" placeholder="Pesquisar instrutor...">
+                <div class="dropdown-content" id="dropdownContent">
+                    <input type="text" id="search-input" class="form-control" placeholder="Pesquisar por nome completo, nome de guerra, posto ou matrícula...">
+                    <div class="multiselect-actions">
+                        <button type="button" id="btnSelectAllVisible" class="btn-link-action">Selecionar visíveis</button>
+                        <button type="button" id="btnClearAll" class="btn-link-action text-danger">Limpar seleção</button>
+                    </div>
                     <div id="options-container">
                         {% for instrutor in todos_instrutores %}
+                        {% set u = instrutor.user %}
+                        {% set posto_str = (u.posto_graduacao ~ ' ') if (u.posto_graduacao and u.posto_graduacao != 'Outro') else '' %}
+                        {% set nome_principal = u.nome_completo or u.nome_de_guerra or u.username or 'Instrutor' %}
+                        {% set guerra_str = (' (' ~ u.nome_de_guerra ~ ')') if (u.nome_de_guerra and u.nome_completo and (u.nome_de_guerra|lower != u.nome_completo|lower)) else '' %}
+                        {% set mat_str = (' - Id. Func.: ' ~ u.matricula) if u.matricula else '' %}
                         <label class="dropdown-option">
-                            <input type="checkbox" class="instrutor-checkbox" value="{{ instrutor.id }}">
-                            <span>{{ (instrutor.user.posto_graduacao ~ ' ' if instrutor.user.posto_graduacao else '') ~ (instrutor.user.nome_de_guerra or instrutor.user.username or 'Instrutor') }}</span>
+                            <input type="checkbox" name="instrutor_ids" class="instrutor-checkbox" value="{{ instrutor.id }}">
+                            <span>{{ posto_str ~ nome_principal ~ guerra_str ~ mat_str }}</span>
                         </label>
                         {% endfor %}
                     </div>
                 </div>
             </div>
-
-            <select name="instrutor_ids" id="instrutor_ids" multiple required style="display: none;">
-                {% for instrutor in todos_instrutores %}
-                <option value="{{ instrutor.id }}">{{ (instrutor.user.posto_graduacao ~ ' ' if instrutor.user.posto_graduacao else '') ~ (instrutor.user.nome_de_guerra or instrutor.user.username or 'Instrutor') }}</option>
-                {% endfor %}
-            </select>
-
         </div>
         {% endif %}
 
@@ -117,63 +135,156 @@
     .select-button:hover, .select-button.open { border-color: var(--color-primary-light); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
     .arrow { transition: transform 0.2s ease; }
     .select-button.open .arrow { transform: rotate(180deg); }
-    .dropdown-content { position: absolute; top: 105%; left: 0; width: 100%; background-color: var(--color-white); border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow-medium); z-index: 10; display: none; padding: 0.5rem; }
+    .dropdown-content { position: absolute; top: 105%; left: 0; width: 100%; background-color: var(--color-white); border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow-medium); z-index: 50; display: none; padding: 0.5rem; }
     .dropdown-content.show { display: block; }
     #search-input { margin-bottom: 0.5rem; }
-    #options-container { max-height: 200px; overflow-y: auto; }
-    .dropdown-option { display: flex; align-items: center; padding: 0.75rem; cursor: pointer; border-radius: 6px; }
+    .multiselect-actions { display: flex; justify-content: space-between; padding: 0.25rem 0.5rem 0.5rem; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.25rem; }
+    .btn-link-action { background: none; border: none; color: #2563eb; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0; }
+    .btn-link-action:hover { text-decoration: underline; }
+    .btn-link-action.text-danger { color: #dc2626; }
+    #options-container { max-height: 240px; overflow-y: auto; }
+    .dropdown-option { display: flex; align-items: center; padding: 0.65rem 0.75rem; cursor: pointer; border-radius: 6px; font-size: 0.92rem; }
     .dropdown-option:hover { background-color: #f1f5f9; }
-    .dropdown-option input[type="checkbox"] { margin-right: 0.75rem; width: 1rem; height: 1rem; }
+    .dropdown-option input[type="checkbox"] { margin-right: 0.75rem; width: 1rem; height: 1rem; flex-shrink: 0; }
     .form-actions-aligned { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; flex-wrap: wrap; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const customSelect = document.querySelector('.custom-multiselect');
-    if (!customSelect) return;
+    const form = document.getElementById('horasAulaForm');
+    const edicaoSelect = document.getElementById('edicao_id');
+    const cicloSelect = document.getElementById('ciclo_id');
 
-    const selectButton = customSelect.querySelector('.select-button');
-    const selectButtonText = document.getElementById('select-button-text');
-    const dropdown = customSelect.querySelector('.dropdown-content');
-    const searchInput = document.getElementById('search-input');
-    const checkboxes = customSelect.querySelectorAll('.instrutor-checkbox');
-    const originalSelect = document.getElementById('instrutor_ids');
-
-    selectButton.addEventListener('click', () => {
-        dropdown.classList.toggle('show');
-        selectButton.classList.toggle('open');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!customSelect.contains(e.target)) {
-            dropdown.classList.remove('show');
-            selectButton.classList.remove('open');
-        }
-    });
-
-    searchInput.addEventListener('input', () => {
-        const filter = searchInput.value.toLowerCase();
-        document.querySelectorAll('.dropdown-option').forEach(option => {
-            const label = option.querySelector('span').textContent.toLowerCase();
-            option.style.display = label.includes(filter) ? 'flex' : 'none';
-        });
-    });
-
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            let selectedCount = 0;
-            checkboxes.forEach(cb => {
-                const option = originalSelect.querySelector(`option[value="${cb.value}"]`);
-                if (option) {
-                    option.selected = cb.checked;
+    // Filtra as opções de Ciclo conforme a Edição selecionada
+    if (edicaoSelect && cicloSelect) {
+        function filterCiclosByEdicao() {
+            const edicaoVal = edicaoSelect.value;
+            Array.from(cicloSelect.options).forEach(opt => {
+                if (!opt.value) return; // "Todos os Ciclos"
+                const optEdicao = opt.getAttribute('data-edicao-id') || '';
+                if (edicaoVal === 'todas' || !edicaoVal || optEdicao === edicaoVal || !optEdicao) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                    if (cicloSelect.value === opt.value) {
+                        cicloSelect.value = '';
+                    }
                 }
-                if (cb.checked) selectedCount++;
             });
-            if (selectedCount === 0) selectButtonText.textContent = 'Nenhum instrutor selecionado';
-            else if (selectedCount === 1) selectButtonText.textContent = '1 instrutor selecionado';
-            else selectButtonText.textContent = `${selectedCount} instrutores selecionados`;
+        }
+        edicaoSelect.addEventListener('change', filterCiclosByEdicao);
+        filterCiclosByEdicao();
+    }
+
+    const customSelect = document.querySelector('.custom-multiselect');
+    if (customSelect) {
+        const selectButton = customSelect.querySelector('.select-button');
+        const selectButtonText = document.getElementById('select-button-text');
+        const dropdown = customSelect.querySelector('.dropdown-content');
+        const searchInput = document.getElementById('search-input');
+        const checkboxes = customSelect.querySelectorAll('.instrutor-checkbox');
+        const btnSelectAllVisible = document.getElementById('btnSelectAllVisible');
+        const btnClearAll = document.getElementById('btnClearAll');
+
+        function updateSelectedText() {
+            let selectedCount = 0;
+            let firstSelectedLabel = '';
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selectedCount++;
+                    if (selectedCount === 1) {
+                        const span = cb.parentElement.querySelector('span');
+                        firstSelectedLabel = span ? span.textContent.trim() : '1 instrutor selecionado';
+                    }
+                }
+            });
+            if (selectedCount === 0) {
+                selectButtonText.textContent = 'Nenhum instrutor selecionado';
+            } else if (selectedCount === 1) {
+                selectButtonText.textContent = firstSelectedLabel;
+            } else {
+                selectButtonText.textContent = `${selectedCount} instrutores selecionados`;
+            }
+        }
+
+        selectButton.addEventListener('click', () => {
+            dropdown.classList.toggle('show');
+            selectButton.classList.toggle('open');
+            if (dropdown.classList.contains('show') && searchInput) {
+                searchInput.focus();
+            }
         });
-    });
+
+        document.addEventListener('click', (e) => {
+            if (!customSelect.contains(e.target)) {
+                dropdown.classList.remove('show');
+                selectButton.classList.remove('open');
+            }
+        });
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const filter = searchInput.value.toLowerCase();
+                customSelect.querySelectorAll('.dropdown-option').forEach(option => {
+                    const label = option.querySelector('span').textContent.toLowerCase();
+                    option.style.display = label.includes(filter) ? 'flex' : 'none';
+                });
+            });
+        }
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedText);
+        });
+
+        if (btnSelectAllVisible) {
+            btnSelectAllVisible.addEventListener('click', () => {
+                customSelect.querySelectorAll('.dropdown-option').forEach(option => {
+                    if (option.style.display !== 'none') {
+                        const cb = option.querySelector('.instrutor-checkbox');
+                        if (cb) cb.checked = true;
+                    }
+                });
+                updateSelectedText();
+            });
+        }
+
+        if (btnClearAll) {
+            btnClearAll.addEventListener('click', () => {
+                checkboxes.forEach(cb => { cb.checked = false; });
+                updateSelectedText();
+            });
+        }
+
+        updateSelectedText();
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Valida se pelo menos um instrutor foi selecionado no modo Por Instrutor
+            if (customSelect) {
+                const checkedCount = customSelect.querySelectorAll('.instrutor-checkbox:checked').length;
+                if (checkedCount === 0) {
+                    e.preventDefault();
+                    alert('Por favor, selecione pelo menos um instrutor na lista para gerar o relatório.');
+                    const dropdown = customSelect.querySelector('.dropdown-content');
+                    const selectButton = customSelect.querySelector('.select-button');
+                    const searchInput = document.getElementById('search-input');
+                    if (dropdown) dropdown.classList.add('show');
+                    if (selectButton) selectButton.classList.add('open');
+                    if (searchInput) searchInput.focus();
+                    return;
+                }
+            }
+
+            // Define o target conforme o botão acionado:
+            // Pré-Visualizar abre em nova aba; Editar e Exportar .XLSX abre na mesma aba para edição e download.
+            if (e.submitter && e.submitter.value === 'preview') {
+                form.setAttribute('target', '_blank');
+            } else {
+                form.removeAttribute('target');
+            }
+        });
+    }
 });
 </script>
 
