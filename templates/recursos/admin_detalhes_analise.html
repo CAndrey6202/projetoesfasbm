@@ -11,8 +11,20 @@
             </h2>
             <p class="text-muted">Trâmite Atual: <span class="badge bg-info text-dark shadow-sm">{{ r.status }}</span></p>
         </div>
-        <div class="d-flex gap-2">
-            {% if current_user.is_super_admin or current_user.is_sens %}
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+            {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) %}
+                {% if r.status not in ['Deferido', 'Indeferido', 'Anulado'] %}
+                <button type="button" class="btn btn-warning rounded-pill fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#modalDevolverInstrutor">
+                    <i class="fas fa-undo me-1"></i> Devolver ao Instrutor
+                </button>
+                {% endif %}
+                {% if r.status != 'Anulado' %}
+                <button type="button" class="btn btn-outline-danger rounded-pill fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAnularRecursoDetalhes">
+                    <i class="fas fa-ban me-1"></i> Anular Recurso
+                </button>
+                {% endif %}
+            {% endif %}
+            {% if current_user.is_super_admin or current_user.is_sens or is_comandante %}
             <button type="button" class="btn btn-danger rounded-pill fw-bold btn-recurso-pdf" data-url="{{ url_for('recursos.exportar_recurso_pdf', recurso_id=r.id) }}" title="Imprimir PDF">
                 <i class="fas fa-file-pdf me-1"></i> Imprimir PDF
             </button>
@@ -22,6 +34,24 @@
             </a>
         </div>
     </div>
+
+    {% if r.resposta_admin %}
+    <div class="alert {% if r.status == 'Com Instrutor' %}alert-warning border-warning{% elif r.status == 'Anulado' %}alert-secondary border-secondary{% else %}alert-info border-info{% endif %} shadow-sm mb-4">
+        <div class="d-flex align-items-center mb-1">
+            <i class="fas {% if r.status == 'Com Instrutor' %}fa-exclamation-triangle text-warning{% elif r.status == 'Anulado' %}fa-ban text-secondary{% else %}fa-info-circle text-info{% endif %} fa-lg me-2"></i>
+            <h6 class="fw-bold mb-0 text-dark">
+                {% if r.status == 'Com Instrutor' %}
+                    Orientações da Administração / Motivo do Retorno para Revisão:
+                {% elif r.status == 'Anulado' %}
+                    Motivo da Anulação / Histórico:
+                {% else %}
+                    Histórico / Observações da Administração:
+                {% endif %}
+            </h6>
+        </div>
+        <div class="mt-2 text-dark" style="white-space: pre-wrap; font-size: 0.95rem;">{{ r.resposta_admin }}</div>
+    </div>
+    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-4 no-print">
@@ -72,7 +102,7 @@
                 <div class="card-body p-4">
                     
                     {# VARIAVEL DE CONTROLE: Verifica se o recurso já foi finalizado #}
-                    {% set is_finalizado = r.status in ['Deferido', 'Indeferido'] %}
+                    {% set is_finalizado = r.status in ['Deferido', 'Indeferido', 'Anulado'] %}
 
                     <form action="{{ url_for('recursos.salvar_parecer', recurso_id=r.id) }}" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -136,7 +166,7 @@ Diante do exposto, este instrutor julga pelo [DEFERIMENTO/INDEFERIMENTO] do recu
                         <div class="mt-4 no-print text-end">
                             {% if is_finalizado %}
                                 <button type="button" class="btn btn-secondary btn-lg px-5 fw-bold rounded-pill shadow" disabled>
-                                    <i class="fas fa-lock me-2"></i> RECURSO FINALIZADO
+                                    <i class="fas {% if r.status == 'Anulado' %}fa-ban{% else %}fa-lock{% endif %} me-2"></i> {% if r.status == 'Anulado' %}RECURSO ANULADO{% else %}RECURSO FINALIZADO{% endif %}
                                 </button>
                             {% else %}
                                 <button type="submit" class="btn btn-success btn-lg px-5 fw-bold rounded-pill shadow">
@@ -151,12 +181,99 @@ Diante do exposto, este instrutor julga pelo [DEFERIMENTO/INDEFERIMENTO] do recu
     </div>
 </div>
 
+<!-- Modal Devolver ao Instrutor -->
+<div class="modal fade" id="modalDevolverInstrutor" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-warning" style="border-radius: 15px;">
+            <div class="modal-header bg-warning text-dark border-0" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold"><i class="fas fa-undo me-2"></i>Devolver ao Instrutor para Revisão/Retificação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form action="{{ url_for('recursos.devolver_recurso_instrutor', recurso_id=r.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <p class="mb-3 text-muted">Devolver o <strong>Recurso #{{ r.id }}</strong> para que o instrutor complemente, fundamente ou retifique seu parecer técnico.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">INSTRUTOR DESTINATÁRIO</label>
+                        <select name="instrutor_id" class="form-select border-2" required>
+                            {% if r.instrutor %}
+                            <option value="{{ r.instrutor.id }}" selected>{{ r.instrutor.posto_graduacao or '' }} {{ r.instrutor.nome_completo }} (Instrutor Atual)</option>
+                            {% endif %}
+                            {% for inst in instrutores_disciplina if not r.instrutor or inst.id != r.instrutor.id %}
+                            <option value="{{ inst.id }}">{{ inst.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivo_devolucao" class="form-label fw-bold small">ORIENTAÇÃO / MOTIVO DA DEVOLUÇÃO (OBRIGATÓRIO)</label>
+                        <textarea class="form-control border-2" id="motivo_devolucao" name="motivo_devolucao" rows="3" required placeholder="Ex: O parecer não contém fundamentação técnica no material didático oficial. Favor fundamentar e reemitir parecer..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0" style="border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning fw-bold rounded-pill px-4 shadow text-dark"><i class="fas fa-paper-plane me-1"></i>Confirmar Devolução</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Anular Recurso (Página de Detalhes) -->
+<div class="modal fade" id="modalAnularRecursoDetalhes" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header bg-danger text-white border-0" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Anular Recurso #{{ r.id }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form action="{{ url_for('recursos.anular_recurso', recurso_id=r.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Atenção:</strong> Ao anular, pareceres e assinaturas serão cancelados. A anulação e o motivo serão registrados permanentemente na auditoria do SisGen (Espião).
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">AÇÃO APÓS A ANULAÇÃO:</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="acao_anulacao" id="acaoReabrirDet" value="reabrir" checked>
+                            <label class="form-check-label fw-bold" for="acaoReabrirDet">
+                                <i class="fas fa-redo text-primary me-1"></i> Reiniciar e reabrir trâmite como Pendente (Recomendado)
+                            </label>
+                            <div class="form-text small">Limpa pareceres e assinaturas para permitir novo encaminhamento ao instrutor ou comandante.</div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="acao_anulacao" id="acaoDefinitivoDet" value="definitivo">
+                            <label class="form-check-label fw-bold text-danger" for="acaoDefinitivoDet">
+                                <i class="fas fa-ban text-danger me-1"></i> Anular definitivamente o recurso
+                            </label>
+                            <div class="form-text small">Finaliza o recurso como Anulado no sistema.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivo_anulacao_det" class="form-label fw-bold">Motivo da Anulação (Obrigatório, mín. 10 caracteres):</label>
+                        <textarea class="form-control border-danger" id="motivo_anulacao_det" name="motivo_anulacao" rows="3" required minlength="10" placeholder="Ex: Parecer anterior sem fundamentação técnica necessária, anulado para reavaliação..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0" style="border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold shadow"><i class="fas fa-ban me-1"></i>Confirmar Anulação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const selectTipo = document.getElementById('selectTipoDoc');
     const colStatus = document.getElementById('colStatusFinal');
     const editor = document.getElementById('editorBM');
-    const isFinalizado = {{ 'true' if r.status in ['Deferido', 'Indeferido'] else 'false' }};
+    const isFinalizado = {{ 'true' if r.status in ['Deferido', 'Indeferido', 'Anulado'] else 'false' }};
 
     const modeloParecer = `ESTADO DO RIO GRANDE DO SUL
 SECRETARIA DA SEGURANÇA PÚBLICA

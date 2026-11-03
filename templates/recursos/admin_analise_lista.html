@@ -52,7 +52,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for r in recursos if r.status not in ['Deferido', 'Indeferido'] %}
+                                {% for r in recursos if r.status not in ['Deferido', 'Indeferido', 'Anulado'] %}
                                 <tr>
                                     <td class="text-muted fw-bold">#{{ r.id }}</td>
                                     <td>
@@ -64,7 +64,7 @@
                                         <div class="small text-muted">{{ r.prova.nome }}</div>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge {% if r.status == 'Pendente' %}bg-warning text-dark{% elif r.status == 'Deferido' %}bg-success{% elif r.status == 'Indeferido' %}bg-danger{% else %}bg-info text-dark{% endif %} px-3 rounded-pill py-2">
+                                        <span class="badge {% if r.status == 'Pendente' %}bg-warning text-dark{% elif r.status == 'Deferido' %}bg-success{% elif r.status == 'Indeferido' %}bg-danger{% elif r.status == 'Anulado' %}bg-secondary{% elif r.status == 'Com Instrutor' %}bg-info text-dark{% else %}bg-primary text-white{% endif %} px-3 rounded-pill py-2">
                                             {{ r.status }}
                                         </span>
                                     </td>
@@ -88,6 +88,18 @@
                                                     <i class="fas fa-trash me-1"></i> Excluir
                                                 </button>
                                             </form>
+                                            {% endif %}
+                                            {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) %}
+                                            <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" 
+                                                    onclick="abrirAnulacao('{{ r.id }}', '{{ (r.aluno.nome_de_guerra or r.aluno.nome_completo) | escape }}', '{{ r.prova.disciplina.materia | escape }} - {{ r.prova.nome | escape }}', '{{ r.status }}')" title="Anular Recurso">
+                                                <i class="fas fa-ban me-1"></i> Anular
+                                            </button>
+                                            {% endif %}
+                                            {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) and r.status != 'Anulado' %}
+                                            <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" 
+                                                    onclick="abrirAnulacao('{{ r.id }}', '{{ (r.aluno.nome_de_guerra or r.aluno.nome_completo) | escape }}', '{{ r.prova.disciplina.materia | escape }} - {{ r.prova.nome | escape }}', '{{ r.status }}')" title="Anular Recurso">
+                                                <i class="fas fa-ban me-1"></i> Anular
+                                            </button>
                                             {% endif %}
                                             <a href="{{ url_for('recursos.detalhes_recurso', recurso_id=r.id) }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
                                                 <i class="fas fa-search me-1"></i> Analisar
@@ -115,7 +127,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for r in recursos if r.status in ['Deferido', 'Indeferido'] %}
+                                {% for r in recursos if r.status in ['Deferido', 'Indeferido', 'Anulado'] %}
                                 <tr>
                                     <td class="text-muted fw-bold">#{{ r.id }}</td>
                                     <td>
@@ -127,7 +139,7 @@
                                         <div class="small text-muted">{{ r.prova.nome }}</div>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge {% if r.status == 'Pendente' %}bg-warning text-dark{% elif r.status == 'Deferido' %}bg-success{% elif r.status == 'Indeferido' %}bg-danger{% else %}bg-info text-dark{% endif %} px-3 rounded-pill py-2">
+                                        <span class="badge {% if r.status == 'Pendente' %}bg-warning text-dark{% elif r.status == 'Deferido' %}bg-success{% elif r.status == 'Indeferido' %}bg-danger{% elif r.status == 'Anulado' %}bg-secondary{% elif r.status == 'Com Instrutor' %}bg-info text-dark{% else %}bg-primary text-white{% endif %} px-3 rounded-pill py-2">
                                             {{ r.status }}
                                         </span>
                                         {% if r.aluno_ciente %}
@@ -152,6 +164,12 @@
                                                     <i class="fas fa-trash me-1"></i> Excluir
                                                 </button>
                                             </form>
+                                            {% endif %}
+                                            {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) and r.status != 'Anulado' %}
+                                            <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" 
+                                                    onclick="abrirAnulacao('{{ r.id }}', '{{ (r.aluno.nome_de_guerra or r.aluno.nome_completo) | escape }}', '{{ r.prova.disciplina.materia | escape }} - {{ r.prova.nome | escape }}', '{{ r.status }}')" title="Anular Recurso">
+                                                <i class="fas fa-ban me-1"></i> Anular
+                                            </button>
                                             {% endif %}
                                             <a href="{{ url_for('recursos.detalhes_recurso', recurso_id=r.id) }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
                                                 <i class="fas fa-search me-1"></i> Ver Resultado
@@ -199,10 +217,66 @@
                             <option value=""></option>
                         </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">ORIENTAÇÃO / MOTIVO DO RETORNO (OPCIONAL)</label>
+                        <textarea name="observacao_tramite" class="form-control" rows="2" placeholder="Ex: Favor fundamentar com base no material oficial ou revisar conclusão..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow">Confirmar Envio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Anular Recurso (Modelo FADA) -->
+<div class="modal fade" id="modalAnularRecurso" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" style="z-index: 2060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header bg-danger text-white border-0" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Anular Recurso Administrativo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formAnularRecurso" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <p class="mb-2">Você está prestes a anular o recurso:</p>
+                    <div class="alert alert-secondary py-2 fw-bold text-dark fs-6" id="infoRecursoAnulacao">-</div>
+                    
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Atenção:</strong> Ao anular, os pareceres técnicos, decisões e assinaturas serão cancelados/reiniciados. O autor da anulação, a data e o motivo serão registrados permanentemente no histórico de auditoria do SisGen (Espião).
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">AÇÃO APÓS A ANULAÇÃO:</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="acao_anulacao" id="acaoReabrir" value="reabrir" checked>
+                            <label class="form-check-label fw-bold" for="acaoReabrir">
+                                <i class="fas fa-redo text-primary me-1"></i> Reiniciar trâmite como Pendente (Recomendado)
+                            </label>
+                            <div class="form-text small">Limpa pareceres e assinaturas para permitir novo encaminhamento ao instrutor ou comandante.</div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="acao_anulacao" id="acaoDefinitivo" value="definitivo">
+                            <label class="form-check-label fw-bold text-danger" for="acaoDefinitivo">
+                                <i class="fas fa-ban text-danger me-1"></i> Anular definitivamente o recurso
+                            </label>
+                            <div class="form-text small">Finaliza o recurso como Anulado no sistema.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivo_anulacao_recurso" class="form-label fw-bold">Motivo da Anulação (Obrigatório, mín. 10 caracteres):</label>
+                        <textarea class="form-control border-danger" id="motivo_anulacao_recurso" name="motivo_anulacao" rows="3" required minlength="10" placeholder="Ex: Parecer anterior sem fundamentação técnica necessária, anulado para reavaliação..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0" style="border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold shadow"><i class="fas fa-ban me-1"></i>Confirmar Anulação</button>
                 </div>
             </form>
         </div>
@@ -272,6 +346,19 @@
             }
         }
         select.trigger('change');
+    }
+
+    
+    function abrirAnulacao(recursoId, alunoNome, provaNome, statusAtual) {
+        const modalElement = document.getElementById('modalAnularRecurso');
+        if (modalElement.parentNode !== document.body) {
+            document.body.appendChild(modalElement);
+        }
+        document.getElementById('infoRecursoAnulacao').innerHTML = `<strong>Recurso #${recursoId}</strong><br>Aluno: ${alunoNome}<br>Prova: ${provaNome}<br>Status Atual: <span class="badge bg-dark">${statusAtual}</span>`;
+        document.getElementById('formAnularRecurso').action = `/recursos/admin/anular/${recursoId}`;
+        document.getElementById('motivo_anulacao_recurso').value = '';
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.show();
     }
 
     function abrirEncaminhamento(recursoId) {

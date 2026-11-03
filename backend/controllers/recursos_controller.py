@@ -9,10 +9,16 @@ from backend.models.disciplina import Disciplina
 from backend.models.turma import Turma
 from backend.models.user import User  # Necessário para listar instrutores/comandantes
 from backend.services.asset_service import AssetService
+from backend.services.user_service import UserService
+from backend.services.log_service import LogService
+from datetime import datetime
 from werkzeug.utils import secure_filename
 import base64
 import uuid
 import shutil
+
+def _get_active_school_id():
+    return current_user._get_active_school_id() or session.get('active_school_id') or UserService.get_current_school_id()
 
 def process_signature(user, tipo, dados, salvar_padrao=False):
     """Processa e salva assinatura para um Recurso, atualizando o User se salvar_padrao=True"""
@@ -81,7 +87,7 @@ def index():
     Admins veem as matérias habilitadas (agrupadas por nome).
     Instrutores veem apenas o que foi encaminhado a eles.
     """
-    active_school_id = getattr(current_user, 'temp_active_school_id', None)
+    active_school_id = _get_active_school_id()
 
     if current_user.is_super_admin or current_user.is_sens:
         # Busca IDs de disciplinas habilitadas filtradas por escola e edição
@@ -127,7 +133,7 @@ def configurar_disciplinas():
         flash("Acesso negado.", "danger")
         return redirect(url_for('main.dashboard'))
 
-    active_school_id = getattr(current_user, 'temp_active_school_id', None)
+    active_school_id = _get_active_school_id()
     
     if request.method == 'POST':
         # Recebemos os NOMES das matérias que o admin quer habilitar
@@ -237,8 +243,15 @@ def excluir_prova(prova_id):
 @recursos_bp.route('/admin/analisar')
 @login_required
 def listar_recursos_pendentes():
-    """Administrador vê tudo e gerencia encaminhamentos. Instrutor vê o que lhe cabe."""
-    active_school_id = getattr(current_user, 'temp_active_school_id', None)
+    """Administrador e Comandante veem tudo e gerenciam encaminhamentos. Instrutor vê o que lhe cabe."""
+    active_school_id = _get_active_school_id()
+    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
+    is_admin_sens = current_user.is_super_admin or current_user.is_sens or is_comandante
+    is_instrutor = (
+        current_user.role == 'instrutor' or 
+        current_user.get_role_in_school(active_school_id) == 'instrutor' or 
+        getattr(current_user, 'instrutor_profile', None) is not None
+    )
     
     from backend.models.disciplina_turma import DisciplinaTurma
     from backend.models.instrutor import Instrutor
@@ -248,17 +261,21 @@ def listar_recursos_pendentes():
         db.joinedload(Recurso.instrutor),
         db.selectinload(Recurso.prova).selectinload(ProvaRecurso.disciplina).selectinload(Disciplina.associacoes_turmas).selectinload(DisciplinaTurma.instrutor_1).selectinload(Instrutor.user),
         db.selectinload(Recurso.prova).selectinload(ProvaRecurso.disciplina).selectinload(Disciplina.associacoes_turmas).selectinload(DisciplinaTurma.instrutor_2).selectinload(Instrutor.user)
-    ).filter(
-        Turma.school_id == active_school_id,
-        Turma.edicao_id == session.get('active_edicao_id')
-    ).order_by(Recurso.id.desc())
+    )
+    if active_school_id:
+        query = query.filter(Turma.school_id == active_school_id)
+        
+    active_edicao_id = session.get('active_edicao_id') or (g.active_edicao.id if g.get('active_edicao') else None)
+    if active_edicao_id:
+        query = query.filter(Turma.edicao_id == active_edicao_id)
+        
+    query = query.order_by(Recurso.id.desc())
 
-    # Se for instrutor E NÃO for comandante nem SENS, filtra apenas o que foi destinado a ele
-    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
-    if current_user.role == 'instrutor' and not (is_comandante or current_user.is_sens):
+    # Se for instrutor E NÃO for comandante nem SENS nem super_admin, filtra apenas o que foi destinado a ele
+    if is_instrutor and not is_admin_sens:
         recursos = query.filter(db.or_(
-            db.and_(Recurso.instrutor_id == current_user.id, Recurso.parecer_instrutor == None),
-            db.and_(Recurso.instrutor2_id == current_user.id, Recurso.parecer_instrutor2 == None)
+            Recurso.instrutor_id == current_user.id,
+            Recurso.instrutor2_id == current_user.id
         )).all()
     else:
         recursos = query.all()
@@ -267,10 +284,16 @@ def listar_recursos_pendentes():
     from backend.models.user_school import UserSchool
 
     # Filtra Comandantes apenas da escola atual
-    comandantes = User.query.join(UserSchool).filter(
-        UserSchool.school_id == active_school_id,
-        UserSchool.role == 'admin_escola'
-    ).all()
+    comandantes = []
+    if active_school_id:
+        comandantes = User.query.join(UserSchool).filter(
+            UserSchool.school_id == active_school_id,
+            UserSchool.role == 'admin_escola'
+        ).all()
+    else:
+        comandantes = User.query.join(UserSchool).filter(
+            UserSchool.role == 'admin_escola'
+        ).all()
     
     # Mapeia Instrutores vinculados à disciplina do recurso
     recurso_instrutores_map = {}
@@ -279,11 +302,13 @@ def listar_recursos_pendentes():
         if r.prova and r.prova.disciplina and r.prova.disciplina.turma:
             disciplina_atual = r.prova.disciplina
             # Busca todas as disciplinas (turmas diferentes) da mesma matéria e mesma edição (ciclo)
-            disciplinas_ciclo = Disciplina.query.join(Turma).filter(
+            disc_query = Disciplina.query.join(Turma).filter(
                 Disciplina.materia == disciplina_atual.materia,
-                Turma.edicao_id == disciplina_atual.turma.edicao_id,
-                Turma.school_id == active_school_id
-            ).all()
+                Turma.edicao_id == disciplina_atual.turma.edicao_id
+            )
+            if active_school_id:
+                disc_query = disc_query.filter(Turma.school_id == active_school_id)
+            disciplinas_ciclo = disc_query.all()
             
             for d in disciplinas_ciclo:
                 for assoc in d.associacoes_turmas:
@@ -298,37 +323,50 @@ def listar_recursos_pendentes():
             {'id': v[0], 'nome': f"{v[2] or ''} {v[1]}".strip()} for v in validos
         ]
 
-    is_instrutor = current_user.role == 'instrutor' or current_user.get_role_in_school(active_school_id) == 'instrutor'
-    force_instrutor = is_instrutor and not (is_comandante or current_user.is_sens or current_user.is_super_admin)
+    force_instrutor = is_instrutor and not is_admin_sens
     
     return render_template('recursos/admin_analise_lista.html', 
                            recursos=recursos, 
                            comandantes=comandantes,
                            instrutores_map=json.dumps(recurso_instrutores_map),
-                           force_instrutor=force_instrutor)
+                           force_instrutor=force_instrutor,
+                           is_comandante=is_comandante)
 
 @recursos_bp.route('/admin/encaminhar/<int:recurso_id>', methods=['POST'])
 @login_required
 def encaminhar_recurso(recurso_id):
-    """Administrador encaminha o processo para o próximo nível."""
-    if not (current_user.is_super_admin or current_user.is_sens):
+    """Administrador ou Comandante encaminha o processo para o próximo nível (Instrutor ou Comandante)."""
+    active_school_id = _get_active_school_id()
+    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
+    if not (current_user.is_super_admin or current_user.is_sens or is_comandante):
         flash("Acesso negado.", "danger")
         return redirect(url_for('main.dashboard'))
 
     recurso = Recurso.query.get_or_404(recurso_id)
     destinos = request.form.getlist('usuario_destino_id')
     tipo_tramite = request.form.get('tipo_tramite') # 'instrutor' ou 'comandante'
+    observacao = request.form.get('observacao_tramite', '').strip()
     
     try:
-        recurso.instrutor_id = destinos[0] if len(destinos) > 0 else None
-        recurso.instrutor2_id = destinos[1] if len(destinos) > 1 else None
-        
         if tipo_tramite == 'instrutor':
+            if destinos:
+                recurso.instrutor_id = destinos[0] if len(destinos) > 0 else None
+                recurso.instrutor2_id = destinos[1] if len(destinos) > 1 else None
             recurso.status = "Com Instrutor"
+            if observacao:
+                recurso.resposta_admin = observacao
         else:
             recurso.status = "Com Comandante"
+            if observacao:
+                recurso.resposta_admin = observacao
             
         db.session.commit()
+        
+        LogService.log(
+            action="Encaminhou Recurso",
+            details=f"Recurso #{recurso.id} encaminhado para '{recurso.status}'. Destinatários: {destinos}. Obs: {observacao or 'Sem observações'}",
+            school_id=active_school_id
+        )
         flash("Recurso encaminhado com sucesso!", "success")
     except Exception as e:
         db.session.rollback()
@@ -336,24 +374,168 @@ def encaminhar_recurso(recurso_id):
         
     return redirect(url_for('recursos.listar_recursos_pendentes'))
 
+@recursos_bp.route('/admin/devolver/<int:recurso_id>', methods=['POST'])
+@login_required
+def devolver_recurso_instrutor(recurso_id):
+    """Devolve o recurso ao instrutor para revisão / retificação do parecer."""
+    active_school_id = _get_active_school_id()
+    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
+    if not (current_user.is_super_admin or current_user.is_sens or is_comandante):
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('recursos.listar_recursos_pendentes'))
+        
+    recurso = Recurso.query.get_or_404(recurso_id)
+    motivo = request.form.get('motivo_devolucao', '').strip()
+    instrutor_id = request.form.get('instrutor_id')
+    
+    if not motivo:
+        flash("Informe o motivo ou orientação para a revisão/retificação do parecer.", "warning")
+        return redirect(request.referrer or url_for('recursos.detalhes_recurso', recurso_id=recurso.id))
+        
+    try:
+        if instrutor_id:
+            recurso.instrutor_id = int(instrutor_id)
+        elif not recurso.instrutor_id:
+            flash("Nenhum instrutor vinculado ao recurso para devolução.", "danger")
+            return redirect(request.referrer or url_for('recursos.detalhes_recurso', recurso_id=recurso.id))
+            
+        recurso.status = "Com Instrutor"
+        recurso.resposta_admin = motivo
+        
+        data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+        LogService.log(
+            action="Devolveu Recurso ao Instrutor",
+            details=f"Recurso #{recurso.id} devolvido ao instrutor ID {recurso.instrutor_id} por {current_user.nome_completo} em {data_formatada}. Motivo/Orientação: {motivo}",
+            school_id=active_school_id
+        )
+        db.session.commit()
+        flash("Recurso retornado ao instrutor com sucesso para revisão/retificação!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao devolver recurso: {str(e)}", "danger")
+        
+    return redirect(request.referrer or url_for('recursos.detalhes_recurso', recurso_id=recurso.id))
+
+@recursos_bp.route('/admin/anular/<int:recurso_id>', methods=['POST'])
+@login_required
+def anular_recurso(recurso_id):
+    """
+    Função de Anular Recurso (idêntica ao modelo da FADA).
+    Permite anular com justificativa obrigatória (mínimo 10 caracteres),
+    registra no Espião/LogService com data/hora e autor, e permite recriar/reabrir.
+    """
+    active_school_id = _get_active_school_id()
+    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
+    if not (current_user.is_super_admin or current_user.is_sens or is_comandante):
+        flash("Acesso negado. Apenas administradores ou comandantes podem anular recursos.", "danger")
+        return redirect(url_for('recursos.listar_recursos_pendentes'))
+        
+    recurso = Recurso.query.get_or_404(recurso_id)
+    motivo = request.form.get('motivo_anulacao', '').strip()
+    acao_apos = request.form.get('acao_anulacao', 'reabrir') # 'reabrir' ou 'definitivo'
+    
+    if not motivo or len(motivo) < 10:
+        flash("A motivação da anulação deve ter no mínimo 10 caracteres.", "warning")
+        return redirect(request.referrer or url_for('recursos.listar_recursos_pendentes'))
+        
+    aluno_nome = recurso.aluno.nome_completo if recurso.aluno else f"ID {recurso.aluno_id}"
+    materia_nome = recurso.prova.disciplina.materia if recurso.prova and recurso.prova.disciplina else "N/A"
+    prova_nome = recurso.prova.nome if recurso.prova else "N/A"
+    status_anterior = recurso.status
+    data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+    
+    try:
+        # 1. Registro detalhado no Log / Espião (exatamente como na FADA)
+        detalhes_log = (
+            f"Recurso ID #{recurso.id} do aluno {aluno_nome} (Matéria: {materia_nome}, Prova: {prova_nome}) "
+            f"foi ANULADO por {current_user.nome_completo} (ID: {current_user.id}). "
+            f"Status anterior: '{status_anterior}'. Ação: '{'Reaberto para novo trâmite' if acao_apos == 'reabrir' else 'Anulação Definitiva'}'. "
+            f"Motivo: {motivo}"
+        )
+        LogService.log(
+            action="Anulou Recurso",
+            details=detalhes_log,
+            school_id=active_school_id
+        )
+        
+        # 2. Reseta pareceres, decisões e assinaturas
+        recurso.parecer_instrutor = None
+        recurso.parecer_instrutor2 = None
+        recurso.decisao_comandante = None
+        recurso.assinatura_instrutor = None
+        recurso.assinatura_comandante = None
+        recurso.aluno_ciente = False
+        recurso.aluno_ciente_data = None
+        recurso.aluno_ciente_ip = None
+        
+        # Carimbo de auditoria na resposta/observação do recurso
+        nota_auditoria = f"[RECURSO ANULADO em {data_formatada} por {current_user.nome_completo} (ID {current_user.id}) - Motivo: {motivo}]"
+        if recurso.resposta_admin and recurso.resposta_admin.strip():
+            recurso.resposta_admin = f"{nota_auditoria}\n\n" + recurso.resposta_admin
+        else:
+            recurso.resposta_admin = nota_auditoria
+            
+        if acao_apos == 'reabrir':
+            recurso.status = 'Pendente'
+            flash(f"Recurso #{recurso.id} anulado com sucesso! Pareceres e assinaturas foram reiniciados e o trâmite foi reaberto como Pendente para novo encaminhamento.", "success")
+        else:
+            recurso.status = 'Anulado'
+            flash(f"Recurso #{recurso.id} anulado definitivamente com sucesso! O registro foi arquivado no histórico de auditoria.", "success")
+            
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao anular recurso: {str(e)}", "danger")
+        
+    return redirect(url_for('recursos.listar_recursos_pendentes'))
+
 @recursos_bp.route('/admin/detalhes/<int:recurso_id>')
 @login_required
 def detalhes_recurso(recurso_id):
     """Página dedicada para visualização e redação técnica do parecer/decisão."""
-    from flask import session
-    school_id = session.get('active_school_id')
+    school_id = _get_active_school_id()
     is_comandante = current_user.is_admin_escola_in_school(school_id)
+    is_instrutor = (
+        current_user.role == 'instrutor' or 
+        current_user.get_role_in_school(school_id) == 'instrutor' or 
+        getattr(current_user, 'instrutor_profile', None) is not None
+    )
     
-    if not (current_user.is_super_admin or current_user.is_sens or current_user.role == 'instrutor' or is_comandante):
+    if not (current_user.is_super_admin or current_user.is_sens or is_instrutor or is_comandante):
         flash("Acesso negado.", "danger")
         return redirect(url_for('main.dashboard'))
         
     recurso = Recurso.query.get_or_404(recurso_id)
-    
-    is_instrutor = current_user.role == 'instrutor' or current_user.get_role_in_school(school_id) == 'instrutor'
     force_instrutor = is_instrutor and not (is_comandante or current_user.is_super_admin or current_user.is_sens)
     
-    return render_template('recursos/admin_detalhes_analise.html', r=recurso, is_comandante=is_comandante, force_instrutor=force_instrutor)
+    # Busca instrutores disponíveis da matéria caso admin/comandante queira devolver ao instrutor
+    instrutores_disciplina = []
+    if recurso.prova and recurso.prova.disciplina and recurso.prova.disciplina.turma:
+        disciplina_atual = recurso.prova.disciplina
+        disc_query = Disciplina.query.join(Turma).filter(
+            Disciplina.materia == disciplina_atual.materia,
+            Turma.edicao_id == disciplina_atual.turma.edicao_id
+        )
+        if school_id:
+            disc_query = disc_query.filter(Turma.school_id == school_id)
+        disciplinas_ciclo = disc_query.all()
+        vistos = set()
+        for d in disciplinas_ciclo:
+            for assoc in d.associacoes_turmas:
+                if assoc.instrutor_1 and assoc.instrutor_1.user and assoc.instrutor_1.user.id not in vistos:
+                    u = assoc.instrutor_1.user
+                    vistos.add(u.id)
+                    instrutores_disciplina.append({'id': u.id, 'nome': f"{u.posto_graduacao or ''} {u.nome_completo}".strip()})
+                if assoc.instrutor_2 and assoc.instrutor_2.user and assoc.instrutor_2.user.id not in vistos:
+                    u = assoc.instrutor_2.user
+                    vistos.add(u.id)
+                    instrutores_disciplina.append({'id': u.id, 'nome': f"{u.posto_graduacao or ''} {u.nome_completo}".strip()})
+
+    return render_template('recursos/admin_detalhes_analise.html', 
+                           r=recurso, 
+                           is_comandante=is_comandante, 
+                           force_instrutor=force_instrutor,
+                           instrutores_disciplina=instrutores_disciplina)
 
 @recursos_bp.route('/admin/salvar_parecer/<int:recurso_id>', methods=['POST'])
 @login_required
@@ -540,7 +722,9 @@ def api_get_provas(disciplina_id):
 @recursos_bp.route('/admin/exportar-pdf/<int:recurso_id>')
 @login_required
 def exportar_recurso_pdf(recurso_id):
-    if not (current_user.is_super_admin or current_user.is_sens):
+    active_school_id = _get_active_school_id()
+    is_comandante = current_user.is_admin_escola_in_school(active_school_id)
+    if not (current_user.is_super_admin or current_user.is_sens or is_comandante):
         flash("Acesso negado.", "danger")
         return redirect(url_for('main.dashboard'))
         
@@ -589,7 +773,7 @@ def excluir_recurso_aluno(recurso_id):
         flash("Acesso negado.", "danger")
         return redirect(url_for('recursos.index'))
         
-    if recurso.status != "Em Análise" and recurso.status != "Pendente":
+    if recurso.status not in ["Em Análise", "Pendente", "Anulado"]:
         flash("Não é possível excluir um recurso que já foi processado ou está em andamento avançado.", "warning")
         return redirect(url_for('recursos.index'))
         
