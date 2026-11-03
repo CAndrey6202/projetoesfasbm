@@ -24,8 +24,15 @@
             </div>
             <div class="form-group">
                 {{ form.matricula.label(class="form-label") }}
-                {{ form.matricula(class="form-control") }}
-                <small class="form-text text-muted">A matrícula não pode ser alterada.</small>
+                {% if dec_mode_active %}
+                    {{ form.matricula(class="form-control") }}
+                    <small class="form-text text-info">
+                        <i class="fas fa-info-circle"></i> <strong>Modo DEC ativo:</strong> A matrícula pode ser alterada. Se informada uma matrícula já existente, os cadastros serão unificados mantendo as informações da escola e apenas um usuário/senha.
+                    </small>
+                {% else %}
+                    {{ form.matricula(class="form-control", readonly=True) }}
+                    <small class="form-text text-muted">A matrícula não pode ser alterada.</small>
+                {% endif %}
             </div>
             <div class="form-group">
                 {{ form.email.label(class="form-label") }}

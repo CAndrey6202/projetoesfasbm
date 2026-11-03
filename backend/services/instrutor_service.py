@@ -17,6 +17,7 @@ from utils.normalizer import normalize_matricula, normalize_name
 
 # Importação para garantir o contexto da sessão e utilitários
 from .user_service import UserService
+from .log_service import LogService
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -359,10 +360,13 @@ class InstrutorService:
 
     @staticmethod
     def get_instrutor_by_id(instrutor_id: int):
+        from flask import session
+        from flask_login import current_user
         active_school = UserService.get_current_school_id()
         instrutor = db.session.get(Instrutor, instrutor_id)
+        is_dec = bool(session.get('is_dec_mode') and current_user.is_authenticated and current_user.role == 'super_admin')
         
-        if instrutor and instrutor.school_id == active_school:
+        if instrutor and (instrutor.school_id == active_school or is_dec or not active_school):
             return instrutor
         return None
 
@@ -515,3 +519,281 @@ class InstrutorService:
             db.session.rollback()
             current_app.logger.error(f"Erro ao excluir instrutor {instrutor_id}: {str(e)}")
             return False, f"Erro ao excluir: {str(e)}"
+
+    @staticmethod
+    def unificar_instrutor_com_usuario_existente(source_instrutor: Instrutor, target_user: User, form_data: dict) -> tuple[bool, str]:
+        """
+        Unifica o cadastro de um instrutor (source_instrutor.user) em um usuário já existente (target_user),
+        transferindo todos os vínculos escolares, turmas, horários, avaliações, delegações e histórico,
+        mantendo apenas um usuário, senha e cadastro (target_user).
+        """
+        try:
+            source_user = source_instrutor.user
+            if not source_user or source_user.id == target_user.id:
+                return False, "Usuário de origem e destino são os mesmos."
+
+            source_id = source_user.id
+            target_id = target_user.id
+            source_nome = source_user.nome_completo or source_user.nome_de_guerra or source_user.matricula
+            target_nome = target_user.nome_completo or target_user.nome_de_guerra or target_user.matricula
+            old_matricula = source_user.matricula
+            new_matricula = target_user.matricula
+            school_id = source_instrutor.school_id
+
+            # 1. Liberar e-mail, username e matrícula do source_user temporariamente para não colidir com constraints
+            source_user.email = None
+            source_user.username = None
+            source_user.matricula = f"_del_{source_id}_{str(old_matricula)[:10]}"
+            db.session.flush()
+
+            # 2. Atualizar dados do target_user conforme preenchido no formulário
+            new_email = (form_data.get('email') or '').strip().lower()
+            if new_email:
+                conflict_email = db.session.scalar(
+                    select(User.id).where(User.email == new_email, User.id != target_id)
+                )
+                if not conflict_email:
+                    target_user.email = new_email
+
+            nome_completo = form_data.get('nome_completo')
+            if nome_completo:
+                target_user.nome_completo = nome_completo.strip()
+            elif not target_user.nome_completo:
+                target_user.nome_completo = source_user.nome_completo
+
+            nome_de_guerra = form_data.get('nome_de_guerra')
+            if nome_de_guerra:
+                target_user.nome_de_guerra = nome_de_guerra.strip()
+            elif not target_user.nome_de_guerra:
+                target_user.nome_de_guerra = source_user.nome_de_guerra
+
+            posto = form_data.get('posto_graduacao')
+            if posto == 'Outro':
+                posto = form_data.get('posto_graduacao_outro')
+            if posto:
+                target_user.posto_graduacao = posto
+            elif not target_user.posto_graduacao:
+                target_user.posto_graduacao = source_user.posto_graduacao
+
+            if not target_user.is_active:
+                target_user.is_active = True
+
+            # Se o target_user tiver role 'aluno', eleva para 'instrutor'
+            if target_user.role in ['aluno', None, '']:
+                target_user.role = 'instrutor'
+
+            # 3. Unificar todos os perfis de Instrutor de source_user
+            from backend.models.disciplina_turma import DisciplinaTurma
+            from backend.models.horario import Horario
+            from backend.models.avaliacao_instrutor import RespostaAvaliacao
+            from backend.models.banco_questoes import QuestaoBanco, DelegacaoProva
+            from backend.models.aluno import Aluno
+            from backend.models.user_school import UserSchool
+
+            source_instrutores = db.session.scalars(
+                select(Instrutor).where(Instrutor.user_id == source_id)
+            ).all()
+
+            for s_inst in source_instrutores:
+                # Procura se target_user já possui perfil de instrutor na mesma escola
+                t_inst = db.session.scalar(
+                    select(Instrutor).where(
+                        Instrutor.user_id == target_id,
+                        Instrutor.school_id == s_inst.school_id
+                    )
+                )
+
+                if t_inst:
+                    # Migrar vínculos e referências de s_inst para t_inst
+                    # A. DisciplinaTurma
+                    dts = db.session.scalars(
+                        select(DisciplinaTurma).where(
+                            or_(
+                                DisciplinaTurma.instrutor_id_1 == s_inst.id,
+                                DisciplinaTurma.instrutor_id_2 == s_inst.id
+                            )
+                        )
+                    ).all()
+                    for dt in dts:
+                        if dt.instrutor_id_1 == s_inst.id:
+                            if dt.instrutor_id_2 == t_inst.id:
+                                dt.instrutor_id_1 = t_inst.id
+                                dt.instrutor_id_2 = None
+                            else:
+                                dt.instrutor_id_1 = t_inst.id
+                        elif dt.instrutor_id_2 == s_inst.id:
+                            if dt.instrutor_id_1 == t_inst.id:
+                                dt.instrutor_id_2 = None
+                            else:
+                                dt.instrutor_id_2 = t_inst.id
+
+                    # B. Horario
+                    horarios = db.session.scalars(
+                        select(Horario).where(
+                            or_(
+                                Horario.instrutor_id == s_inst.id,
+                                Horario.instrutor_id_2 == s_inst.id
+                            )
+                        )
+                    ).all()
+                    for h in horarios:
+                        if h.instrutor_id == s_inst.id:
+                            if h.instrutor_id_2 == t_inst.id:
+                                h.instrutor_id = t_inst.id
+                                h.instrutor_id_2 = None
+                            else:
+                                h.instrutor_id = t_inst.id
+                        elif h.instrutor_id_2 == s_inst.id:
+                            if h.instrutor_id == t_inst.id:
+                                h.instrutor_id_2 = None
+                            else:
+                                h.instrutor_id_2 = t_inst.id
+
+                    # C. RespostaAvaliacao
+                    RespostaAvaliacao.query.filter_by(instrutor_id=s_inst.id).update(
+                        {RespostaAvaliacao.instrutor_id: t_inst.id}, synchronize_session=False
+                    )
+
+                    # D. DelegacaoProva
+                    DelegacaoProva.query.filter_by(instrutor_id=s_inst.id).update(
+                        {DelegacaoProva.instrutor_id: t_inst.id}, synchronize_session=False
+                    )
+
+                    # E. QuestaoBanco
+                    QuestaoBanco.query.filter_by(instrutor_id=s_inst.id).update(
+                        {QuestaoBanco.instrutor_id: t_inst.id}, synchronize_session=False
+                    )
+
+                    # Se for a escola do instrutor sendo editado, aplicar dados do form
+                    if s_inst.id == source_instrutor.id:
+                        tel = form_data.get('telefone')
+                        if tel:
+                            t_inst.telefone = tel.strip()
+                        elif not t_inst.telefone:
+                            t_inst.telefone = s_inst.telefone
+
+                        is_rr_val = form_data.get('is_rr')
+                        t_inst.is_rr = (is_rr_val == '1' or is_rr_val is True)
+                    else:
+                        if not t_inst.telefone and s_inst.telefone:
+                            t_inst.telefone = s_inst.telefone
+
+                    if not t_inst.assinatura_padrao_path and s_inst.assinatura_padrao_path:
+                        t_inst.assinatura_padrao_path = s_inst.assinatura_padrao_path
+                    if (not t_inst.foto_perfil or t_inst.foto_perfil == 'default.png') and s_inst.foto_perfil and s_inst.foto_perfil != 'default.png':
+                        t_inst.foto_perfil = s_inst.foto_perfil
+
+                    db.session.delete(s_inst)
+                else:
+                    # target_user não tem instrutor nessa escola; reaproveita o registro s_inst
+                    s_inst.user_id = target_id
+                    if s_inst.id == source_instrutor.id:
+                        tel = form_data.get('telefone')
+                        if tel:
+                            s_inst.telefone = tel.strip()
+                        is_rr_val = form_data.get('is_rr')
+                        s_inst.is_rr = (is_rr_val == '1' or is_rr_val is True)
+
+            # 4. Unificar vínculos escolares (UserSchool)
+            source_user_schools = db.session.scalars(
+                select(UserSchool).where(UserSchool.user_id == source_id)
+            ).all()
+
+            for uss in source_user_schools:
+                ust = db.session.scalar(
+                    select(UserSchool).where(
+                        UserSchool.user_id == target_id,
+                        UserSchool.school_id == uss.school_id
+                    )
+                )
+                if ust:
+                    # Eleva o role se necessário
+                    if ust.role == 'aluno' and uss.role != 'aluno':
+                        ust.role = uss.role
+                else:
+                    db.session.add(UserSchool(user_id=target_id, school_id=uss.school_id, role=uss.role))
+
+            # Garantir vínculo na escola atual
+            if school_id:
+                school_link = db.session.scalar(
+                    select(UserSchool).where(
+                        UserSchool.user_id == target_id,
+                        UserSchool.school_id == school_id
+                    )
+                )
+                if not school_link:
+                    db.session.add(UserSchool(user_id=target_id, school_id=school_id, role='instrutor'))
+
+            # 5. Migrar dados de Aluno (se houver)
+            alunos_source = db.session.scalars(
+                select(Aluno).where(Aluno.user_id == source_id)
+            ).all()
+            for al in alunos_source:
+                al.user_id = target_id
+
+            # 6. Migrar todas as outras tabelas que referenciam users.id
+            from backend.models.admin_log import AdminLog
+            from backend.models.background_job import BackgroundJob
+            from backend.models.chamado_suporte import ChamadoSuporte
+            from backend.models.desligamento import RegistroDesligamento
+            from backend.models.diario_classe import DiarioClasse
+            from backend.models.elogio import Elogio
+            from backend.models.fada_avaliacao import FadaAvaliacao
+            from backend.models.image_asset import ImageAsset
+            from backend.models.notification import Notification
+            from backend.models.password_reset_token import PasswordResetToken
+            from backend.models.processo_disciplina import ProcessoDisciplina
+            from backend.models.push_subscription import PushSubscription
+            from backend.models.recurso import Recurso
+            from backend.models.resposta import Resposta
+            from backend.models.site_config import SiteConfig
+            
+            AdminLog.query.filter_by(user_id=source_id).update({AdminLog.user_id: target_id}, synchronize_session=False)
+            BackgroundJob.query.filter_by(user_id=source_id).update({BackgroundJob.user_id: target_id}, synchronize_session=False)
+            ChamadoSuporte.query.filter_by(solicitante_id=source_id).update({ChamadoSuporte.solicitante_id: target_id}, synchronize_session=False)
+            RegistroDesligamento.query.filter_by(admin_id=source_id).update({RegistroDesligamento.admin_id: target_id}, synchronize_session=False)
+            DiarioClasse.query.filter_by(responsavel_id=source_id).update({DiarioClasse.responsavel_id: target_id}, synchronize_session=False)
+            DiarioClasse.query.filter_by(instrutor_assinante_id=source_id).update({DiarioClasse.instrutor_assinante_id: target_id}, synchronize_session=False)
+            Elogio.query.filter_by(registrado_por_id=source_id).update({Elogio.registrado_por_id: target_id}, synchronize_session=False)
+            FadaAvaliacao.query.filter_by(lancador_id=source_id).update({FadaAvaliacao.lancador_id: target_id}, synchronize_session=False)
+            FadaAvaliacao.query.filter_by(presidente_id=source_id).update({FadaAvaliacao.presidente_id: target_id}, synchronize_session=False)
+            FadaAvaliacao.query.filter_by(membro1_id=source_id).update({FadaAvaliacao.membro1_id: target_id}, synchronize_session=False)
+            FadaAvaliacao.query.filter_by(membro2_id=source_id).update({FadaAvaliacao.membro2_id: target_id}, synchronize_session=False)
+            ImageAsset.query.filter_by(uploaded_by=source_id).update({ImageAsset.uploaded_by: target_id}, synchronize_session=False)
+            Notification.query.filter_by(user_id=source_id).update({Notification.user_id: target_id}, synchronize_session=False)
+            PasswordResetToken.query.filter_by(user_id=source_id).delete(synchronize_session=False)
+            PasswordResetToken.query.filter_by(created_by_admin_id=source_id).update({PasswordResetToken.created_by_admin_id: target_id}, synchronize_session=False)
+            ProcessoDisciplina.query.filter_by(relator_id=source_id).update({ProcessoDisciplina.relator_id: target_id}, synchronize_session=False)
+            ProcessoDisciplina.query.filter_by(autoridade_recurso_id=source_id).update({ProcessoDisciplina.autoridade_recurso_id: target_id}, synchronize_session=False)
+            PushSubscription.query.filter_by(user_id=source_id).delete(synchronize_session=False)
+            Recurso.query.filter_by(aluno_id=source_id).update({Recurso.aluno_id: target_id}, synchronize_session=False)
+            Recurso.query.filter_by(instrutor_id=source_id).update({Recurso.instrutor_id: target_id}, synchronize_session=False)
+            Recurso.query.filter_by(instrutor2_id=source_id).update({Recurso.instrutor2_id: target_id}, synchronize_session=False)
+            Resposta.query.filter_by(user_id=source_id).update({Resposta.user_id: target_id}, synchronize_session=False)
+            SiteConfig.query.filter_by(updated_by=source_id).update({SiteConfig.updated_by: target_id}, synchronize_session=False)
+            
+            # 7. Desconectar relacionamentos em memória do source_user para evitar cascata indesejada do SQLAlchemy
+            source_user.alunos_profiles = []
+            source_user.notifications = []
+            source_user.push_subscriptions = []
+            source_user.instrutor_profile = None
+
+            db.session.flush()
+
+            # 8. Deletar o source_user
+            db.session.delete(source_user)
+            db.session.commit()
+
+            # 9. Auditoria / Log
+            LogService.log(
+                action="Unificou Cadastros",
+                details=f"O cadastro do instrutor {source_nome} (Matrícula antiga: {old_matricula}) foi unificado com sucesso ao usuário {target_nome} (Matrícula: {new_matricula}). Todas as informações e vínculos escolares foram preservados sob o mesmo usuário e senha.",
+                school_id=school_id
+            )
+
+            return True, f"Cadastros unificados com sucesso! As informações e vínculos escolares foram integrados ao cadastro do usuário {target_user.nome_completo or target_user.matricula} (Matrícula {new_matricula})."
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.exception(f"Erro ao unificar cadastros de instrutor: {e}")
+            return False, f"Erro ao unificar cadastros: {str(e)}"

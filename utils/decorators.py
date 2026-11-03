@@ -1,7 +1,7 @@
 # utils/decorators.py
 
 from functools import wraps
-from flask import abort, flash, redirect, url_for
+from flask import abort, flash, redirect, url_for, session
 from flask_login import current_user
 from backend.services.user_service import UserService
 
@@ -91,13 +91,16 @@ def admin_or_programmer_required(f):
 
 def school_admin_or_programmer_required(f):
     """
-    Permite acesso ao SENS ou Admin da Escola (Comandante).
+    Permite acesso ao SENS ou Admin da Escola (Comandante), ou Super Admin em Modo DEC.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
             
+        if session.get('is_dec_mode') and getattr(current_user, 'role', '') == 'super_admin':
+            return f(*args, **kwargs)
+
         school_id = UserService.get_current_school_id()
         
         if (current_user.is_admin_escola_in_school(school_id) or 
