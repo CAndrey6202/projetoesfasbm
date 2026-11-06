@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="fas fa-file-signature me-2"></i>Gestão de Diários</h2>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{{ url_for('diario.listar_pendentes', status='pendente') }}"
+           class="btn btn-outline-primary bg-white btn-lg shadow-sm fw-bold">
+            <i class="fas fa-clock me-2"></i> Pendentes de Assinatura
+        </a>
+
+        <a href="{{ url_for('diario.listar_pendentes', status='assinado') }}"
+           class="btn btn-outline-success bg-white btn-lg shadow-sm fw-bold">
+            <i class="fas fa-check-double me-2"></i> Histórico (Já Validados)
+        </a>
+
+        <a href="{{ url_for('diario.gerar_diarios') }}"
+           class="btn btn-warning text-dark btn-lg shadow-sm fw-bold ms-md-auto">
+            <i class="fas fa-clipboard-list me-2"></i> Gerar Diários de Classe
+        </a>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm bg-white">
+        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center p-4 gap-3">
+            <div>
+                <h2 class="fw-bold mb-0 text-dark"><i class="fas fa-clipboard-list text-primary"></i> Diário de Classe</h2>
+                <span class="text-muted">Instrutor: <strong>{{ current_user.posto_graduacao or '' }} {{ current_user.nome_de_guerra or current_user.nome_completo }}</strong></span>
+            </div>
+            <div>
+                <form action="{{ url_for('diario.gerar_diarios') }}" method="GET" class="d-flex flex-wrap align-items-center bg-light p-2 rounded border gap-2">
+                    <select name="turma_id" class="form-select border-0 bg-transparent fw-bold text-dark" style="min-width: 180px; width: auto;" onchange="this.form.submit()">
+                        <option value="">-- Todas as Turmas --</option>
+                        {% for t in turmas %}
+                        <option value="{{ t.id }}" {% if sel_turma == t.id %}selected{% endif %}>{{ t.nome }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <input type="date" name="data" class="form-control border-0 bg-transparent fw-bold text-dark"
+                           value="{{ data_selecionada.strftime('%Y-%m-%d') }}"
+                           onchange="this.form.submit()"
+                           style="min-width: 150px; width: auto;">
+
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-search me-2"></i> Buscar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if erro_semana %}
+    <div class="alert alert-warning d-flex align-items-center shadow-sm text-dark" role="alert">
+        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+        <div>
+            <h5 class="alert-heading fw-bold">Sem Quadro Horário Definido</h5>
+            <p class="mb-0">Não existe uma <strong>Semana</strong> cadastrada no sistema para a data {{ data_selecionada.strftime('%d/%m/%Y') }}. Contate a administração.</p>
+        </div>
+    </div>
+    {% else %}
+
+    <div class="row g-4">
+        {% for grupo in aulas_agrupadas %}
+        <div class="col-lg-6">
+            <div class="card h-100 border-0 shadow-sm card-hover-effect bg-white">
+                <div class="card-body position-relative ps-4 border-start border-5 {% if grupo.status == 'concluido' %}border-success{% else %}border-warning{% endif %}">
+
+                    <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-1">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge bg-light text-dark border">
+                                <i class="far fa-clock"></i> {{ grupo.periodos|length }} Tempos ({{ grupo.periodos|join('º, ') }}º)
+                            </span>
+                            <span class="badge bg-primary text-white">
+                                <i class="fas fa-users me-1"></i> {{ grupo.turma.nome }}
+                            </span>
+                        </div>
+                        {% if grupo.status == 'concluido' %}
+                            {% if grupo.todos_assinados %}
+                                <span class="badge bg-success rounded-pill px-3"><i class="fas fa-check-double"></i> Validado</span>
+                            {% else %}
+                                <span class="badge bg-success rounded-pill px-3"><i class="fas fa-check"></i> Enviado</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-warning text-dark rounded-pill px-3"><i class="fas fa-pen"></i> Pendente</span>
+                        {% endif %}
+                    </div>
+
+                    <h3 class="card-title fw-bold text-dark mb-1">{{ grupo.disciplina.materia if grupo.disciplina.materia is defined else grupo.disciplina.nome }}</h3>
+
+                    <div class="d-flex align-items-center text-secondary mb-4">
+                        <div class="bg-light rounded-circle p-2 me-2 d-flex align-items-center justify-content-center border" style="width: 40px; height: 40px;">
+                            <i class="fas fa-chalkboard-teacher fa-lg text-dark"></i>
+                        </div>
+                        <div>
+                            <small class="d-block text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">Instrutor</small>
+                            <span class="fw-bold text-dark">{{ grupo.nome_instrutor }}</span>
+                        </div>
+                    </div>
+
+                    {% if grupo.status != 'concluido' %}
+                        <a href="{{ url_for('diario.registrar_aula_instrutor', primeiro_horario_id=grupo.primeiro_horario_id, data=data_selecionada) }}"
+                           class="btn btn-primary w-100 py-2 fw-bold text-uppercase stretched-link shadow-sm">
+                            <i class="fas fa-edit me-2"></i> Realizar Chamada
+                        </a>
+                    {% else %}
+                        {% if grupo.diario_pendente_id %}
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-success w-50 py-2 fw-bold" disabled>
+                                <i class="fas fa-check-double me-1"></i> Chamada Realizada
+                            </button>
+                            <a href="{{ url_for('diario.assinar', diario_id=grupo.diario_pendente_id) }}" class="btn btn-primary w-50 py-2 fw-bold shadow-sm">
+                                <i class="fas fa-pen-nib me-1"></i> Validar Diário
+                            </a>
+                        </div>
+                        {% else %}
+                        <button class="btn btn-outline-success w-100 py-2 fw-bold" disabled>
+                            <i class="fas fa-check-double me-2"></i> Chamada Realizada
+                        </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-50 mb-3">
+                <i class="fas fa-calendar-day fa-4x"></i>
+            </div>
+            <h4 class="text-secondary fw-bold">Nenhuma Aula Encontrada</h4>
+            <p class="text-muted">Nenhuma aula vinculada a você foi encontrada para {{ data_selecionada.strftime('%d/%m/%Y') }}.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .card-hover-effect {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-hover-effect:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+</style>
+{% endblock %}

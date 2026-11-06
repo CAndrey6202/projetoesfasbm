@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card border-0 shadow-sm mb-4 bg-white border-top border-primary border-5">
+        <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h6 class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.8rem;">Registro de Frequência (Instrutor)</h6>
+                <h2 class="fw-bold mb-1 text-dark">{{ disciplina.materia if disciplina.materia is defined else disciplina.nome }}</h2>
+                <div class="d-flex align-items-center flex-wrap gap-3 text-secondary mt-2">
+                    <span class="badge bg-dark text-white"><i class="fas fa-users me-1"></i> {{ turma.nome }}</span>
+                    <span><i class="fas fa-chalkboard-teacher"></i> {{ nome_instrutor }}</span>
+                    <span><i class="far fa-calendar-alt"></i> {{ data_aula.strftime('%d/%m/%Y') }}</span>
+                    <span class="badge bg-primary text-white">{{ horarios|length }} Tempos</span>
+                </div>
+            </div>
+            <a href="{{ url_for('diario.gerar_diarios', data=data_aula) }}" class="btn btn-outline-secondary fw-bold">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="acao_pos_salvar" id="acao_pos_salvar" value="salvar">
+
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-header bg-light border-bottom fw-bold text-dark">
+                        <i class="fas fa-info-circle me-1"></i> Detalhes da Aula
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark small">Conteúdo Ministrado</label>
+                            <textarea name="conteudo" class="form-control bg-light text-dark" rows="4" placeholder="Descreva o que foi passado em aula..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark small">Observações / Ocorrências</label>
+                            <textarea name="observacoes" id="obs_chefe" class="form-control bg-light text-dark" rows="3" placeholder="Algum aluno passou mal? Ocorrências em sala?"></textarea>
+                        </div>
+
+                        <div class="mb-0">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-bold text-danger small mb-0">
+                                    <i class="fas fa-user-times me-1"></i> Aluno Em Falta
+                                </label>
+                                <span id="badge-faltas-chefe" class="badge bg-secondary">0 faltas</span>
+                            </div>
+                            <textarea class="form-control bg-light" id="campo_alunos_falta_chefe" rows="2" readonly
+                                      style="background-color: #f8f9fa; border-color: #dee2e6; resize: vertical;"
+                                      placeholder="Nenhum aluno em falta."></textarea>
+                            <div class="form-text text-muted d-flex justify-content-between align-items-center mt-1">
+                                <span style="font-size: 0.75rem;"><i class="fas fa-magic text-primary me-1"></i> Atualizado automaticamente.</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="copiarFaltasParaObsChefe()">
+                                    <i class="far fa-copy me-1"></i> Copiar p/ Obs
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 bg-white">
+                    <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-users text-primary"></i> Lista de Alunos</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="marcarTodos(true)">
+                            <i class="fas fa-check-double"></i> Marcar Todos Presentes
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-dark">
+                                <tr>
+                                    <th class="ps-3 text-dark">Aluno</th>
+                                    <th class="text-center text-dark" style="width: 140px;">Status</th>
+                                    <th class="text-center text-dark">Ajuste de Períodos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for aluno in alunos %}
+                                <tr id="row-{{ aluno.id }}" class="bg-white"
+                                    data-aluno-id="{{ aluno.id }}"
+                                    data-aluno-nome="{{ aluno.user.nome_de_guerra or aluno.user.nome_completo }}"
+                                    data-aluno-num="{{ aluno.num_aluno if aluno.num_aluno is not none else '' }}">
+                                    <td class="ps-3">
+                                        <div class="fw-bold text-dark">
+                                            {% if aluno.user.nome_de_guerra %}
+                                                {{ aluno.user.nome_de_guerra }}
+                                            {% else %}
+                                                {{ aluno.user.nome_completo }}
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">{{ aluno.num_aluno if aluno.num_aluno is not none else '--' }} - {{ aluno.user.nome_completo }}</small>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-flex justify-content-center">
+                                            <input class="form-check-input scale-125" type="checkbox"
+                                                   id="master-{{ aluno.id }}"
+                                                   checked
+                                                   onchange="toggleMaster('{{ aluno.id }}')">
+                                        </div>
+                                        <small class="fw-bold text-success" id="label-master-{{ aluno.id }}">PRESENTE</small>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <div id="periods-msg-{{ aluno.id }}" class="text-muted small">
+                                            <span class="badge bg-light text-success border border-success">
+                                                <i class="fas fa-check"></i> Presença Integral
+                                            </span>
+                                        </div>
+
+                                        <div id="periods-{{ aluno.id }}" class="d-none d-flex flex-wrap gap-1 justify-content-center align-items-center">
+                                            {% for h in horarios %}
+                                                <input type="checkbox" class="btn-check check-periodo-chefe"
+                                                       name="presenca_{{ aluno.id }}_{{ h['periodo'] }}"
+                                                       id="btn-check-{{ aluno.id }}-{{ h['periodo'] }}"
+                                                       data-aluno-id="{{ aluno.id }}"
+                                                       data-periodo="{{ h['periodo'] }}"
+                                                       autocomplete="off" checked>
+
+                                                <label class="btn btn-outline-primary btn-sm fw-bold shadow-none"
+                                                       for="btn-check-{{ aluno.id }}-{{ h['periodo'] }}"
+                                                       style="width: 40px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                                    {{ h['periodo'] }}º
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+
+                                        <div id="periods-help-{{ aluno.id }}" class="d-none mt-1">
+                                            <small class="text-danger" style="font-size: 0.7rem;">Desmarque os tempos de falta</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-4 mb-5">
+            <div class="col-md-6">
+                <button type="submit" class="btn btn-success btn-lg w-100 shadow fw-bold" onclick="document.getElementById('acao_pos_salvar').value='salvar';">
+                    <i class="fas fa-save me-2"></i> Confirmar e Salvar Chamada
+                </button>
+            </div>
+            <div class="col-md-6">
+                <button type="submit" class="btn btn-primary btn-lg w-100 shadow fw-bold" onclick="document.getElementById('acao_pos_salvar').value='assinar';">
+                    <i class="fas fa-pen-nib me-2"></i> Salvar Chamada e Assinar Agora
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .scale-125 { transform: scale(1.4); cursor: pointer; }
+    .bg-white { background-color: #ffffff !important; }
+    .text-dark { color: #212529 !important; }
+
+    .table-danger-custom { background-color: #fff5f5 !important; }
+    .table-danger-custom td { color: #842029 !important; }
+    .table-danger-custom small.text-muted { color: #842029 !important; opacity: 0.8; }
+
+    .btn-check:checked + .btn-outline-primary {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .btn-check:not(:checked) + .btn-outline-primary {
+        background-color: white;
+        color: #dc3545;
+        border-color: #dee2e6;
+        opacity: 0.6;
+    }
+    .btn-check:not(:checked) + .btn-outline-primary:hover {
+        border-color: #dc3545;
+        opacity: 1;
+    }
+</style>
+
+<script>
+    function formatarTemposFaltaChefe(tempos, totalTempos) {
+        if (totalTempos <= 1) return '';
+        const temposOrdinais = tempos.map(p => `${p}º`);
+        if (temposOrdinais.length === 1) return ` (${temposOrdinais[0]} Tempo)`;
+        if (temposOrdinais.length === totalTempos) return ` (${temposOrdinais.join(', ')} Tempos)`;
+        const ult = temposOrdinais.pop();
+        return ` (${temposOrdinais.join(', ')} e ${ult} Tempos)`;
+    }
+
+    function atualizarAlunosEmFaltaChefe() {
+        const campoFalta = document.getElementById('campo_alunos_falta_chefe');
+        const badgeFaltas = document.getElementById('badge-faltas-chefe');
+        if (!campoFalta) return;
+
+        const rows = document.querySelectorAll('tbody tr[data-aluno-id]');
+        const listaFaltosos = [];
+
+        rows.forEach(row => {
+            const alunoNome = row.getAttribute('data-aluno-nome');
+            const alunoNum = row.getAttribute('data-aluno-num');
+            const checks = row.querySelectorAll('input.check-periodo-chefe');
+
+            const temposFaltantes = [];
+            checks.forEach(chk => {
+                if (!chk.checked) {
+                    temposFaltantes.push(chk.getAttribute('data-periodo'));
+                }
+            });
+
+            if (temposFaltantes.length > 0) {
+                let nomeExibicao = alunoNome;
+                if (alunoNum && alunoNum.trim() !== '' && alunoNum !== 'None') {
+                    nomeExibicao = `${alunoNum} - ${alunoNome}`;
+                }
+                const sufixoTempos = formatarTemposFaltaChefe(temposFaltantes, checks.length);
+                listaFaltosos.push(`${nomeExibicao}${sufixoTempos}`);
+            }
+        });
+
+        if (listaFaltosos.length === 0) {
+            campoFalta.value = '';
+            campoFalta.placeholder = 'Nenhum aluno em falta (100% de presença).';
+            campoFalta.style.backgroundColor = '#f8f9fa';
+            campoFalta.style.borderColor = '#dee2e6';
+            campoFalta.style.color = '#495057';
+            campoFalta.style.fontWeight = 'normal';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-success';
+                badgeFaltas.innerHTML = '<i class="fas fa-check me-1"></i> Nenhuma falta';
+            }
+        } else {
+            campoFalta.value = listaFaltosos.join(', ');
+            campoFalta.style.backgroundColor = '#fff5f5';
+            campoFalta.style.borderColor = '#f5c2c7';
+            campoFalta.style.color = '#842029';
+            campoFalta.style.fontWeight = '500';
+            if (badgeFaltas) {
+                badgeFaltas.className = 'badge bg-danger';
+                const textoAlunos = listaFaltosos.length === 1 ? '1 aluno em falta' : `${listaFaltosos.length} alunos em falta`;
+                badgeFaltas.innerHTML = `<i class="fas fa-user-times me-1"></i> ${textoAlunos}`;
+            }
+        }
+    }
+
+    function toggleMaster(alunoId) {
+        const masterCheck = document.getElementById(`master-${alunoId}`);
+        const periodsDiv = document.getElementById(`periods-${alunoId}`);
+        const periodsHelp = document.getElementById(`periods-help-${alunoId}`);
+        const msgDiv = document.getElementById(`periods-msg-${alunoId}`);
+        const label = document.getElementById(`label-master-${alunoId}`);
+        const row = document.getElementById(`row-${alunoId}`);
+        const subChecks = periodsDiv.querySelectorAll('input.check-periodo-chefe');
+
+        if (masterCheck.checked) {
+            periodsDiv.classList.add('d-none');
+            periodsHelp.classList.add('d-none');
+            msgDiv.classList.remove('d-none');
+            label.textContent = "PRESENTE";
+            label.className = "fw-bold text-success";
+            row.classList.remove('table-danger-custom');
+            subChecks.forEach(ch => ch.checked = true);
+        } else {
+            periodsDiv.classList.remove('d-none');
+            periodsHelp.classList.remove('d-none');
+            msgDiv.classList.add('d-none');
+            label.textContent = "EDITAR";
+            label.className = "fw-bold text-danger";
+            row.classList.add('table-danger-custom');
+            subChecks.forEach(ch => ch.checked = false);
+        }
+        atualizarAlunosEmFaltaChefe();
+    }
+
+    function marcarTodos(estado) {
+        document.querySelectorAll('[id^="master-"]').forEach(m => {
+            m.checked = estado;
+            const alunoId = m.id.replace('master-', '');
+            const periodsDiv = document.getElementById(`periods-${alunoId}`);
+            const periodsHelp = document.getElementById(`periods-help-${alunoId}`);
+            const msgDiv = document.getElementById(`periods-msg-${alunoId}`);
+            const label = document.getElementById(`label-master-${alunoId}`);
+            const row = document.getElementById(`row-${alunoId}`);
+            const subChecks = periodsDiv ? periodsDiv.querySelectorAll('input.check-periodo-chefe') : [];
+
+            if (estado) {
+                if (periodsDiv) periodsDiv.classList.add('d-none');
+                if (periodsHelp) periodsHelp.classList.add('d-none');
+                if (msgDiv) msgDiv.classList.remove('d-none');
+                if (label) { label.textContent = "PRESENTE"; label.className = "fw-bold text-success"; }
+                if (row) row.classList.remove('table-danger-custom');
+                subChecks.forEach(ch => ch.checked = true);
+            } else {
+                if (periodsDiv) periodsDiv.classList.remove('d-none');
+                if (periodsHelp) periodsHelp.classList.remove('d-none');
+                if (msgDiv) msgDiv.classList.add('d-none');
+                if (label) { label.textContent = "EDITAR"; label.className = "fw-bold text-danger"; }
+                if (row) row.classList.add('table-danger-custom');
+                subChecks.forEach(ch => ch.checked = false);
+            }
+        });
+        atualizarAlunosEmFaltaChefe();
+    }
+
+    function copiarFaltasParaObsChefe() {
+        const campoFalta = document.getElementById('campo_alunos_falta_chefe');
+        const campoObs = document.getElementById('obs_chefe');
+        if (!campoFalta || !campoObs) return;
+        if (!campoFalta.value.trim()) {
+            alert('Não há alunos em falta para copiar.');
+            return;
+        }
+        const textoFaltas = `Alunos em falta: ${campoFalta.value}`;
+        if (campoObs.value.trim() === '') {
+            campoObs.value = textoFaltas;
+        } else if (!campoObs.value.includes(campoFalta.value)) {
+            campoObs.value += `\n${textoFaltas}`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input.check-periodo-chefe').forEach(chk => {
+            chk.addEventListener('change', function() {
+                const alunoId = this.getAttribute('data-aluno-id');
+                const periodsDiv = document.getElementById(`periods-${alunoId}`);
+                const subChecks = periodsDiv.querySelectorAll('input.check-periodo-chefe');
+                const allChecked = Array.from(subChecks).every(c => c.checked);
+
+                if (allChecked) {
+                    const masterCheck = document.getElementById(`master-${alunoId}`);
+                    masterCheck.checked = true;
+                    toggleMaster(alunoId);
+                } else {
+                    atualizarAlunosEmFaltaChefe();
+                }
+            });
+        });
+        atualizarAlunosEmFaltaChefe();
+    });
+</script>
+{% endblock %}

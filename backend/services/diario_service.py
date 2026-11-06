@@ -86,10 +86,30 @@ class DiarioService:
         query = select(Instrutor).where(Instrutor.user_id == user_id)
         if school_id:
             try:
-                query = query.where(Instrutor.school_id == int(school_id))
+                inst = db.session.scalars(
+                    query.where(or_(Instrutor.school_id == int(school_id), Instrutor.school_id.is_(None)))
+                ).first()
+                if inst:
+                    return inst
             except (ValueError, TypeError):
                 pass
         return db.session.scalars(query).first()
+
+    @staticmethod
+    def get_current_instrutor_ids(user_id, school_id=None):
+        if not school_id:
+            school_id = session.get('active_school_id')
+        query = select(Instrutor.id).where(Instrutor.user_id == user_id)
+        if school_id:
+            try:
+                ids = db.session.scalars(
+                    query.where(or_(Instrutor.school_id == int(school_id), Instrutor.school_id.is_(None)))
+                ).all()
+                if ids:
+                    return list(ids)
+            except (ValueError, TypeError):
+                pass
+        return list(db.session.scalars(query).all())
 
     @staticmethod
     def get_diarios_pendentes(school_id, user_id=None, turma_id=None, disciplina_id=None, status=None, data_aula=None, page=1, per_page=30, ciclo_id=None):
@@ -126,15 +146,29 @@ class DiarioService:
             stmt = stmt.where(DiarioClasse.data_aula == data_aula)
 
         if user_id:
-            instrutor = DiarioService.get_current_instrutor(user_id)
-            if instrutor:
-                subquery_vinculos = select(DisciplinaTurma.disciplina_id).where(
-                    or_(
-                        DisciplinaTurma.instrutor_id_1 == instrutor.id,
-                        DisciplinaTurma.instrutor_id_2 == instrutor.id
+            instrutor_ids = DiarioService.get_current_instrutor_ids(user_id, school_id)
+            if instrutor_ids:
+                disc_ids_vinc = set(db.session.scalars(
+                    select(DisciplinaTurma.disciplina_id).where(
+                        or_(
+                            DisciplinaTurma.instrutor_id_1.in_(instrutor_ids),
+                            DisciplinaTurma.instrutor_id_2.in_(instrutor_ids)
+                        )
                     )
-                )
-                stmt = stmt.where(DiarioClasse.disciplina_id.in_(subquery_vinculos))
+                ).all())
+                disc_ids_hor = set(db.session.scalars(
+                    select(Horario.disciplina_id).where(
+                        or_(
+                            Horario.instrutor_id.in_(instrutor_ids),
+                            Horario.instrutor_id_2.in_(instrutor_ids)
+                        )
+                    )
+                ).all())
+                all_disc_ids = [d_id for d_id in (disc_ids_vinc | disc_ids_hor) if d_id is not None]
+                condicoes_diario = [DiarioClasse.responsavel_id == user_id]
+                if all_disc_ids:
+                    condicoes_diario.append(DiarioClasse.disciplina_id.in_(all_disc_ids))
+                stmt = stmt.where(or_(*condicoes_diario))
             else:
                 class EmptyPagination:
                     items = []
@@ -255,12 +289,25 @@ class DiarioService:
         if ciclo_id:
             stmt_disc = stmt_disc.where(Disciplina.ciclo_id == ciclo_id)
             
-        if instrutor:
-            vinculos = select(DisciplinaTurma.disciplina_id).where(
-                or_(DisciplinaTurma.instrutor_id_1 == instrutor.id, 
-                    DisciplinaTurma.instrutor_id_2 == instrutor.id)
-            )
-            stmt_disc = stmt_disc.where(Disciplina.id.in_(vinculos))
+        instrutor_ids = DiarioService.get_current_instrutor_ids(user_id, school_id) if user_id else []
+        if instrutor_ids:
+            disc_ids_vinc = set(db.session.scalars(
+                select(DisciplinaTurma.disciplina_id).where(
+                    or_(DisciplinaTurma.instrutor_id_1.in_(instrutor_ids), 
+                        DisciplinaTurma.instrutor_id_2.in_(instrutor_ids))
+                )
+            ).all())
+            disc_ids_hor = set(db.session.scalars(
+                select(Horario.disciplina_id).where(
+                    or_(Horario.instrutor_id.in_(instrutor_ids),
+                        Horario.instrutor_id_2.in_(instrutor_ids))
+                )
+            ).all())
+            all_disc_ids = [d_id for d_id in (disc_ids_vinc | disc_ids_hor) if d_id is not None]
+            if all_disc_ids:
+                stmt_disc = stmt_disc.where(Disciplina.id.in_(all_disc_ids))
+            else:
+                stmt_disc = stmt_disc.where(Disciplina.id == -1)
 
         disciplinas = db.session.scalars(stmt_disc.distinct()).all()
         unique_disciplinas = sorted({d.materia: d for d in disciplinas}.values(), key=lambda x: x.materia)
@@ -270,7 +317,8 @@ class DiarioService:
     @staticmethod
     def get_diario_para_assinatura(diario_id, user_id):
         instrutor = DiarioService.get_current_instrutor(user_id)
-        if not instrutor: return None, None
+        instrutor_ids = DiarioService.get_current_instrutor_ids(user_id)
+        if not instrutor or not instrutor_ids: return None, None
         
         diario = db.session.get(DiarioClasse, diario_id)
         if not diario or diario.is_deleted: return None, None
@@ -278,12 +326,22 @@ class DiarioService:
         vinculo = db.session.scalars(
             select(DisciplinaTurma).where(
                 DisciplinaTurma.disciplina_id == diario.disciplina_id,
-                or_(DisciplinaTurma.instrutor_id_1 == instrutor.id, 
-                    DisciplinaTurma.instrutor_id_2 == instrutor.id)
+                or_(DisciplinaTurma.instrutor_id_1.in_(instrutor_ids), 
+                    DisciplinaTurma.instrutor_id_2.in_(instrutor_ids))
             )
         ).first()
 
-        if vinculo:
+        if vinculo or diario.responsavel_id == user_id:
+            return diario, instrutor
+
+        horario_vinc = db.session.scalars(
+            select(Horario).where(
+                Horario.disciplina_id == diario.disciplina_id,
+                or_(Horario.instrutor_id.in_(instrutor_ids),
+                    Horario.instrutor_id_2.in_(instrutor_ids))
+            )
+        ).first()
+        if horario_vinc:
             return diario, instrutor
             
         return None, None
