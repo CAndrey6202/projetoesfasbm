@@ -6,15 +6,20 @@
         <h2 class="fw-bold"><i class="fas fa-file-signature me-2"></i>Gestão de Diários</h2>
     </div>
 
-    <div class="mb-4">
+    <div class="d-flex flex-wrap gap-2 mb-4">
         <a href="{{ url_for('diario.listar_pendentes', status='pendente') }}"
-           class="btn {% if sel_status == 'pendente' %}btn-primary{% else %}btn-outline-primary bg-white{% endif %} btn-lg me-2 shadow-sm fw-bold">
+           class="btn {% if sel_status == 'pendente' %}btn-primary{% else %}btn-outline-primary bg-white{% endif %} btn-lg shadow-sm fw-bold">
             <i class="fas fa-clock me-2"></i> Pendentes de Assinatura
         </a>
 
         <a href="{{ url_for('diario.listar_pendentes', status='assinado') }}"
            class="btn {% if sel_status == 'assinado' %}btn-success{% else %}btn-outline-success bg-white{% endif %} btn-lg shadow-sm fw-bold">
             <i class="fas fa-check-double me-2"></i> Histórico (Já Validados)
+        </a>
+
+        <a href="{{ url_for('diario.gerar_diarios') }}"
+           class="btn btn-warning text-dark btn-lg shadow-sm fw-bold ms-md-auto">
+            <i class="fas fa-clipboard-list me-2"></i> Gerar Diários de Classe
         </a>
     </div>
     
