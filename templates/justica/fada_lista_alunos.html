@@ -122,9 +122,9 @@
                             <br>
                             <small class="text-muted">{{ item.turma }}</small>
                         </td>
-                        <td class="fw-bold text-primary">{{ "{:.2f}".format(item.ndisc) if item.ndisc is not none else "-" }}</td>
-                        <td class="fw-bold text-success">{{ "{:.2f}".format(item.fada) if item.fada is not none else "Pendente"}}</td>
-                        <td class="bg-light fw-bold fs-5">{{ "{:.2f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
+                        <td class="fw-bold text-primary">{{ "{:.3f}".format(item.ndisc) if (item.ndisc is not none and item.ndisc % 0.01 != 0) else ("{:.2f}".format(item.ndisc) if item.ndisc is not none else "-") }}</td>
+                        <td class="fw-bold text-success">{{ "{:.3f}".format(item.fada) if item.fada is not none else "Pendente"}}</td>
+                        <td class="bg-light fw-bold fs-5">{{ "{:.3f}".format(item.aat) if item.aat is not none else "Pendente"}}</td>
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
                                 <script>window.fadaDataMap = window.fadaDataMap || {}; window.fadaDataMap[{{ item.id }}] = {{ fada_data|tojson|safe }};</script>

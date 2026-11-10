@@ -62,9 +62,9 @@
                 <td class="text-left">
                     {{ item.aluno.user.posto_graduacao }} {{ item.aluno.user.nome_completo }}
                 </td>
-                <td>{{ "{:.2f}".format(item.ndisc) }}</td>
-                <td>{{ "{:.2f}".format(item.fada) }}</td>
-                <td style="font-weight: bold; background-color: #f9f9f9;">{{ "{:.2f}".format(item.aat) }}</td>
+                <td>{{ "{:.3f}".format(item.ndisc) if (item.ndisc is not none and item.ndisc % 0.01 != 0) else ("{:.2f}".format(item.ndisc) if item.ndisc is not none else "-") }}</td>
+                <td>{{ "{:.3f}".format(item.fada) if item.fada is not none else "-" }}</td>
+                <td style="font-weight: bold; background-color: #f9f9f9;">{{ "{:.3f}".format(item.aat) if item.aat is not none else "-" }}</td>
             </tr>
             {% endfor %}
         </tbody>

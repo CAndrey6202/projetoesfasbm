@@ -232,7 +232,7 @@
 
         <div class="row mx-0 border border-dark p-1 mb-2 align-items-center">
             <div class="col-8 text-end fw-bold">MÉDIA FINAL FADA:</div>
-            <div class="col-4 text-center fw-bold fs-5" id="displayMediaFada">8.00</div>
+            <div class="col-4 text-center fw-bold fs-5" id="displayMediaFada">8.000</div>
         </div>
 
         <div class="border border-dark p-2 mb-2 font-serif small">
@@ -707,7 +707,7 @@ function calcularMediaFada() {
         count++;
     });
     const media = count > 0 ? (s / count) : 0;
-    document.getElementById('displayMediaFada').innerText = media.toFixed(2);
+    document.getElementById('displayMediaFada').innerText = media.toFixed(3);
 }
 
 function aplicarDesconto(selectEl) {

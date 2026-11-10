@@ -301,9 +301,9 @@ class JusticaService:
         if fada_oficial and fada_oficial.media_final is not None:
             nota_fada = fada_oficial.media_final
             aat = (ndisc + nota_fada) / 2.0
-            return round(aat, 2), round(ndisc, 2), round(nota_fada, 4)
+            return round(aat, 3), round(ndisc, 3), round(nota_fada, 3)
         else:
-            return None, round(ndisc, 2), None
+            return None, round(ndisc, 3), None
 
     @staticmethod
     def get_processos_para_usuario(user, school_id_override=None):
