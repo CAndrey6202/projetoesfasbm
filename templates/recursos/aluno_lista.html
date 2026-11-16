@@ -49,6 +49,8 @@
                                     <span class="badge bg-success-subtle text-success rounded-pill px-3">Deferido</span>
                                 {% elif r.status == 'Indeferido' %}
                                     <span class="badge bg-danger-subtle text-danger rounded-pill px-3">Indeferido</span>
+                                {% elif r.status == 'Anulado' %}
+                                    <span class="badge bg-secondary rounded-pill px-3 text-white">Anulado</span>
                                 {% else %}
                                     <span class="badge bg-info-subtle text-info rounded-pill px-3">{{ r.status }}</span>
                                 {% endif %}
@@ -66,7 +68,7 @@
                                         <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-1 d-flex align-items-center" title="Ciente registrado em {{ r.aluno_ciente_data|br_time('%d/%m/%Y %H:%M') if r.aluno_ciente_data else '' }}"><i class="fas fa-check-double me-1"></i> Ciente</span>
                                         {% endif %}
                                     {% endif %}
-                                    {% if r.status == 'Em Análise' or r.status == 'Pendente' %}
+                                    {% if r.status in ['Em Análise', 'Pendente', 'Anulado'] %}
                                     <form action="{{ url_for('recursos.excluir_recurso_aluno', recurso_id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este recurso? Esta ação não pode ser desfeita.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">

@@ -953,15 +953,15 @@ def fada_boletim():
             else:
                 pontos_perdidos = sum(p.pontos for p in punicoes_validas if p.origem_punicao == "NPCCAL" and p.pontos)
                 ndisc = max(0.0, min(10.0, (JusticaService.NDISC_BASE - pontos_perdidos) / 2.0))
-            ndisc = round(ndisc, 2)
+            ndisc = round(ndisc, 3)
 
             if fada_obj and fada_obj.media_final is not None:
                 if fada_obj.status == 'RASCUNHO' and (fada_obj.media_final == 0.0 or not fada_obj.media_final):
                     fada_val = 8.0
-                    aat = round((ndisc + fada_val) / 2.0, 2)
+                    aat = round((ndisc + fada_obj.media_final) / 2.0, 3)
                 else:
-                    fada_val = round(fada_obj.media_final, 4)
-                    aat = round((ndisc + fada_val) / 2.0, 2)
+                    fada_val = round(fada_obj.media_final, 3)
+                    aat = round((ndisc + fada_obj.media_final) / 2.0, 3)
             else:
                 fada_val = None
                 aat = None
@@ -1236,12 +1236,13 @@ def _lancar_fada_no_boletim(f):
                     )
                 )
                 if hist:
+                    hist.nota = f.aat_snapshot
                     hist.nota_final = f.aat_snapshot
                 else:
                     novo_hist = HistoricoDisciplina(
                         aluno_id=aluno_obj.id,
                         disciplina_id=disciplina_aat.id,
-                        nota_final=f.aat_snapshot
+                        nota=f.aat_snapshot
                     )
                     db.session.add(novo_hist)
     except Exception as e:
@@ -1355,16 +1356,16 @@ def julgar_recurso_fada(fada_id):
 
         LogService.log(
             action="Julgou Recurso FADA (Indeferido)",
-            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi INDEFERIDO por {current_user.nome_completo}. Média mantida: {fada.media_final:.2f}. Parecer: {parecer}",
+            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi INDEFERIDO por {current_user.nome_completo}. Média mantida: {fada.media_final:.3f}. Parecer: {parecer}",
             school_id=school_id
         )
         if aluno and aluno.user:
             NotificationService.create_notification(
                 user_id=aluno.user.id,
-                message=f"Seu recurso da FADA foi analisado e INDEFERIDO. A avaliação foi finalizada (Média FADA: {fada.media_final:.2f}).",
+                message=f"Seu recurso da FADA foi analisado e INDEFERIDO. A avaliação foi finalizada (Média FADA: {fada.media_final:.3f}).",
                 url=url_for('justica.index', tab='fadaContent', _external=True)
             )
-        flash(f"Recurso da FADA de {nome_aluno} INDEFERIDO. Nota mantida ({fada.media_final:.2f}) e FADA finalizada no boletim!", "info")
+        flash(f"Recurso da FADA de {nome_aluno} INDEFERIDO. Nota mantida ({fada.media_final:.3f}) e FADA finalizada no boletim!", "info")
 
     elif decisao == 'DEFERIR':
         notas = request.form.getlist('notas[]')
@@ -1392,7 +1393,7 @@ def julgar_recurso_fada(fada_id):
 
         carimbo = (
             f"[RECURSO FADA DEFERIDO em {data_atual} por {current_user.nome_completo} "
-            f"| Nova Média FADA: {fada.media_final:.2f} | Recurso do Aluno: {motivo_aluno} | Parecer: {parecer}]"
+            f"| Nova Média FADA: {fada.media_final:.3f} | Recurso do Aluno: {motivo_aluno} | Parecer: {parecer}]"
         )
         fada.observacao = f"{carimbo}\n{fada.observacao}" if (fada.observacao and fada.observacao.strip()) else carimbo
 
@@ -1401,16 +1402,16 @@ def julgar_recurso_fada(fada_id):
 
         LogService.log(
             action="Julgou Recurso FADA (Deferido)",
-            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi DEFERIDO por {current_user.nome_completo}. Nova Média FADA: {fada.media_final:.2f}. Parecer: {parecer}",
+            details=f"Recurso da FADA ID {fada.id} do aluno {nome_aluno} foi DEFERIDO por {current_user.nome_completo}. Nova Média FADA: {fada.media_final:.3f}. Parecer: {parecer}",
             school_id=school_id
         )
         if aluno and aluno.user:
             NotificationService.create_notification(
                 user_id=aluno.user.id,
-                message=f"Seu recurso da FADA foi DEFERIDO! Avaliação atualizada e finalizada (Média FADA: {fada.media_final:.2f}).",
+                message=f"Seu recurso da FADA foi DEFERIDO! Avaliação atualizada e finalizada (Média FADA: {fada.media_final:.3f}).",
                 url=url_for('justica.index', tab='fadaContent', _external=True)
             )
-        flash(f"Recurso da FADA de {nome_aluno} DEFERIDO com sucesso! Nova Média FADA: {fada.media_final:.2f} lançada no boletim.", "success")
+        flash(f"Recurso da FADA de {nome_aluno} DEFERIDO com sucesso! Nova Média FADA: {fada.media_final:.3f} lançada no boletim.", "success")
 
     elif decisao == 'DEFERIR_REABRIR':
         notas = request.form.getlist('notas[]')

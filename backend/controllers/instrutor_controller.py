@@ -1,5 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
+from sqlalchemy import select, or_
+from utils.normalizer import normalize_matricula
 from wtforms import StringField, SelectField, BooleanField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Optional, Email, EqualTo
 from flask_wtf import FlaskForm
@@ -51,7 +53,7 @@ class InstrutorForm(FlaskForm):
 class EditInstrutorForm(FlaskForm):
     nome_completo = StringField("Nome Completo", validators=[DataRequired()])
     nome_de_guerra = StringField("Nome de Guerra", validators=[DataRequired()])
-    matricula = StringField("Matrícula", render_kw={"readonly": True})
+    matricula = StringField("Matrícula", validators=[DataRequired()])
     email = StringField("E-mail", validators=[DataRequired(), Email()])
 
     posto_categoria = SelectField("Categoria", choices=list(posto_graduacao_structured.keys()), validators=[DataRequired()])
@@ -134,8 +136,16 @@ def editar_instrutor(instrutor_id):
         flash("Instrutor não encontrado.", "danger")
         return redirect(url_for("instrutor.listar_instrutores"))
 
+    is_dec = bool(session.get('is_dec_mode') and current_user.is_authenticated and current_user.role == 'super_admin')
+
     form = EditInstrutorForm(obj=instrutor)
     form.posto_categoria.choices = [(k, k) for k in posto_graduacao_structured.keys()]
+
+    # Controle de edição da matrícula para Modo DEC
+    if is_dec:
+        form.matricula.render_kw = {"placeholder": "Digite a matrícula"}
+    else:
+        form.matricula.render_kw = {"readonly": True}
 
     if request.method == 'GET':
         # Preenche os dados do Usuário
@@ -170,29 +180,89 @@ def editar_instrutor(instrutor_id):
          if categoria_selecionada in posto_graduacao_structured:
               form.posto_graduacao.choices = [(p, p) for p in posto_graduacao_structured[categoria_selecionada]]
 
+    # Segurança: Usuários que NÃO estejam em Modo DEC não podem alterar a matrícula
+    if not is_dec:
+        form.matricula.data = instrutor.user.matricula
+
     if form.validate_on_submit():
         try:
-            # --- ATUALIZAÇÃO MANUAL E SEGURA ---
-            # 1. Atualiza dados do Usuário
+            old_matricula = instrutor.user.matricula
+            nova_matricula = None
+            if is_dec:
+                raw_mat = (form.matricula.data or '').strip()
+                nova_matricula = normalize_matricula(raw_mat) or raw_mat
+                if not nova_matricula:
+                    flash("Matrícula inválida.", "danger")
+                    return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured, dec_mode_active=is_dec)
+            else:
+                nova_matricula = old_matricula
+
+            old_mat_norm = normalize_matricula(old_matricula) or old_matricula
+
+            # Se for Modo DEC e a matrícula informada for diferente da atual
+            if is_dec and nova_matricula != old_matricula and nova_matricula != old_mat_norm:
+                # Verifica se já existe outro usuário cadastrado com esta matrícula
+                existing_user = db.session.scalar(
+                    select(User).where(
+                        or_(
+                            User.matricula == nova_matricula,
+                            User.matricula == form.matricula.data.strip()
+                        ),
+                        User.id != instrutor.user_id
+                    )
+                )
+
+                if existing_user:
+                    # Unifica os dois cadastros preservando todas as informações escolares
+                    form_data = form.data.copy()
+                    success, msg = InstrutorService.unificar_instrutor_com_usuario_existente(
+                        source_instrutor=instrutor,
+                        target_user=existing_user,
+                        form_data=form_data
+                    )
+                    if success:
+                        flash(msg, "success")
+                        return redirect(url_for("instrutor.listar_instrutores"))
+                    else:
+                        flash(msg, "danger")
+                        return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured, dec_mode_active=is_dec)
+                else:
+                    # Ninguém tem a nova matrícula: altera a matrícula no usuário atual
+                    instrutor.user.matricula = nova_matricula
+                    if instrutor.user.username == old_matricula:
+                        user_with_username = db.session.scalar(
+                            select(User.id).where(User.username == nova_matricula, User.id != instrutor.user_id)
+                        )
+                        if not user_with_username:
+                            instrutor.user.username = nova_matricula
+
+            # Atualiza dados do Usuário
             instrutor.user.nome_completo = form.nome_completo.data
             instrutor.user.nome_de_guerra = form.nome_de_guerra.data
-            instrutor.user.email = form.email.data
+
+            novo_email = (form.email.data or '').strip().lower()
+            if novo_email and novo_email != instrutor.user.email:
+                email_conflict = db.session.scalar(
+                    select(User.id).where(User.email == novo_email, User.id != instrutor.user_id)
+                )
+                if email_conflict:
+                    flash(f"O e-mail '{novo_email}' já está em uso por outro usuário.", "danger")
+                    return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured, dec_mode_active=is_dec)
+                instrutor.user.email = novo_email
 
             if form.posto_graduacao.data == 'Outro':
                 instrutor.user.posto_graduacao = form.posto_graduacao_outro.data
             else:
                 instrutor.user.posto_graduacao = form.posto_graduacao.data
 
-            # 2. Atualiza dados do Instrutor
+            # Atualiza dados do Instrutor
             instrutor.telefone = form.telefone.data
-
-            # CORREÇÃO CRÍTICA: Converte '1'/'0' para True/False explicitamente
             instrutor.is_rr = (form.is_rr.data == '1')
 
             db.session.commit()
             
             # --- ESPIÃO: EDIÇÃO DE INSTRUTOR ---
-            school_id = UserService.get_current_school_id()
+            school_id = UserService.get_current_school_id() or instrutor.school_id
             LogService.log(
                 action="Editou Instrutor",
                 details=f"Os dados do instrutor {instrutor.user.nome_completo} (Matrícula: {instrutor.user.matricula}) foram atualizados.",
@@ -209,7 +279,7 @@ def editar_instrutor(instrutor_id):
     elif request.method == 'POST':
         flash(f"Erros de validação: {form.errors}", "danger")
 
-    return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured)
+    return render_template("editar_instrutor.html", form=form, instrutor=instrutor, postos_data=posto_graduacao_structured, dec_mode_active=is_dec)
 
 
 @instrutor_bp.route("/excluir/<int:instrutor_id>", methods=["POST"])

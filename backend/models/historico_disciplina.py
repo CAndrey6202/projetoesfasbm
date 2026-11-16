@@ -30,9 +30,19 @@ class HistoricoDisciplina(db.Model):
     def __init__(self, aluno_id: int, disciplina_id: int, 
                  nota: t.Optional[float] = None, data_conclusao: t.Optional[datetime] = None, 
                  status: str = 'cursando', **kw: t.Any) -> None:
+        if 'nota_final' in kw and nota is None:
+            nota = kw.pop('nota_final')
         super().__init__(aluno_id=aluno_id, disciplina_id=disciplina_id, 
                          nota=nota, data_conclusao=data_conclusao, 
                          status=status, **kw)
+
+    @property
+    def nota_final(self) -> t.Optional[float]:
+        return self.nota
+
+    @nota_final.setter
+    def nota_final(self, value: t.Optional[float]) -> None:
+        self.nota = value
 
     def __repr__(self):
         return (f"<HistoricoDisciplina id={self.id} disciplina_id={self.disciplina_id} "
