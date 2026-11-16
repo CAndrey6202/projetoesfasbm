@@ -106,6 +106,7 @@ def index():
                 stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
+        stmt_publicados = select(ProcessoDisciplina).where(ProcessoDisciplina.id == -1)
         
         fadas_aluno = db.session.scalars(
             select(FadaAvaliacao).where(
@@ -172,6 +173,15 @@ def index():
             ProcessoDisciplina.status != StatusProcesso.ARQUIVADO.value
         ).order_by(ProcessoDisciplina.data_ocorrencia.desc())
 
+        is_publicado_cond = or_(
+            ProcessoDisciplina.observacao_decisao.ilike('%Impresso em %'),
+            ProcessoDisciplina.observacao_decisao.ilike('%Publicado em Boletim%')
+        )
+        not_publicado_cond = or_(
+            ProcessoDisciplina.observacao_decisao.is_(None),
+            ~is_publicado_cond
+        )
+
         # CORREÇÃO CRUCIAL AQUI: Ordem exata das tabelas para o banco não se perder
         stmt_finalizados = select(ProcessoDisciplina).join(Aluno, ProcessoDisciplina.aluno_id == Aluno.id).join(User, Aluno.user_id == User.id).join(Turma, Aluno.turma_id == Turma.id).options(
             joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.user),
@@ -179,7 +189,18 @@ def index():
         ).where(
             Turma.school_id == school_id,
             edicao_filter,
-            or_(ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.status == StatusProcesso.ARQUIVADO.value)
+            or_(ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.status == StatusProcesso.ARQUIVADO.value),
+            not_publicado_cond
+        )
+
+        stmt_publicados = select(ProcessoDisciplina).join(Aluno, ProcessoDisciplina.aluno_id == Aluno.id).join(User, Aluno.user_id == User.id).join(Turma, Aluno.turma_id == Turma.id).options(
+            joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.user),
+            joinedload(ProcessoDisciplina.aluno).joinedload(Aluno.turma)
+        ).where(
+            Turma.school_id == school_id,
+            edicao_filter,
+            or_(ProcessoDisciplina.status == StatusProcesso.FINALIZADO.value, ProcessoDisciplina.status == StatusProcesso.ARQUIVADO.value),
+            is_publicado_cond
         )
 
         # Filtra em todo o banco de dados antes de criar as páginas
@@ -196,10 +217,13 @@ def index():
             # APLICA O FILTRO NA ABA CORRETA
             if active_tab == 'andamento':
                 stmt_andamento = stmt_andamento.where(search_filter)
+            elif active_tab == 'publicados':
+                stmt_publicados = stmt_publicados.where(search_filter)
             else:
                 stmt_finalizados = stmt_finalizados.where(search_filter)
 
         stmt_finalizados = stmt_finalizados.order_by(ProcessoDisciplina.data_decisao.desc())
+        stmt_publicados = stmt_publicados.order_by(ProcessoDisciplina.data_decisao.desc())
 
     page_andamento = request.args.get('page_andamento', 1, type=int)
     em_andamento_paginados = db.paginate(stmt_andamento, page=page_andamento, per_page=50, error_out=False)
@@ -224,6 +248,8 @@ def index():
 
     # Aqui o sistema "pica" os resultados da pesquisa global em páginas
     finalizados_paginados = db.paginate(stmt_finalizados, page=page, per_page=50, error_out=False)
+    page_publicados = request.args.get('page_publicados', 1, type=int)
+    publicados_paginados = db.paginate(stmt_publicados, page=page_publicados, per_page=50, error_out=False)
 
     active_edicao_id = g.active_edicao.id if g.get('active_edicao') else session.get('active_edicao_id')
     turmas = TurmaService.get_turmas_by_school(school_id, edicao_id=active_edicao_id) if school_id else []
@@ -231,7 +257,7 @@ def index():
     agora_hora = datetime.now().strftime('%H:%M')
     hoje = datetime.now().strftime('%Y-%m-%d')
 
-    # >>> INÃCIO DA BUSCA DOS SEUS ELOGIOS <<<
+    # >>> INÍCIO DA BUSCA DOS SEUS ELOGIOS <<<
     stmt_meus_elogios = select(Elogio).options(
         joinedload(Elogio.aluno).joinedload(Aluno.user),
         joinedload(Elogio.aluno).joinedload(Aluno.turma)
@@ -248,6 +274,7 @@ def index():
                            em_andamento=em_andamento,
                            em_andamento_paginados=em_andamento_paginados,
                            finalizados=finalizados_paginados,
+                           publicados=publicados_paginados,
                            active_tab=active_tab,
                            turmas=turmas,
                            fatos_predefinidos=fatos_predefinidos,

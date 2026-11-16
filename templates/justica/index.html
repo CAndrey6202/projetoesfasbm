@@ -25,6 +25,9 @@
                         {% if fadas_recurso %}<span class="badge bg-danger ms-1">{{ fadas_recurso|length }} Recurso(s) FADA</span>{% endif %}
                     </button>
                     <button class="btn btn-warning justice-option-btn {% if active_tab == 'finalizados' %}active{% endif %}" data-target="finalizadosContent">Finalizados</button>
+                    <button class="btn btn-secondary justice-option-btn {% if active_tab == 'publicados' %}active{% endif %}" data-target="publicadosContent">
+                        <i class="fas fa-print me-1"></i>Publicados/Impressos
+                    </button>
                     {% endif %}
                     
                     {% if fadas_comissao %}
@@ -591,9 +594,9 @@
                             <form action="{{ url_for('justica.index') }}" method="GET" class="d-flex align-items-center">
                                 <input type="hidden" name="tab" value="finalizados">
                                 <i class="fas fa-search text-primary ms-3 me-2"></i>
-                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato ou Nº do Processo..." value="{{ request.args.get('q', '') }}">
+                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato ou Nº do Processo..." value="{{ request.args.get('q', '') if active_tab == 'finalizados' else '' }}">
                                 <button type="submit" class="btn btn-primary fw-bold px-4 rounded-pill">Buscar</button>
-                                {% if request.args.get('q') %}
+                                {% if request.args.get('q') and active_tab == 'finalizados' %}
                                     <a href="{{ url_for('justica.index', tab='finalizados') }}" class="btn btn-outline-secondary fw-bold rounded-pill ms-2 text-nowrap">Limpar</a>
                                 {% endif %}
                             </form>
@@ -776,6 +779,204 @@
 
                             <li class="page-item {% if not finalizados.has_next %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('justica.index', page=finalizados.next_num, tab='finalizados', q=request.args.get('q', '')) }}">Próximo</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+
+                <div class="justice-content {% if active_tab == 'publicados' %}active{% endif %}" id="publicadosContent">
+                    
+                    <div class="card mb-3 shadow-sm border-primary">
+                        <div class="card-body p-2">
+                            <form action="{{ url_for('justica.index') }}" method="GET" class="d-flex align-items-center">
+                                <input type="hidden" name="tab" value="publicados">
+                                <i class="fas fa-search text-primary ms-3 me-2"></i>
+                                <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Buscar por Nome do Aluno, ID Funcional, Fato ou Nº do Processo..." value="{{ request.args.get('q', '') if active_tab == 'publicados' else '' }}">
+                                <button type="submit" class="btn btn-primary fw-bold px-4 rounded-pill">Buscar</button>
+                                {% if request.args.get('q') and active_tab == 'publicados' %}
+                                    <a href="{{ url_for('justica.index', tab='publicados') }}" class="btn btn-outline-secondary fw-bold rounded-pill ms-2 text-nowrap">Limpar</a>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+
+                    {% if not is_aluno_view %}
+                    <form action="{{ url_for('justica.imprimir_lote') }}" method="POST" target="_blank" id="formImpressaoLotePublicados">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white border border-dark rounded shadow-sm">
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="checkbox" class="form-check-input" id="checkAllPublicados" onchange="toggleAllPublicados(this)">
+                                <label for="checkAllPublicados" class="fw-bold mb-0 text-primary">Selecionar Todos (Nesta Página)</label>
+                            </div>
+                            
+                            <div id="loadingContainerLotePublicados" style="display: none; align-items: center; gap: 10px;">
+                                <div class="spinner-border text-primary spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Processando...</span>
+                                </div>
+                                <span style="font-weight: bold; color: var(--color-primary);">Processando, aguarde...</span>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2" id="actionButtonsLotePublicados">
+                                <input type="text" name="numero_boletim" class="form-control form-control-sm border-dark" placeholder="Nº do Boletim (Opcional)" style="width: 200px;">
+                                <button type="submit" class="btn btn-sm btn-primary fw-bold" onclick="if(validarImpressaoLotePublicados()){ document.getElementById('actionButtonsLotePublicados').style.display='none'; document.getElementById('loadingContainerLotePublicados').style.display='flex'; setTimeout(()=> { document.getElementById('actionButtonsLotePublicados').style.display='flex'; document.getElementById('loadingContainerLotePublicados').style.display='none'; }, 3000); return true; } return false;">
+                                    <i class="fas fa-print me-1"></i> Publicar e Reimprimir
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% endif %}
+
+                    {% if publicados and publicados.items %}
+                        {% for p in publicados.items %}
+                            {% set ano_proc = p.data_ocorrencia.strftime('%Y') if p.data_ocorrencia else '2026' %}
+                            <div class="card mb-2 bg-light border-success">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+
+                                        {% if not is_aluno_view %}
+                                        <div class="col-auto pe-1">
+                                            {% if p.decisao_final != 'EXCLUIDO_ANULADO' %}
+                                                <input type="checkbox" name="processos_ids" value="{{ p.id }}" class="form-check-input check-publicado border-dark" style="width: 18px; height: 18px;" form="formImpressaoLotePublicados">
+                                            {% else %}
+                                                <i class="fas fa-ban text-danger fs-5" title="Processo Anulado"></i>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="col-md-6 col-sm-9">
+                                            <strong>{{ p.aluno.user.nome_completo }}</strong> <span class="text-muted small ms-1">(PD Nº {{ p.id }}/{{ ano_proc }})</span>
+                                            
+                                            {% if p.observacao_decisao and 'Publicado em Boletim Nº ' in p.observacao_decisao %}
+                                                {% set bol_extraido = p.observacao_decisao.split('Publicado em Boletim Nº ')[1].split(' em ')[0] %}
+                                                <span class="badge bg-primary ms-2" title="Documento vinculado ao boletim."><i class="fas fa-bullhorn"></i> Bol Nº {{ bol_extraido }}</span>
+                                            {% elif p.observacao_decisao and 'Impresso em ' in p.observacao_decisao %}
+                                                <span class="badge bg-secondary ms-2" title="Documento apenas impresso."><i class="fas fa-print"></i> Impresso</span>
+                                            {% endif %}
+
+                                            <br>
+                                            <span class="badge bg-dark mt-1">{{ p.decisao_final or 'Finalizado' }}</span>
+                                            {% if p.tipo_sancao == 'Sustação da Dispensa' %}
+                                                <span class="badge bg-danger mt-1 ms-1">{{ p.detalhes_sancao }}</span>
+                                            {% endif %}
+                                            {% if p.decisao_recurso %}
+                                                <span class="badge bg-info text-dark mt-1 ms-1">Recurso: {{ p.decisao_recurso }}</span>
+                                            {% endif %}
+
+                                            <br><small class="text-muted d-block mt-1 text-truncate" title="{{ p.fato_constatado }}">{{ p.fato_constatado }}</small>
+                                        </div>
+                                        <div class="col-md-5 col-sm-3 text-end">
+                                            <div class="d-flex justify-content-end align-items-center gap-2">
+                                                {% if p.pontos > 0 %}
+                                                    <span class="badge bg-secondary">-{{ p.pontos }} pts</span>
+                                                {% endif %}
+
+                                                <span class="badge bg-success" style="cursor: pointer;" onclick="toggleDetalhesFinalizado('{{ p.id }}')" title="Ver todo o histórico do processo">
+                                                    Concluído <i class="fas fa-chevron-down ms-1"></i>
+                                                </span>
+
+                                                {% if not is_aluno_view and p.decisao_final != 'EXCLUIDO_ANULADO' %}
+                                                    <button type="button" class="btn btn-sm btn-danger ms-2 fw-bold" onclick="toggleAnular('{{ p.id }}')" title="Anular este processo devido a erro material">
+                                                        <i class="fas fa-ban"></i> Anular
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {% if not is_aluno_view and p.decisao_final != 'EXCLUIDO_ANULADO' %}
+                                    <div id="collapseAnular{{ p.id }}" class="mt-3 pt-3 border-top bg-danger bg-opacity-10 p-3 rounded border border-danger shadow-sm" style="display: none;">
+                                        <h5 class="text-danger fw-bold mb-3"><i class="fas fa-exclamation-triangle me-2"></i> Anular Processo Nº {{ p.id }}</h5>
+                                        <form action="{{ url_for('justica.anular_processo', pid=p.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <p class="text-danger fw-bold mb-2">Atenção! Esta ação invalidará o processo permanentemente.</p>
+                                            <p class="small text-muted mb-3">A punição será removida, os pontos serão devolvidos ao aluno e o processo ficará arquivado com uma tarja de anulação para fins de auditoria.</p>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Motivo da Anulação (Obrigatório):</label>
+                                                <textarea name="motivo_anulacao" class="form-control border-danger" rows="3" placeholder="Ex: Processo duplicado, erro material na hora de publicar..." required minlength="10"></textarea>
+                                            </div>
+                                            <div class="text-end">
+                                                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAnular('{{ p.id }}')">Cancelar</button>
+                                                <button type="submit" class="btn btn-danger fw-bold px-3"><i class="fas fa-ban"></i> Confirmar Anulação</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+
+                                    <div id="collapseFinalizado{{ p.id }}" class="mt-3 pt-3 border-top border-success" style="display: none;">
+                                        <h6 class="fw-bold text-success mb-2"><i class="fas fa-archive me-1"></i>Histórico do Processo Finalizado</h6>
+                                        <div class="bg-white p-3 rounded border">
+                                            <div class="mb-3 border-bottom pb-2">
+                                                <span class="badge bg-secondary mb-1">1. Fato Constatado e Nota Original</span>
+                                                <div class="text-dark small mb-1" style="white-space: pre-wrap;"><strong>Fato:</strong> {{ p.fato_constatado }}</div>
+                                                {% if p.observacao %}
+                                                <div class="bg-light border border-secondary border-opacity-50 p-2 rounded text-muted small mt-1" style="white-space: pre-wrap;"><strong>Nota Original:</strong><br>{{ p.observacao }}</div>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="mb-3 border-bottom pb-2">
+                                                <span class="badge bg-warning text-dark mb-1">2. Defesa Inicial</span>
+                                                {% if p.defesa %}
+                                                <div class="text-dark small fst-italic" style="white-space: pre-wrap;">{{ p.defesa }}</div>
+                                                {% else %}
+                                                <div class="text-danger small fw-bold"><i class="fas fa-exclamation-triangle"></i> Julgado à Revelia (Não apresentou defesa)</div>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="mb-3 border-bottom pb-2">
+                                                <span class="badge bg-danger mb-1">3. Decisão do Chefe CAL</span>
+                                                <div class="text-dark small">
+                                                    <strong>Veredito:</strong> {{ p.decisao_final }}
+                                                    {% if p.tipo_sancao == 'Sustação da Dispensa' and p.detalhes_sancao %} <span class="badge bg-danger ms-1">{{ p.detalhes_sancao }}</span> {% endif %}
+                                                    <br><strong>Fundamentação:</strong> <span style="white-space: pre-wrap;">{% if p.observacao_decisao and p.observacao_decisao|string != 'None' %}{{ p.observacao_decisao }}{% elif p.fundamentacao and p.fundamentacao|string != 'None' %}{{ p.fundamentacao }}{% else %}<em class="text-muted">Não informada.</em>{% endif %}</span>
+                                                </div>
+                                            </div>
+
+                                            {% if p.texto_recurso %}
+                                            <div class="mb-2">
+                                                <span class="badge bg-primary mb-1">4. Recurso ao Comandante</span>
+                                                <div class="text-dark small fst-italic mb-2" style="white-space: pre-wrap;"><strong>Argumento:</strong> {{ p.texto_recurso }}</div>
+                                                <div class="text-dark small">
+                                                    <strong>Decisão do Comandante:</strong> {{ p.decisao_recurso }} <br>
+                                                    <strong>Parecer:</strong> <span style="white-space: pre-wrap;">{{ p.fundamentacao_recurso }}</span>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% if request.args.get('q') and active_tab == 'publicados' %}
+                                Nenhum processo publicado/impresso encontrado para "<strong>{{ request.args.get('q') }}</strong>".
+                            {% else %}
+                                Nenhum processo publicado ou impresso.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    {% if publicados and publicados.pages > 1 %}
+                    <nav aria-label="Navegação de processos publicados e impressos">
+                        <ul class="pagination justify-content-center mt-4">
+                            <li class="page-item {% if not publicados.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('justica.index', page_publicados=publicados.prev_num, tab='publicados', q=request.args.get('q', '')) }}" tabindex="-1">Anterior</a>
+                            </li>
+                            
+                            {% for page_num in publicados.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == publicados.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('justica.index', page_publicados=page_num, tab='publicados', q=request.args.get('q', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <li class="page-item {% if not publicados.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('justica.index', page_publicados=publicados.next_num, tab='publicados', q=request.args.get('q', '')) }}">Próximo</a>
                             </li>
                         </ul>
                     </nav>
@@ -1192,13 +1393,38 @@ function toggleAllFinalizados(source) {
     }
 }
 
+function toggleAllPublicados(source) {
+    const checkboxes = document.querySelectorAll('.check-publicado');
+    for (let i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+
 function validarImpressaoLote() {
     const checkboxes = document.querySelectorAll('.check-finalizado:checked');
     if (checkboxes.length === 0) {
         alert('Por favor, selecione pelo menos um processo para imprimir.');
         return false;
     }
-    setTimeout(() => { window.location.reload(); }, 2500);
+    setTimeout(() => {
+        const url = new URL(window.location);
+        url.searchParams.set('tab', 'finalizados');
+        window.location.href = url.toString();
+    }, 2500);
+    return true;
+}
+
+function validarImpressaoLotePublicados() {
+    const checkboxes = document.querySelectorAll('.check-publicado:checked');
+    if (checkboxes.length === 0) {
+        alert('Por favor, selecione pelo menos um processo para imprimir.');
+        return false;
+    }
+    setTimeout(() => {
+        const url = new URL(window.location);
+        url.searchParams.set('tab', 'publicados');
+        window.location.href = url.toString();
+    }, 2500);
     return true;
 }
 
