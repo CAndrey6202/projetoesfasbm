@@ -29,6 +29,11 @@ from .pergunta import Pergunta
 from .opcao_resposta import OpcaoResposta
 from .resposta import Resposta
 from .elogio import Elogio
+from .edicao import Edicao
+from .desligamento import RegistroDesligamento
+from .background_job import BackgroundJob
+from .curso_video import CursoVideo
+from .admin_log import AdminLog
 
 # --- NOVO MÓDULO: BANCO DE QUESTÕES E PROVAS ---
 # CORREÇÃO AQUI: Adicionado ConfiguracaoEnvio
