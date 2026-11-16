@@ -827,6 +827,18 @@ def deletar_processo(pid):
 @login_required
 @can_manage_justice_required
 def imprimir_lote():
+    school_id = UserService.get_current_school_id()
+    can_publish_print = (
+        current_user.is_cal_in_school(school_id)
+        or current_user.is_admin_escola_in_school(school_id)
+        or current_user.is_super_admin
+        or bool(session.get('is_dec_mode'))
+        or bool(g.get('dec_mode_active', False))
+    )
+    if not can_publish_print:
+        flash("Permissão negada. Apenas o Chefe do CAL, Comandante, Admin ou Gestor do DEC podem publicar e imprimir processos.", "danger")
+        return redirect(url_for('justica.index', tab='finalizados'))
+
     ids_selecionados = request.form.getlist('processos_ids')
     num_boletim = request.form.get('numero_boletim')
 
