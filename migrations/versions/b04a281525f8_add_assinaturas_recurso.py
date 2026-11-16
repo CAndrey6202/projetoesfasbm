@@ -1,4 +1,4 @@
-﻿"""add assinaturas recurso
+"""add assinaturas recurso
 
 Revision ID: b04a281525f8
 Revises: ff9f811e0c08

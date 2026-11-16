@@ -1,4 +1,4 @@
-﻿"""add_periods_16_17_18
+"""add_periods_16_17_18
 
 Revision ID: 999999999999
 Revises: f42285721447
@@ -15,11 +15,25 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.add_column('semanas', sa.Column('mostrar_periodo_16', sa.Boolean(), server_default='0', nullable=False))
-    op.add_column('semanas', sa.Column('mostrar_periodo_17', sa.Boolean(), server_default='0', nullable=False))
-    op.add_column('semanas', sa.Column('mostrar_periodo_18', sa.Boolean(), server_default='0', nullable=False))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table('semanas'):
+        cols = [c['name'] for c in inspector.get_columns('semanas')]
+        if 'mostrar_periodo_16' not in cols:
+            op.add_column('semanas', sa.Column('mostrar_periodo_16', sa.Boolean(), server_default='0', nullable=False))
+        if 'mostrar_periodo_17' not in cols:
+            op.add_column('semanas', sa.Column('mostrar_periodo_17', sa.Boolean(), server_default='0', nullable=False))
+        if 'mostrar_periodo_18' not in cols:
+            op.add_column('semanas', sa.Column('mostrar_periodo_18', sa.Boolean(), server_default='0', nullable=False))
 
 def downgrade():
-    op.drop_column('semanas', 'mostrar_periodo_16')
-    op.drop_column('semanas', 'mostrar_periodo_17')
-    op.drop_column('semanas', 'mostrar_periodo_18')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table('semanas'):
+        cols = [c['name'] for c in inspector.get_columns('semanas')]
+        if 'mostrar_periodo_16' in cols:
+            op.drop_column('semanas', 'mostrar_periodo_16')
+        if 'mostrar_periodo_17' in cols:
+            op.drop_column('semanas', 'mostrar_periodo_17')
+        if 'mostrar_periodo_18' in cols:
+            op.drop_column('semanas', 'mostrar_periodo_18')

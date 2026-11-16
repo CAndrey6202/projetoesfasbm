@@ -15,7 +15,17 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.add_column('campanhas_avaliacao', sa.Column('ciclos_ids', sa.String(length=255), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table('campanhas_avaliacao'):
+        cols = [c['name'] for c in inspector.get_columns('campanhas_avaliacao')]
+        if 'ciclos_ids' not in cols:
+            op.add_column('campanhas_avaliacao', sa.Column('ciclos_ids', sa.String(length=255), nullable=True))
 
 def downgrade():
-    op.drop_column('campanhas_avaliacao', 'ciclos_ids')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table('campanhas_avaliacao'):
+        cols = [c['name'] for c in inspector.get_columns('campanhas_avaliacao')]
+        if 'ciclos_ids' in cols:
+            op.drop_column('campanhas_avaliacao', 'ciclos_ids')

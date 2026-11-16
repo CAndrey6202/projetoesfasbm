@@ -24,6 +24,7 @@ class Config:
         "pool_size": 5,
         "max_overflow": 10,
         "pool_recycle": 1800,
+        "connect_args": {"connect_timeout": 10},
     }
 
     # --- NOVAS CONFIGURAÇÕES DE SEGURANÇA PARA COOKIES ---
