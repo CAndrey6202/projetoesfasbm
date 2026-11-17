@@ -12,6 +12,10 @@ from backend.services.asset_service import AssetService
 from backend.services.user_service import UserService
 from backend.services.log_service import LogService
 from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
 import base64
 import uuid
@@ -407,7 +411,7 @@ def devolver_recurso_instrutor(recurso_id):
         recurso.updated_at = datetime.now(timezone.utc)
         recurso.resposta_admin = motivo
         
-        data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+        data_formatada = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M')
         LogService.log(
             action="Devolveu Recurso ao Instrutor",
             details=f"Recurso #{recurso.id} devolvido ao instrutor ID {recurso.instrutor_id} por {current_user.nome_completo} em {data_formatada}. Motivo/Orientação: {motivo}",
@@ -447,7 +451,7 @@ def anular_recurso(recurso_id):
     materia_nome = recurso.prova.disciplina.materia if recurso.prova and recurso.prova.disciplina else "N/A"
     prova_nome = recurso.prova.nome if recurso.prova else "N/A"
     status_anterior = recurso.status
-    data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+    data_formatada = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M')
     
     try:
         # 1. Registro detalhado no Log / Espião (exatamente como na FADA)
@@ -756,7 +760,7 @@ def exportar_recurso_pdf(recurso_id):
     html = render_template(
         'recursos/recurso_pdf.html',
         r=recurso,
-        now=datetime.now().astimezone()
+        now=datetime.now(timezone.utc)
     )
     
     pdf_name = f"recurso_{recurso_id}.pdf"
@@ -840,9 +844,8 @@ def dar_ciente(recurso_id):
         return jsonify({'success': False, 'message': 'Recurso ainda não foi finalizado'}), 400
         
     try:
-        from datetime import datetime
         recurso.aluno_ciente = True
-        recurso.aluno_ciente_data = datetime.now()
+        recurso.aluno_ciente_data = datetime.now(timezone.utc)
         # Captura o IP (considera proxy reverso caso exista)
         recurso.aluno_ciente_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         

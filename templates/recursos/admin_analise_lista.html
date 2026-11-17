@@ -147,7 +147,7 @@
                                         </span>
                                         {% if r.aluno_ciente %}
                                         <div class="mt-1">
-                                            <span class="badge bg-secondary" title="Ciência registrada em {{ r.aluno_ciente_data.strftime('%d/%m/%Y %H:%M') if r.aluno_ciente_data else 'Data não registrada' }}">
+                                            <span class="badge bg-secondary" title="Ciência registrada em {{ r.aluno_ciente_data|br_time('%d/%m/%Y %H:%M') if r.aluno_ciente_data else 'Data não registrada' }}">
                                                 <i class="fas fa-check-double"></i> Ciência
                                             </span>
                                         </div>

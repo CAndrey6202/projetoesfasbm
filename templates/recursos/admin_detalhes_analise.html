@@ -63,7 +63,8 @@
                     <p class="mb-1"><strong>Nome:</strong> {{ r.aluno.nome_completo }}</p>
                     <p class="mb-1"><strong>Matrícula:</strong> {{ r.aluno.matricula }}</p>
                     <p class="mb-1"><strong>Matéria:</strong> {{ r.prova.disciplina.materia }}</p>
-                    <p class="mb-0"><strong>Prova:</strong> {{ r.prova.nome }}</p>
+                    <p class="mb-1"><strong>Prova:</strong> {{ r.prova.nome }}</p>
+                    <p class="mb-0"><strong>Data da Solicitação:</strong> {{ r.created_at|br_time('%d/%m/%Y %H:%M') }}</p>
                 </div>
             </div>
 
