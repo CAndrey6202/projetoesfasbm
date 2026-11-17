@@ -1,7 +1,7 @@
 # backend/models/recurso.py
 
 from .database import db
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 class DisciplinaHabilitada(db.Model):
     """
@@ -104,6 +104,37 @@ class Recurso(db.Model):
                 nomes.append(_fmt(self.instrutor2))
 
         return " / ".join([n for n in nomes if n])
+
+    @property
+    def prazo_atual(self):
+        """
+        Calcula o prazo limite da etapa atual do recurso:
+        - Pendente / Em Análise (enviado pelo aluno): 24h
+        - Com Instrutor (enviado para parecer do instrutor): 48h
+        - Retornado ao Admin (Parecer) / Com Comandante (voltou do instrutor): 24h
+        """
+        if self.status in ['Deferido', 'Indeferido', 'Anulado']:
+            return None
+
+        base_dt = self.updated_at or self.created_at
+        if not base_dt:
+            return None
+
+        if base_dt.tzinfo is None:
+            base_dt = base_dt.replace(tzinfo=timezone.utc)
+
+        if self.status in ['Pendente', 'Em Análise']:
+            return base_dt + timedelta(hours=24)
+        elif self.status == 'Com Instrutor':
+            return base_dt + timedelta(hours=48)
+        elif self.status in ['Retornado ao Admin (Parecer)', 'Com Comandante']:
+            return base_dt + timedelta(hours=24)
+        return None
+
+    @property
+    def prazo_atual_iso(self) -> str:
+        dt = self.prazo_atual
+        return dt.isoformat() if dt else ""
 
     def __repr__(self):
         return f'<Recurso {self.id} - Prova ID {self.prova_id} - Aluno ID {self.aluno_id}>'

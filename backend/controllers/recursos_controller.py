@@ -11,7 +11,7 @@ from backend.models.user import User  # Necessário para listar instrutores/coma
 from backend.services.asset_service import AssetService
 from backend.services.user_service import UserService
 from backend.services.log_service import LogService
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 import base64
 import uuid
@@ -354,9 +354,12 @@ def encaminhar_recurso(recurso_id):
                 recurso.instrutor_id = destinos[0] if len(destinos) > 0 else None
                 recurso.instrutor2_id = destinos[1] if len(destinos) > 1 else None
             recurso.status = "Com Instrutor"
+            recurso.updated_at = datetime.now(timezone.utc)
             if observacao:
                 recurso.resposta_admin = observacao
         else:
+            if recurso.status != "Retornado ao Admin (Parecer)":
+                recurso.updated_at = datetime.now(timezone.utc)
             recurso.status = "Com Comandante"
             if observacao:
                 recurso.resposta_admin = observacao
@@ -401,6 +404,7 @@ def devolver_recurso_instrutor(recurso_id):
             return redirect(request.referrer or url_for('recursos.detalhes_recurso', recurso_id=recurso.id))
             
         recurso.status = "Com Instrutor"
+        recurso.updated_at = datetime.now(timezone.utc)
         recurso.resposta_admin = motivo
         
         data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -478,9 +482,11 @@ def anular_recurso(recurso_id):
             
         if acao_apos == 'reabrir':
             recurso.status = 'Pendente'
+            recurso.updated_at = datetime.now(timezone.utc)
             flash(f"Recurso #{recurso.id} anulado com sucesso! Pareceres e assinaturas foram reiniciados e o trâmite foi reaberto como Pendente para novo encaminhamento.", "success")
         else:
             recurso.status = 'Anulado'
+            recurso.updated_at = datetime.now(timezone.utc)
             flash(f"Recurso #{recurso.id} anulado definitivamente com sucesso! O registro foi arquivado no histórico de auditoria.", "success")
             
         db.session.commit()
@@ -589,12 +595,14 @@ def salvar_parecer(recurso_id):
             
             if not falta_1 and not falta_2:
                 recurso.status = "Retornado ao Admin (Parecer)"
+                recurso.updated_at = datetime.now(timezone.utc)
             else:
                 recurso.status = "Com Instrutor"
         else:
             recurso.decisao_comandante = request.form.get('conteudo_texto')
             recurso.assinatura_comandante = assinatura_path
             recurso.status = request.form.get('status_final')
+            recurso.updated_at = datetime.now(timezone.utc)
             # A resposta final que o aluno vê na lista dele
             recurso.resposta_admin = recurso.decisao_comandante
             

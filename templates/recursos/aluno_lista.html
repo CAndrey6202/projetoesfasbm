@@ -54,6 +54,11 @@
                                 {% else %}
                                     <span class="badge bg-info-subtle text-info rounded-pill px-3">{{ r.status }}</span>
                                 {% endif %}
+                                {% if r.prazo_atual_iso %}
+                                <div class="mt-1">
+                                    <small class="cronometro-prazo-recurso badge bg-dark text-white px-2 py-1" data-prazo="{{ r.prazo_atual_iso }}">⏳ Calculando...</small>
+                                </div>
+                                {% endif %}
                             </td>
                             <td class="pe-4 text-end">
                                 <div class="d-flex gap-2 justify-content-end">
@@ -140,7 +145,51 @@
 </div>
 {% endfor %}
 
+<style>
+@keyframes pulse-danger-recurso {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.85); background-color: #dc3545; }
+    50% { transform: scale(1.06); box-shadow: 0 0 12px 4px rgba(220, 53, 69, 0.6); background-color: #b02a37; }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); background-color: #dc3545; }
+}
+.cronometro-esgotado-pulse {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    border: 2px solid #ffccd5 !important;
+    animation: pulse-danger-recurso 1.2s infinite ease-in-out;
+}
+</style>
+
 <script>
+function atualizarCronometrosRecursos() {
+    const agora = new Date().getTime();
+    document.querySelectorAll('.cronometro-prazo-recurso').forEach(el => {
+        const prazoStr = el.getAttribute('data-prazo');
+        if (!prazoStr) return;
+        const prazo = new Date(prazoStr).getTime();
+        const diff = prazo - agora;
+        if (diff <= 0) {
+            el.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> PRAZO ESGOTADO!';
+            if (!el.classList.contains('cronometro-esgotado-pulse')) {
+                el.classList.remove('bg-dark');
+                el.classList.add('bg-danger', 'cronometro-esgotado-pulse');
+            }
+        } else {
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diff % (1000 * 60)) / 1000);
+            const hh = h.toString().padStart(2, '0');
+            const mm = m.toString().padStart(2, '0');
+            const ss = s.toString().padStart(2, '0');
+            el.innerHTML = `⏳ ${hh}:${mm}:${ss}`;
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    atualizarCronometrosRecursos();
+    setInterval(atualizarCronometrosRecursos, 1000);
+});
+
 function darCiente(recursoId) {
     if (!confirm('Deseja registrar ciência nesta decisão?')) return;
     
