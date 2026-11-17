@@ -65,7 +65,11 @@
                                     </td>
                                     <td class="text-center">
                                         <span class="badge {% if r.status == 'Pendente' %}bg-warning text-dark{% elif r.status == 'Deferido' %}bg-success{% elif r.status == 'Indeferido' %}bg-danger{% elif r.status == 'Anulado' %}bg-secondary{% elif r.status == 'Com Instrutor' %}bg-info text-dark{% else %}bg-primary text-white{% endif %} px-3 rounded-pill py-2">
-                                            {{ r.status }}
+                                            {% if r.status == 'Com Instrutor' and r.instrutor_em_posse_nome %}
+                                                Com Instrutor: {{ r.instrutor_em_posse_nome }}
+                                            {% else %}
+                                                {{ r.status }}
+                                            {% endif %}
                                         </span>
                                     </td>
                                     <td class="text-end">
@@ -88,12 +92,6 @@
                                                     <i class="fas fa-trash me-1"></i> Excluir
                                                 </button>
                                             </form>
-                                            {% endif %}
-                                            {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) %}
-                                            <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" 
-                                                    onclick="abrirAnulacao('{{ r.id }}', '{{ (r.aluno.nome_de_guerra or r.aluno.nome_completo) | escape }}', '{{ r.prova.disciplina.materia | escape }} - {{ r.prova.nome | escape }}', '{{ r.status }}')" title="Anular Recurso">
-                                                <i class="fas fa-ban me-1"></i> Anular
-                                            </button>
                                             {% endif %}
                                             {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) and r.status != 'Anulado' %}
                                             <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" 

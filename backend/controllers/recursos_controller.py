@@ -259,6 +259,7 @@ def listar_recursos_pendentes():
     query = Recurso.query.join(ProvaRecurso).join(Disciplina).join(Turma).options(
         db.joinedload(Recurso.aluno),
         db.joinedload(Recurso.instrutor),
+        db.joinedload(Recurso.instrutor2),
         db.selectinload(Recurso.prova).selectinload(ProvaRecurso.disciplina).selectinload(Disciplina.associacoes_turmas).selectinload(DisciplinaTurma.instrutor_1).selectinload(Instrutor.user),
         db.selectinload(Recurso.prova).selectinload(ProvaRecurso.disciplina).selectinload(Disciplina.associacoes_turmas).selectinload(DisciplinaTurma.instrutor_2).selectinload(Instrutor.user)
     )
@@ -563,15 +564,24 @@ def salvar_parecer(recurso_id):
 
     try:
         if tipo_acao == 'parecer_instrutor':
+            texto_parecer = (request.form.get('conteudo_texto') or '').strip()
+            nome_inst = f"{current_user.posto_graduacao or ''} {current_user.nome_completo or current_user.nome_de_guerra or ''}".strip()
+            if nome_inst and nome_inst.lower() not in texto_parecer.lower():
+                texto_parecer = f"{texto_parecer}\n{nome_inst}"
+
             if current_user.id == recurso.instrutor_id:
-                recurso.parecer_instrutor = request.form.get('conteudo_texto')
+                recurso.parecer_instrutor = texto_parecer
                 recurso.assinatura_instrutor = assinatura_path
             elif current_user.id == recurso.instrutor2_id:
-                recurso.parecer_instrutor2 = request.form.get('conteudo_texto')
+                recurso.parecer_instrutor2 = texto_parecer
                 # Por simplicidade o segundo instrutor também pode salvar aqui se não houver um campo assinatura_instrutor2 (só sobrescreve ou ignora)
                 # Assumindo que a principal é do instrutor_id, se for o 2 a gente poderia salvar em um assinatura_instrutor2. Como não existe, vamos salvar na mesma se estiver vazia
                 if not recurso.assinatura_instrutor:
                     recurso.assinatura_instrutor = assinatura_path
+            elif not recurso.parecer_instrutor:
+                recurso.instrutor_id = current_user.id
+                recurso.parecer_instrutor = texto_parecer
+                recurso.assinatura_instrutor = assinatura_path
             
             # Verifica se ainda falta algum instrutor dar o parecer
             falta_1 = recurso.instrutor_id is not None and not recurso.parecer_instrutor

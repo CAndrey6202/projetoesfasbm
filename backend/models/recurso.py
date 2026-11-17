@@ -79,5 +79,31 @@ class Recurso(db.Model):
     instrutor = db.relationship('User', foreign_keys=[instrutor_id], backref=db.backref('recursos_encaminhados', lazy=True))
     instrutor2 = db.relationship('User', foreign_keys=[instrutor2_id], backref=db.backref('recursos_encaminhados2', lazy=True))
 
+    @property
+    def instrutor_em_posse_nome(self) -> str:
+        def _fmt(u):
+            if not u:
+                return ""
+            posto = (u.posto_graduacao or "").strip()
+            nome = (u.nome_completo or u.nome_de_guerra or "").strip()
+            return f"{posto} {nome}".strip()
+
+        nomes = []
+        falta_1 = self.instrutor is not None and not self.parecer_instrutor
+        falta_2 = self.instrutor2 is not None and not self.parecer_instrutor2
+
+        if falta_1:
+            nomes.append(_fmt(self.instrutor))
+        if falta_2:
+            nomes.append(_fmt(self.instrutor2))
+
+        if not nomes:
+            if self.instrutor:
+                nomes.append(_fmt(self.instrutor))
+            elif self.instrutor2:
+                nomes.append(_fmt(self.instrutor2))
+
+        return " / ".join([n for n in nomes if n])
+
     def __repr__(self):
         return f'<Recurso {self.id} - Prova ID {self.prova_id} - Aluno ID {self.aluno_id}>'

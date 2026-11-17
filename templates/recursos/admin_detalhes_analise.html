@@ -3,13 +3,15 @@
 {% block title %}Análise Técnica de Recurso{% endblock %}
 
 {% block content %}
+{% set instrutor_parecer_user = current_user if (force_instrutor or current_user.id in [r.instrutor_id, r.instrutor2_id]) else (r.instrutor or r.instrutor2 or current_user) %}
+{% set nome_instrutor_parecer = ((instrutor_parecer_user.posto_graduacao or '') ~ ' ' ~ (instrutor_parecer_user.nome_completo or instrutor_parecer_user.nome_de_guerra or '')).strip() %}
 <div class="container mt-4 pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <div>
             <h2 class="fw-bold mb-0" style="color: var(--secondary-color);">
                 <i class="fas fa-file-signature text-primary me-2"></i> Processar Recurso #{{ r.id }}
             </h2>
-            <p class="text-muted">Trâmite Atual: <span class="badge bg-info text-dark shadow-sm">{{ r.status }}</span></p>
+            <p class="text-muted">Trâmite Atual: <span class="badge bg-info text-dark shadow-sm">{% if r.status == 'Com Instrutor' and r.instrutor_em_posse_nome %}Com Instrutor: {{ r.instrutor_em_posse_nome }}{% else %}{{ r.status }}{% endif %}</span></p>
         </div>
         <div class="d-flex gap-2 flex-wrap justify-content-end">
             {% if not force_instrutor and (current_user.is_super_admin or current_user.is_sens or is_comandante) %}
@@ -68,7 +70,7 @@
             {% if r.parecer_instrutor %}
             <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px; border-left: 5px solid #28a745;">
                 <div class="card-body">
-                    <h6 class="fw-bold text-success small mb-2 uppercase">PARECER DO INSTRUTOR 1</h6>
+                    <h6 class="fw-bold text-success small mb-2 uppercase">PARECER DO INSTRUTOR 1{% if r.instrutor %} ({{ ((r.instrutor.posto_graduacao or '') ~ ' ' ~ (r.instrutor.nome_completo or '')).strip() }}){% endif %}</h6>
                     <div class="p-2 small bg-light rounded" style="white-space: pre-wrap;">{{ r.parecer_instrutor }}</div>
                 </div>
             </div>
@@ -77,7 +79,7 @@
             {% if r.parecer_instrutor2 %}
             <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px; border-left: 5px solid #20c997;">
                 <div class="card-body">
-                    <h6 class="fw-bold text-success small mb-2 uppercase">PARECER DO INSTRUTOR 2</h6>
+                    <h6 class="fw-bold text-success small mb-2 uppercase">PARECER DO INSTRUTOR 2{% if r.instrutor2 %} ({{ ((r.instrutor2.posto_graduacao or '') ~ ' ' ~ (r.instrutor2.nome_completo or '')).strip() }}){% endif %}</h6>
                     <div class="p-2 small bg-light rounded" style="white-space: pre-wrap;">{{ r.parecer_instrutor2 }}</div>
                 </div>
             </div>
@@ -148,7 +150,8 @@ A análise deve se restringir, de forma objetiva, ao conteúdo constante no mate
 
 Diante do exposto, este instrutor julga pelo [DEFERIMENTO/INDEFERIMENTO] do recurso.
 
-É o parecer.{% endif %}</textarea>
+É o parecer.
+{{ nome_instrutor_parecer }}{% endif %}</textarea>
                         </div>
 
                           {% if not is_finalizado %}
@@ -292,7 +295,8 @@ A análise deve se restringir, de forma objetiva, ao conteúdo constante no mate
 
 Diante do exposto, este instrutor julga pelo [DEFERIMENTO/INDEFERIMENTO] do recurso.
 
-É o parecer.`;
+É o parecer.
+{{ nome_instrutor_parecer }}`;
 
     const modeloDecisao = `ESTADO DO RIO GRANDE DO SUL
 SECRETARIA DA SEGURANÇA PÚBLICA
