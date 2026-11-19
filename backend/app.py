@@ -233,6 +233,17 @@ def create_app(config_class=Config):
             AlunoCicloTurma.__table__.create(db.engine, checkfirst=True)
         except Exception as e:
             app.logger.warning(f"Aviso ao verificar tabela aluno_ciclo_turmas: {e}")
+        try:
+            from sqlalchemy import inspect as sa_inspect, text as sa_text
+            insp = sa_inspect(db.engine)
+            if insp.has_table("recursos"):
+                cols = [c["name"] for c in insp.get_columns("recursos")]
+                if "data_prova" not in cols:
+                    db.session.execute(sa_text("ALTER TABLE recursos ADD COLUMN data_prova VARCHAR(50)"))
+                    db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Aviso ao verificar coluna recursos.data_prova: {e}")
         AssetService.initialize_upload_folder(app)
         register_blueprints(app)
         register_handlers_and_processors(app)

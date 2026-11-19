@@ -48,6 +48,7 @@ class Recurso(db.Model):
     aluno_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # Dados preenchidos pelo aluno
+    data_prova = db.Column(db.String(50), nullable=True)
     questao_texto = db.Column(db.Text, nullable=False)
     argumentacao_texto = db.Column(db.Text, nullable=True)
     arquivo_anexo = db.Column(db.String(255), nullable=True) # Armazena o nome/caminho do PDF ou Word

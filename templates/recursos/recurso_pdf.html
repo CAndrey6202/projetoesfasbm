@@ -28,6 +28,7 @@
         <div class="row"><span class="label">Aluno:</span> {% if r.aluno %}{{ r.aluno.nome_completo }}{% endif %}</div>
         <div class="row"><span class="label">Matrícula/RE:</span> {% if r.aluno %}{{ r.aluno.matricula or '' }}{% endif %}</div>
         <div class="row"><span class="label">Prova/Disciplina:</span> {% if r.prova %}{{ r.prova.nome }} - {{ r.prova.disciplina.materia }}{% endif %}</div>
+        <div class="row"><span class="label">Data da Prova Ministrada:</span> {{ r.data_prova or 'Não informada' }}</div>
         <div class="row"><span class="label">Data da Solicitação:</span> {{ r.created_at|br_time('%d/%m/%Y %H:%M') }}</div>
         <div class="row"><span class="label">Status Atual:</span> {{ r.status }}</div>
     </div>

@@ -35,7 +35,7 @@
                             <td class="ps-4 small text-muted">{{ r.created_at|br_time('%d/%m/%Y %H:%M') }}</td>
                             <td>
                                 <span class="fw-bold text-dark d-block">{{ r.prova.disciplina.materia }}</span>
-                                <small class="text-muted">{{ r.prova.nome }}</small>
+                                <small class="text-muted">{{ r.prova.nome }}{% if r.data_prova %} &bull; Prova em {{ r.data_prova }}{% endif %}</small>
                             </td>
                             <td>
                                 <small class="text-dark d-inline-block text-truncate" style="max-width: 250px;">

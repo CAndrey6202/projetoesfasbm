@@ -626,6 +626,14 @@ def novo_recurso():
     """Aluno vê a matéria unificada e assina o envio."""
     if request.method == 'POST':
         prova_id = request.form.get('prova_id')
+        data_prova_raw = (request.form.get('data_prova') or '').strip()
+        if not data_prova_raw:
+            flash("Informe a data em que a prova foi ministrada.", "danger")
+            return redirect(request.url)
+        try:
+            data_prova_fmt = datetime.strptime(data_prova_raw, '%Y-%m-%d').strftime('%d/%m/%Y')
+        except ValueError:
+            data_prova_fmt = data_prova_raw
         questoes = request.form.getlist('questao_texto[]')
         argumentacoes = request.form.getlist('argumentacao_texto[]')
         arquivos = request.files.getlist('arquivo_anexo[]')
@@ -652,6 +660,7 @@ def novo_recurso():
                 novo = Recurso(
                     prova_id=prova_id,
                     aluno_id=current_user.id,
+                    data_prova=data_prova_fmt,
                     questao_texto=questoes[i],
                     argumentacao_texto=argumentacoes[i] if i < len(argumentacoes) else "",
                     assinatura_aluno=assinatura_path

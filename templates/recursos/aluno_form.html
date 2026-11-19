@@ -25,7 +25,7 @@
                     <i class="fas fa-list-check me-2"></i> 1. Identificação da Avaliação
                 </h5>
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label class="form-label small fw-bold">MATÉRIA</label>
                         <select class="form-select select2" name="disciplina_id" id="disciplina_id" required>
                             <option value="">Selecione a Matéria...</option>
@@ -34,11 +34,15 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label small fw-bold">PROVA</label>
                         <select class="form-select" name="prova_id" id="prova_id" disabled required>
                             <option value="">Selecione a matéria primeiro...</option>
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">DATA DA PROVA MINISTRADA</label>
+                        <input type="date" class="form-control" name="data_prova" id="data_prova" required>
                     </div>
                 </div>
             </div>
