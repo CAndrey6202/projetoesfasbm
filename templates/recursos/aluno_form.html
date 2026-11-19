@@ -42,7 +42,8 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small fw-bold">DATA DA PROVA MINISTRADA</label>
-                        <input type="date" class="form-control" name="data_prova" id="data_prova" required>
+                        <input type="date" class="form-control" name="data_prova" id="data_prova" min="{{ min_data_prova }}" max="{{ max_data_prova }}" required>
+                        <div class="form-text small text-muted"><i class="fas fa-clock me-1"></i>Limite: até 48h após a prova.</div>
                     </div>
                 </div>
             </div>

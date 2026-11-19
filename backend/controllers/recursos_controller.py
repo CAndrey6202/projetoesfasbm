@@ -624,6 +624,10 @@ def salvar_parecer(recurso_id):
 @login_required
 def novo_recurso():
     """Aluno vê a matéria unificada e assina o envio."""
+    agora_brt = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3)))
+    min_data_prova_date = (agora_brt - timedelta(hours=48)).date()
+    max_data_prova_date = agora_brt.date()
+
     if request.method == 'POST':
         prova_id = request.form.get('prova_id')
         data_prova_raw = (request.form.get('data_prova') or '').strip()
@@ -631,9 +635,21 @@ def novo_recurso():
             flash("Informe a data em que a prova foi ministrada.", "danger")
             return redirect(request.url)
         try:
-            data_prova_fmt = datetime.strptime(data_prova_raw, '%Y-%m-%d').strftime('%d/%m/%Y')
+            if '-' in data_prova_raw:
+                data_prova_dt = datetime.strptime(data_prova_raw, '%Y-%m-%d').date()
+            else:
+                data_prova_dt = datetime.strptime(data_prova_raw, '%d/%m/%Y').date()
+            data_prova_fmt = data_prova_dt.strftime('%d/%m/%Y')
         except ValueError:
-            data_prova_fmt = data_prova_raw
+            flash("Formato de data da prova inválido.", "danger")
+            return redirect(request.url)
+
+        if data_prova_dt < min_data_prova_date:
+            flash("Prazo expirado: a data da prova não pode ser anterior a 48 horas do momento da interposição do recurso.", "danger")
+            return redirect(request.url)
+        if data_prova_dt > max_data_prova_date:
+            flash("A data em que a prova foi ministrada não pode ser uma data futura.", "danger")
+            return redirect(request.url)
         questoes = request.form.getlist('questao_texto[]')
         argumentacoes = request.form.getlist('argumentacao_texto[]')
         arquivos = request.files.getlist('arquivo_anexo[]')
@@ -714,7 +730,12 @@ def novo_recurso():
                 
     disciplinas_com_prova = list(disciplinas_unicas.values())
     
-    return render_template('recursos/aluno_form.html', disciplinas=disciplinas_com_prova)
+    return render_template(
+        'recursos/aluno_form.html',
+        disciplinas=disciplinas_com_prova,
+        min_data_prova=min_data_prova_date.strftime('%Y-%m-%d'),
+        max_data_prova=max_data_prova_date.strftime('%Y-%m-%d'),
+    )
 
 @recursos_bp.route('/api/get_provas/<int:disciplina_id>')
 @login_required
