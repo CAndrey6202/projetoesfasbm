@@ -11,7 +11,7 @@ from backend.models.user import User  # Necessário para listar instrutores/coma
 from backend.services.asset_service import AssetService
 from backend.services.user_service import UserService
 from backend.services.log_service import LogService
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
