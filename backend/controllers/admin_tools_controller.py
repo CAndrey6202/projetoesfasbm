@@ -269,8 +269,8 @@ def preview_backup():
         if file and file.filename.endswith('.json'):
             try:
                 import gc
-                text_stream = io.TextIOWrapper(file.stream, encoding='utf-8')
-                backup_data = json.load(text_stream)
+                file.stream.seek(0)
+                backup_data = json.load(file.stream)
                 # Otimização de memória para renderização HTML no container de 512MB:
                 # O leitor visual utiliza apenas os registros de falta (presente == False) e 1 amostra por aluno
                 freqs = backup_data.get('frequencias')
