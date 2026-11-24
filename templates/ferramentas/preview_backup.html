@@ -154,20 +154,36 @@
         rawData.usuarios.forEach(u => { delete u.password_hash; delete u.reset_token; });
     }
 
-    const maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {} };
+    const maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {}, alunosById: {}, alunoByUserId: {} };
     (rawData.usuarios || []).forEach(u => maps.users[String(u.id)] = u);
     (rawData.turmas || []).forEach(t => maps.turmas[String(t.id)] = t);
     (rawData.disciplinas || []).forEach(d => maps.disciplinas[String(d.id)] = d);
     (rawData.diarios_classe || []).forEach(d => maps.diarios[String(d.id)] = d);
+    (rawData.alunos || []).forEach(a => {
+        maps.alunosById[String(a.id)] = a;
+        if (a.user_id) maps.alunoByUserId[String(a.user_id)] = a;
+    });
+
+    const getRealAlunoId = (userIdOrAlunoId) => {
+        const a = maps.alunoByUserId[String(userIdOrAlunoId)];
+        if (a) return a.id;
+        return userIdOrAlunoId;
+    };
 
     const getName = (id) => {
-        const u = maps.users[String(id)];
+        let u = maps.users[String(id)];
+        if (!u && maps.alunosById[String(id)]) {
+            u = maps.users[String(maps.alunosById[String(id)].user_id)];
+        }
         if(!u) return `Desconhecido`;
         return u.nome_completo || u.nome_de_guerra || u.username || 'Sem Nome';
     };
     
     const getMatricula = (id) => {
-        const u = maps.users[String(id)];
+        let u = maps.users[String(id)];
+        if (!u && maps.alunosById[String(id)]) {
+            u = maps.users[String(maps.alunosById[String(id)].user_id)];
+        }
         if(!u) return 'Não Informada';
         return u.id_func || u.matricula || 'Não Informada';
     };
@@ -306,12 +322,13 @@
         if(!currentPrintAlunoId) return;
         
         // 1. IDENTIFICAÇÃO DA TURMA DO ALUNO (Busca Tripla para evitar erro "Não Vinculada")
-        const aluno = maps.users[String(currentPrintAlunoId)];
-        let alunoTurmaId = aluno.turma_id;
+        const aluno = maps.users[String(currentPrintAlunoId)] || {};
+        const realPrintId = getRealAlunoId(currentPrintAlunoId);
+        const alunoProf = maps.alunosById[String(realPrintId)] || {};
+        let alunoTurmaId = aluno.turma_id || alunoProf.turma_id;
         let turmaNome = "NÃO IDENTIFICADA NO BACKUP";
 
         if (!alunoTurmaId) {
-            const realPrintId = getRealAlunoId(currentPrintAlunoId);
             const hist = (rawData.historicos || []).find(h => String(h.aluno_id) === String(realPrintId));
             if (hist && hist.turma_id) alunoTurmaId = hist.turma_id;
         }

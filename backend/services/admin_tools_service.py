@@ -72,20 +72,36 @@ class AdminToolsService:
         from ..models.curso_video import CursoVideo
         from sqlalchemy import or_
 
-        def serialize_model(obj):
-            if not obj:
-                return None
+        from decimal import Decimal
+        from enum import Enum
+
+        EXCLUDE_COLS = {'password_hash', 'reset_token', 'reset_token_expiration'}
+
+        def serialize_mapping(row_map):
             data = {}
-            EXCLUDE = ['password_hash', 'reset_token', 'reset_token_expiration']
-            for col in obj.__table__.columns:
-                if col.name in EXCLUDE:
+            for k, val in row_map.items():
+                if k in EXCLUDE_COLS:
                     continue
-                val = getattr(obj, col.name)
                 if isinstance(val, (datetime, date, time)):
-                    data[col.name] = val.isoformat()
+                    data[k] = val.isoformat()
+                elif isinstance(val, Decimal):
+                    data[k] = float(val)
+                elif isinstance(val, Enum):
+                    data[k] = val.value
                 else:
-                    data[col.name] = val
+                    data[k] = val
             return data
+
+        def fetch_table_rows(model_cls, where_clause=None, limit_rows=None, order_col=None):
+            stmt = select(model_cls.__table__)
+            if where_clause is not None:
+                stmt = stmt.where(where_clause)
+            if order_col is not None:
+                stmt = stmt.order_by(order_col)
+            if limit_rows is not None:
+                stmt = stmt.limit(limit_rows)
+            res = db.session.execute(stmt).mappings()
+            return [serialize_mapping(r) for r in res]
 
         backup = {
             "meta": {
@@ -129,191 +145,211 @@ class AdminToolsService:
 
         try:
             # 1. Escola e Edicoes
-            school_db = db.session.get(School, school_id)
-            if school_db:
-                backup["escola"] = serialize_model(school_db)
-            
-            edicoes_db = db.session.scalars(select(Edicao).where(Edicao.school_id == school_id)).all()
-            backup["edicoes"] = [serialize_model(e) for e in edicoes_db]
-            
-            # 2. Configuracoes Globais
-            regras_db = db.session.scalars(select(DisciplineRule)).all()
-            backup["regras_npccal"] = [serialize_model(r) for r in regras_db]
-            
-            logs_db = db.session.scalars(select(AdminLog).where(AdminLog.school_id == school_id)).all()
-            backup["admin_logs"] = [serialize_model(l) for l in logs_db]
+            escola_rows = fetch_table_rows(School, School.id == school_id)
+            if escola_rows:
+                backup["escola"] = escola_rows[0]
 
-            images_db = db.session.scalars(select(ImageAsset)).all()
-            backup["image_assets"] = [serialize_model(i) for i in images_db]
+            backup["edicoes"] = fetch_table_rows(Edicao, Edicao.school_id == school_id)
 
-            videos_db = db.session.scalars(select(CursoVideo)).all()
-            backup["cursos_video"] = [serialize_model(v) for v in videos_db]
+            # 2. Configuracoes Globais (Isoladas com try/except para nunca travar o backup)
+            try:
+                backup["regras_npccal"] = fetch_table_rows(DisciplineRule)
+            except Exception as e_reg:
+                current_app.logger.warning(f"Aviso ao extrair regras_npccal no backup: {e_reg}")
+                db.session.rollback()
+
+            try:
+                backup["admin_logs"] = fetch_table_rows(
+                    AdminLog,
+                    AdminLog.school_id == school_id,
+                    limit_rows=5000,
+                    order_col=AdminLog.id.desc()
+                )
+            except Exception as e_log:
+                current_app.logger.warning(f"Aviso ao extrair admin_logs no backup: {e_log}")
+                db.session.rollback()
+
+            try:
+                backup["image_assets"] = fetch_table_rows(ImageAsset)
+            except Exception as e_img:
+                current_app.logger.warning(f"Aviso ao extrair image_assets no backup: {e_img}")
+                db.session.rollback()
+
+            try:
+                backup["cursos_video"] = fetch_table_rows(CursoVideo)
+            except Exception as e_vid:
+                current_app.logger.warning(f"Aviso ao extrair cursos_video no backup: {e_vid}")
+                db.session.rollback()
 
             # 3. Usuarios e Vinculos (UserSchool)
-            us_db = db.session.scalars(select(UserSchool).where(UserSchool.school_id == school_id)).all()
-            backup["users_schools"] = [serialize_model(us) for us in us_db]
-            user_ids = [us.user_id for us in us_db]
-
-            users_cache = {}
-            if user_ids:
-                users_db = db.session.scalars(select(User).where(User.id.in_(user_ids))).all()
-                for u in users_db:
-                    backup["usuarios"].append(serialize_model(u))
-                    users_cache[u.id] = {
-                        "nome": u.nome_completo or u.nome_de_guerra or u.username or "Sem Nome",
-                        "matricula": u.matricula or "Nao informada"
-                    }
+            backup["users_schools"] = fetch_table_rows(UserSchool, UserSchool.school_id == school_id)
+            user_ids_set = {us["user_id"] for us in backup["users_schools"] if us.get("user_id")}
 
             # 4. Instrutores (Tabela Real)
-            instrutores_db = db.session.scalars(select(Instrutor).where(Instrutor.school_id == school_id)).all()
-            backup["instrutores"] = [serialize_model(i) for i in instrutores_db]
+            backup["instrutores"] = fetch_table_rows(Instrutor, Instrutor.school_id == school_id)
+            for inst in backup["instrutores"]:
+                if inst.get("user_id"):
+                    user_ids_set.add(inst["user_id"])
 
             # 5. Turmas
-            turmas_db = db.session.scalars(select(Turma).where(Turma.school_id == school_id)).all()
-            turma_ids = [t.id for t in turmas_db]
-            turmas_cache = {t.id: t.nome for t in turmas_db}
-            backup["turmas"] = [serialize_model(t) for t in turmas_db]
+            backup["turmas"] = fetch_table_rows(Turma, Turma.school_id == school_id)
+            turma_ids = [t["id"] for t in backup["turmas"]]
+            turmas_cache = {t["id"]: t.get("nome") or "Desconhecida" for t in backup["turmas"]}
 
-            # 6. Alunos (O Perfil Completo Corrigido)
-            alunos_cache = {}
-            if user_ids or turma_ids:
-                conds = []
-                if user_ids:
-                    conds.append(Aluno.user_id.in_(user_ids))
-                if turma_ids:
-                    conds.append(Aluno.turma_id.in_(turma_ids))
-                
-                alunos_db = db.session.scalars(select(Aluno).where(or_(*conds))).all()
-                for a in alunos_db:
-                    backup["alunos"].append(serialize_model(a))
-                    u_info = users_cache.get(a.user_id, {})
-                    alunos_cache[a.id] = {
-                        "nome": u_info.get("nome", "Desconhecido"),
-                        "matricula": u_info.get("matricula", "N/A"),
-                        "user_id": a.user_id
+            # 6. Alunos (Inclui vinculados via UserSchool ou via Turma da escola)
+            conds_alunos = []
+            if user_ids_set:
+                conds_alunos.append(Aluno.user_id.in_(list(user_ids_set)))
+            if turma_ids:
+                conds_alunos.append(Aluno.turma_id.in_(turma_ids))
+
+            if conds_alunos:
+                backup["alunos"] = fetch_table_rows(Aluno, or_(*conds_alunos))
+                for a in backup["alunos"]:
+                    if a.get("user_id"):
+                        user_ids_set.add(a["user_id"])
+
+            # Carrega todos os usuarios referenciados (UserSchool + Alunos + Instrutores)
+            users_cache = {}
+            user_ids = list(user_ids_set)
+            if user_ids:
+                backup["usuarios"] = fetch_table_rows(User, User.id.in_(user_ids))
+                for u in backup["usuarios"]:
+                    uid = u["id"]
+                    users_cache[uid] = {
+                        "nome": u.get("nome_completo") or u.get("nome_de_guerra") or u.get("username") or "Sem Nome",
+                        "matricula": u.get("matricula") or "Nao informada"
                     }
+
+            alunos_cache = {}
+            for a in backup["alunos"]:
+                u_info = users_cache.get(a.get("user_id"), {})
+                alunos_cache[a["id"]] = {
+                    "nome": u_info.get("nome", "Desconhecido"),
+                    "matricula": u_info.get("matricula", "N/A"),
+                    "user_id": a.get("user_id")
+                }
             aluno_ids = list(alunos_cache.keys())
 
             # 7. Cargos de Turma
             if turma_ids:
-                cargos_db = db.session.scalars(select(TurmaCargo).where(TurmaCargo.turma_id.in_(turma_ids))).all()
-                backup["turma_cargos"] = [serialize_model(tc) for tc in cargos_db]
+                backup["turma_cargos"] = fetch_table_rows(TurmaCargo, TurmaCargo.turma_id.in_(turma_ids))
 
             # 8. Disciplinas Globais
             disc_ids = []
             disciplinas_cache = {}
             if turma_ids:
-                disciplinas_db = db.session.scalars(select(Disciplina).where(Disciplina.turma_id.in_(turma_ids))).all()
-                for d in disciplinas_db:
-                    backup["disciplinas"].append(serialize_model(d))
-                    disciplinas_cache[d.id] = d.materia
-                    disc_ids.append(d.id)
-                
+                backup["disciplinas"] = fetch_table_rows(Disciplina, Disciplina.turma_id.in_(turma_ids))
+                for d in backup["disciplinas"]:
+                    disciplinas_cache[d["id"]] = d.get("materia") or "Desconhecida"
+                    disc_ids.append(d["id"])
+
                 if disc_ids:
-                    vinculos_db = db.session.scalars(select(DisciplinaTurma).where(DisciplinaTurma.disciplina_id.in_(disc_ids))).all()
-                    backup["vinculos_disciplinas"] = [serialize_model(v) for v in vinculos_db]
+                    backup["vinculos_disciplinas"] = fetch_table_rows(
+                        DisciplinaTurma,
+                        DisciplinaTurma.disciplina_id.in_(disc_ids)
+                    )
 
             # 9. Ciclos, Semanas e Horarios
-            ciclos_db = db.session.scalars(select(Ciclo).where(Ciclo.school_id == school_id)).all()
-            backup["ciclos"] = [serialize_model(c) for c in ciclos_db]
-            ciclo_ids = [c.id for c in ciclos_db]
+            backup["ciclos"] = fetch_table_rows(Ciclo, Ciclo.school_id == school_id)
+            ciclo_ids = [c["id"] for c in backup["ciclos"]]
 
             if ciclo_ids:
-                semanas_db = db.session.scalars(select(Semana).where(Semana.ciclo_id.in_(ciclo_ids))).all()
-                backup["semanas"] = [serialize_model(s) for s in semanas_db]
-                semana_ids = [s.id for s in semanas_db]
-                
+                backup["semanas"] = fetch_table_rows(Semana, Semana.ciclo_id.in_(ciclo_ids))
+                semana_ids = [s["id"] for s in backup["semanas"]]
+
                 if semana_ids:
-                    horarios_db = db.session.scalars(select(Horario).where(Horario.semana_id.in_(semana_ids))).all()
-                    backup["horarios"] = [serialize_model(h) for h in horarios_db]
+                    backup["horarios"] = fetch_table_rows(Horario, Horario.semana_id.in_(semana_ids))
 
-            # 10. Diarios e Frequencias
-            diario_ids = []
+            # 10. Diarios e Frequencias (Otimizado via JOIN SQL Core sem instanciar centenas de milhares de objetos ORM)
             if turma_ids:
-                diarios_db = db.session.scalars(select(DiarioClasse).where(DiarioClasse.turma_id.in_(turma_ids))).all()
-                for d in diarios_db:
-                    d_data = serialize_model(d)
-                    d_data["injected_turma_nome"] = turmas_cache.get(d.turma_id, "Desconhecida")
-                    d_data["injected_disciplina_nome"] = disciplinas_cache.get(d.disciplina_id, "Desconhecida")
+                diarios_rows = fetch_table_rows(DiarioClasse, DiarioClasse.turma_id.in_(turma_ids))
+                for d_data in diarios_rows:
+                    d_data["injected_turma_nome"] = turmas_cache.get(d_data.get("turma_id"), "Desconhecida")
+                    d_data["injected_disciplina_nome"] = disciplinas_cache.get(d_data.get("disciplina_id"), "Desconhecida")
                     backup["diarios_classe"].append(d_data)
-                    diario_ids.append(d.id)
 
-            if diario_ids:
-                frequencias_db = db.session.scalars(select(FrequenciaAluno).where(FrequenciaAluno.diario_id.in_(diario_ids))).all()
-                for f in frequencias_db:
-                    f_data = serialize_model(f)
-                    a_info = alunos_cache.get(f.aluno_id, {})
-                    f_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
-                    f_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
-                    backup["frequencias"].append(f_data)
+                if diarios_rows:
+                    stmt_freq = (
+                        select(FrequenciaAluno.__table__)
+                        .select_from(
+                            FrequenciaAluno.__table__.join(
+                                DiarioClasse.__table__,
+                                FrequenciaAluno.diario_id == DiarioClasse.id
+                            )
+                        )
+                        .where(DiarioClasse.turma_id.in_(turma_ids))
+                    )
+                    freq_result = db.session.execute(stmt_freq).mappings()
+                    frequencias_list = backup["frequencias"]
+                    for f in freq_result:
+                        a_info = alunos_cache.get(f["aluno_id"], {})
+                        frequencias_list.append({
+                            "id": f["id"],
+                            "diario_id": f["diario_id"],
+                            "aluno_id": f["aluno_id"],
+                            "presente": f["presente"],
+                            "justificativa": f["justificativa"],
+                            "injected_aluno_nome": a_info.get("nome", "Desconhecido"),
+                            "injected_aluno_matricula": a_info.get("matricula", "N/A"),
+                        })
 
             # 11. Historicos e Justica (CORRECAO CRITICA DO ALUNO_ID)
             if aluno_ids:
-                historicos_db = db.session.scalars(select(HistoricoAluno).where(HistoricoAluno.aluno_id.in_(aluno_ids))).all()
-                backup["historicos"] = [serialize_model(h) for h in historicos_db]
+                backup["historicos"] = fetch_table_rows(HistoricoAluno, HistoricoAluno.aluno_id.in_(aluno_ids))
 
-                processos_db = db.session.scalars(select(ProcessoDisciplina).where(ProcessoDisciplina.aluno_id.in_(aluno_ids))).all()
-                for p in processos_db:
-                    p_data = serialize_model(p)
-                    a_info = alunos_cache.get(p.aluno_id, {})
+                processos_rows = fetch_table_rows(ProcessoDisciplina, ProcessoDisciplina.aluno_id.in_(aluno_ids))
+                for p_data in processos_rows:
+                    a_info = alunos_cache.get(p_data.get("aluno_id"), {})
                     p_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
                     p_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
-                    p_data["injected_user_id"] = a_info.get("user_id") # Manteve a compatibilidade com preview_backup
-                    relator_info = users_cache.get(p.relator_id, {}) if p.relator_id else {}
+                    p_data["injected_user_id"] = a_info.get("user_id")
+                    rel_id = p_data.get("relator_id")
+                    relator_info = users_cache.get(rel_id, {}) if rel_id else {}
                     p_data["injected_relator_nome"] = relator_info.get("nome", "N/A")
                     backup["justica"]["processos"].append(p_data)
 
-                elogios_db = db.session.scalars(select(Elogio).where(Elogio.aluno_id.in_(aluno_ids))).all()
-                for e in elogios_db:
-                    e_data = serialize_model(e)
-                    a_info = alunos_cache.get(e.aluno_id, {})
+                elogios_rows = fetch_table_rows(Elogio, Elogio.aluno_id.in_(aluno_ids))
+                for e_data in elogios_rows:
+                    a_info = alunos_cache.get(e_data.get("aluno_id"), {})
                     e_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
                     e_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
                     e_data["injected_user_id"] = a_info.get("user_id")
                     backup["justica"]["elogios"].append(e_data)
 
-                fadas_db = db.session.scalars(select(FadaAvaliacao).where(FadaAvaliacao.aluno_id.in_(aluno_ids))).all()
-                backup["justica"]["fadas"] = [serialize_model(f) for f in fadas_db]
+                backup["justica"]["fadas"] = fetch_table_rows(FadaAvaliacao, FadaAvaliacao.aluno_id.in_(aluno_ids))
 
             # 12. Banco de Questoes e Avaliacoes
             try:
-                questoes_db = db.session.scalars(select(QuestaoBanco).where(QuestaoBanco.escola_id == school_id)).all()
-                backup["banco_questoes"] = [serialize_model(q) for q in questoes_db]
-                
-                delegacoes_db = db.session.scalars(select(DelegacaoProva).where(DelegacaoProva.escola_gestora_id == school_id)).all()
-                backup["delegacoes_prova"] = [serialize_model(d) for d in delegacoes_db]
+                backup["banco_questoes"] = fetch_table_rows(QuestaoBanco, QuestaoBanco.escola_id == school_id)
+                backup["delegacoes_prova"] = fetch_table_rows(DelegacaoProva, DelegacaoProva.escola_gestora_id == school_id)
 
-                del_ids = [d.id for d in delegacoes_db]
+                del_ids = [d["id"] for d in backup["delegacoes_prova"]]
                 if del_ids:
-                    rascunhos_db = db.session.scalars(select(RascunhoProva).where(RascunhoProva.delegacao_id.in_(del_ids))).all()
+                    backup["rascunhos_prova"] = fetch_table_rows(RascunhoProva, RascunhoProva.delegacao_id.in_(del_ids))
                 else:
-                    rascunhos_db = []
-                backup["rascunhos_prova"] = [serialize_model(r) for r in rascunhos_db]
+                    backup["rascunhos_prova"] = []
 
-                envios_db = db.session.scalars(select(ConfiguracaoEnvio).where(ConfiguracaoEnvio.escola_id == school_id)).all()
-                backup["configuracoes_envio"] = [serialize_model(e) for e in envios_db]
+                backup["configuracoes_envio"] = fetch_table_rows(ConfiguracaoEnvio, ConfiguracaoEnvio.escola_id == school_id)
             except Exception as e_bq:
                 current_app.logger.warning(f"Aviso ao extrair banco de questoes no backup: {e_bq}")
+                db.session.rollback()
 
             # 13. Questionarios de Avaliacao
             try:
-                questionarios_db = db.session.scalars(select(Questionario).where(Questionario.school_id == school_id)).all()
-                q_ids = [q.id for q in questionarios_db]
-                backup["questionarios"] = [serialize_model(q) for q in questionarios_db]
+                backup["questionarios"] = fetch_table_rows(Questionario, Questionario.school_id == school_id)
+                q_ids = [q["id"] for q in backup["questionarios"]]
 
                 if q_ids:
-                    perguntas_db = db.session.scalars(select(Pergunta).where(Pergunta.questionario_id.in_(q_ids))).all()
-                    p_ids = [p.id for p in perguntas_db]
-                    backup["perguntas"] = [serialize_model(p) for p in perguntas_db]
+                    backup["perguntas"] = fetch_table_rows(Pergunta, Pergunta.questionario_id.in_(q_ids))
+                    p_ids = [p["id"] for p in backup["perguntas"]]
 
                     if p_ids:
-                        opcoes_db = db.session.scalars(select(OpcaoResposta).where(OpcaoResposta.pergunta_id.in_(p_ids))).all()
-                        backup["opcoes_resposta"] = [serialize_model(o) for o in opcoes_db]
-                    
-                        respostas_db = db.session.scalars(select(Resposta).where(Resposta.pergunta_id.in_(p_ids))).all()
-                        backup["respostas"] = [serialize_model(r) for r in respostas_db]
+                        backup["opcoes_resposta"] = fetch_table_rows(OpcaoResposta, OpcaoResposta.pergunta_id.in_(p_ids))
+                        backup["respostas"] = fetch_table_rows(Resposta, Resposta.pergunta_id.in_(p_ids))
             except Exception as e_quest:
                 current_app.logger.warning(f"Aviso ao extrair questionarios no backup: {e_quest}")
+                db.session.rollback()
 
             return backup
 

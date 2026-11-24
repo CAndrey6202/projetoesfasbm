@@ -67,6 +67,9 @@ def mail_merge():
 @admin_or_programmer_required
 def backup_escola():
     """Gera e faz o download de um snapshot completo da edição atual da escola em formato JSON."""
+    import tempfile
+    from ..models.database import db
+
     school_id = UserService.get_current_school_id()
     if not school_id:
         flash("Nenhuma escola selecionada.", "warning")
@@ -74,11 +77,9 @@ def backup_escola():
 
     try:
         backup_data = AdminToolsService.generate_school_backup(school_id)
-        json_str = json.dumps(backup_data, ensure_ascii=False, indent=4)
-        buffer = io.BytesIO(json_str.encode('utf-8'))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"backup_escola_{school_id}_edicao_{timestamp}.json"
-        
+
         # --- ESPIÃO: BACKUP DA ESCOLA ---
         LogService.log(
             action="Gerou Backup",
@@ -86,9 +87,21 @@ def backup_escola():
             school_id=school_id
         )
         # --------------------------------
-        
+
+        # Grava diretamente em arquivo temporário (spooled em disco acima de 5MB)
+        # para não triplicar o consumo de RAM no container de 512MB do Render
+        spooled = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024, mode='w+b')
+        text_wrapper = io.TextIOWrapper(spooled, encoding='utf-8', write_through=True)
+        json.dump(backup_data, text_wrapper, ensure_ascii=False, separators=(',', ':'))
+        text_wrapper.flush()
+        text_wrapper.detach()
+
+        del backup_data
+        db.session.expunge_all()
+        spooled.seek(0)
+
         return send_file(
-            buffer,
+            spooled,
             as_attachment=True,
             download_name=filename,
             mimetype='application/json'
