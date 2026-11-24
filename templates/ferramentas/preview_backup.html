@@ -143,9 +143,9 @@
 </style>
 
 <script>
-    let rawData = {{ (data | tojson | safe) if data else 'null' }};
-    let currentFileName = {{ (file_name | tojson | safe) if file_name else '""' }};
-    let currentGeneratedAt = (rawData && rawData.meta && rawData.meta.generated_at) ? rawData.meta.generated_at.substring(0, 19).replace('T', ' ') : '';
+    let rawData = null;
+    let currentFileName = "";
+    let currentGeneratedAt = "";
     let currentPrintAlunoId = null;
 
     let maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {}, alunosById: {}, alunoByUserId: {} };
@@ -272,6 +272,8 @@
         }
     }
 
+    window.analisarArquivoLocal = analisarArquivoLocal;
+
     document.addEventListener("DOMContentLoaded", () => {
         const today = new Date();
         const localDataInput = document.getElementById('print-local-data');
@@ -279,8 +281,9 @@
             localDataInput.value = `Montenegro/RS, ${today.toLocaleDateString('pt-BR')}`;
         }
 
-        if (rawData) {
-            loadBackupIntoUI(rawData, currentFileName);
+        const btnAnalisar = document.getElementById('btn-analisar-backup');
+        if (btnAnalisar) {
+            btnAnalisar.addEventListener('click', analisarArquivoLocal);
         }
     });
 
