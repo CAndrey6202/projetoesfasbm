@@ -17,12 +17,12 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_cor
 warnings.filterwarnings("ignore", category=FutureWarning, module="firebase_admin")
 
 import click
-import firebase_admin
+# firebase_admin importado sob demanda
 from flask import Flask, render_template, g, session, send_from_directory, request
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_babel import Babel
-from firebase_admin import credentials
+# credentials importado sob demanda
 
 from backend.config import Config
 from backend.extensions import limiter, csrf
@@ -119,6 +119,8 @@ def create_app(config_class=Config):
     try:
         cred_path = os.path.join(os.path.dirname(__file__), "credentials.json")
         if os.path.exists(cred_path):
+            import firebase_admin
+            from firebase_admin import credentials
             if not firebase_admin._apps:
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
@@ -249,7 +251,70 @@ def create_app(config_class=Config):
         register_handlers_and_processors(app)
 
     register_cli_commands(app)
+    if os.environ.get("ENABLE_IN_PROCESS_WORKER") == "1" and not getattr(app, "_worker_thread_started", False):
+        app._worker_thread_started = True
+        import threading
+        threading.Thread(target=_run_in_process_background_worker, args=(app,), daemon=True).start()
     return app
+
+
+def _run_in_process_background_worker(app):
+    import time
+    import gc
+    time.sleep(5)
+    with app.app_context():
+        try:
+            from flask_migrate import upgrade as _db_upgrade
+            _db_upgrade()
+            app.logger.info("Migracoes verificadas com sucesso em background.")
+        except Exception as e:
+            app.logger.warning(f"Aviso ao verificar migracoes em background: {e}")
+        finally:
+            db.session.remove()
+            gc.collect()
+
+    from worker import process_pdf_job, process_certificates_zip, cleanup_old_jobs
+    last_cleanup = datetime.utcnow()
+
+    while True:
+        had_job = False
+        with app.app_context():
+            try:
+                if (datetime.utcnow() - last_cleanup).total_seconds() > 3600:
+                    cleanup_old_jobs()
+                    last_cleanup = datetime.utcnow()
+
+                job = BackgroundJob.query.filter_by(status='pending').order_by(BackgroundJob.created_at.asc()).first()
+                if job:
+                    had_job = True
+                    job.status = 'processing'
+                    job.started_at = datetime.utcnow()
+                    db.session.commit()
+                    try:
+                        if job.task_type == 'generate_pdf':
+                            job.result_path = process_pdf_job(job)
+                        elif job.task_type == 'generate_certificates_zip':
+                            job.result_path = process_certificates_zip(job)
+                        else:
+                            raise ValueError(f"Task type desconhecido: {job.task_type}")
+                        job.status = 'completed'
+                        job.finished_at = datetime.utcnow()
+                        job.payload = None
+                    except Exception as e_job:
+                        job.status = 'failed'
+                        job.error_message = str(e_job)
+                        job.finished_at = datetime.utcnow()
+                    db.session.commit()
+            except Exception as e_loop:
+                app.logger.error(f"Erro na thread de background worker: {e_loop}")
+                db.session.rollback()
+            finally:
+                db.session.remove()
+                if had_job:
+                    gc.collect()
+
+        if not had_job:
+            time.sleep(5)
 
 
 def register_blueprints(app):

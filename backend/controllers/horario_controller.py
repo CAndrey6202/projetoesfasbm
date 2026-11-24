@@ -6,7 +6,6 @@ from datetime import date, datetime, timedelta
 from flask_wtf import FlaskForm
 from wtforms import HiddenField, SubmitField
 from wtforms.validators import DataRequired
-from weasyprint import HTML
 from urllib.parse import quote
 import json
 import traceback

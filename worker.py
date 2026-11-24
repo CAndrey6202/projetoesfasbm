@@ -35,8 +35,17 @@ def create_worker_app():
     db.init_app(worker_app)
     return worker_app
 
-app = create_worker_app()
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+app = None
+
+def get_worker_app():
+    global app
+    if app is None:
+        from flask import has_app_context, current_app
+        if has_app_context():
+            return current_app._get_current_object()
+        app = create_worker_app()
+    return app
 
 def fix_image_urls(html_content, app_root=None):
     # Substitui as URLs https://localhost e http://localhost por caminhos absolutos do sistema de arquivos file://
@@ -73,7 +82,7 @@ def process_certificates_zip(job):
             pdf_filename = f'Certificado - {safe_name}.pdf'
             pdf_path = os.path.join(temp_dir, pdf_filename)
             
-            with app.test_request_context():
+            with get_worker_app().test_request_context():
                 rendered_html = render_template(
                     'ferramentas/certificados_pdf.html',
                     dados=dados,
@@ -169,7 +178,7 @@ def run_worker():
 
     while True:
         had_job = False
-        with app.app_context():
+        with get_worker_app().app_context():
             try:
                 # Executa a limpeza a cada 1 hora
                 if (datetime.utcnow() - last_cleanup).total_seconds() > 3600:

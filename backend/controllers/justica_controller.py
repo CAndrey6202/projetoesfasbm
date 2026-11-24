@@ -2,7 +2,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, Response, session, current_app
 from flask_login import login_required, current_user
 from urllib.parse import quote
-from weasyprint import HTML
 from sqlalchemy import select, or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta

@@ -1,7 +1,5 @@
 # backend/services/mail_merge_service.py
 
-import pandas as pd
-from docx import Document
 from io import BytesIO
 import zipfile
 import re
@@ -62,6 +60,8 @@ class MailMergeService:
         e os compacta em um arquivo ZIP.
         """
         try:
+            import pandas as pd
+            from docx import Document
             template_buffer = BytesIO(template_file.read())
             df = pd.read_excel(data_file)
             records = df.astype(str).to_dict('records')

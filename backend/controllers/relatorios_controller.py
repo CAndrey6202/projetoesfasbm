@@ -8,7 +8,6 @@ import io
 import locale
 import json
 
-from weasyprint import HTML
 from werkzeug.utils import secure_filename
 import uuid
 from sqlalchemy import select, or_

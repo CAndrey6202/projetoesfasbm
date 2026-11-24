@@ -1,6 +1,5 @@
 # backend/services/notification_service.py
 from sqlalchemy import select, func, update
-from firebase_admin import messaging
 from ..models.database import db
 from ..models.notification import Notification
 from ..models.user import User
@@ -21,7 +20,7 @@ class NotificationService:
         subscriptions = db.session.query(PushSubscription).filter_by(user_id=user_id).all()
         if not subscriptions:
             return
-        
+        from firebase_admin import messaging
         tokens = [sub.fcm_token for sub in subscriptions]
 
         # Monta a notificação
