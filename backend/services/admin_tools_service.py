@@ -232,32 +232,46 @@ class AdminToolsService:
         yield ']'
 
         yield ',"frequencias":['
-        if diario_ids:
+        if turma_ids and diario_ids:
+            from sqlalchemy import and_
             first_f = True
-            batch_size = 400
-            for idx in range(0, len(diario_ids), batch_size):
-                batch_d_ids = diario_ids[idx:idx + batch_size]
-                stmt_freq = select(FrequenciaAluno.__table__).where(FrequenciaAluno.diario_id.in_(batch_d_ids))
-                buf = []
-                for f in db.session.execute(stmt_freq).mappings():
-                    a_info = alunos_cache.get(f["aluno_id"], {})
-                    f_item = {
-                        "id": f["id"],
-                        "diario_id": f["diario_id"],
-                        "aluno_id": f["aluno_id"],
-                        "presente": f["presente"],
-                        "justificativa": f["justificativa"],
-                        "injected_aluno_nome": a_info.get("nome", "Desconhecido"),
-                        "injected_aluno_matricula": a_info.get("matricula", "N/A"),
-                    }
-                    buf.append((',' if not first_f else '') + dump_val(f_item))
-                    first_f = False
-                    if len(buf) >= 500:
-                        yield ''.join(buf)
-                        buf.clear()
-                if buf:
+            stmt_freq = (
+                select(FrequenciaAluno.__table__)
+                .select_from(
+                    FrequenciaAluno.__table__.join(
+                        DiarioClasse.__table__,
+                        FrequenciaAluno.diario_id == DiarioClasse.id
+                    )
+                )
+                .where(
+                    DiarioClasse.turma_id.in_(turma_ids),
+                    or_(
+                        FrequenciaAluno.presente == False,
+                        FrequenciaAluno.presente.is_(None),
+                        and_(FrequenciaAluno.justificativa.isnot(None), FrequenciaAluno.justificativa != '')
+                    )
+                )
+            )
+            buf = []
+            for f in db.session.execute(stmt_freq).mappings():
+                a_info = alunos_cache.get(f["aluno_id"], {})
+                f_item = {
+                    "id": f["id"],
+                    "diario_id": f["diario_id"],
+                    "aluno_id": f["aluno_id"],
+                    "presente": f["presente"],
+                    "justificativa": f["justificativa"],
+                    "injected_aluno_nome": a_info.get("nome", "Desconhecido"),
+                    "injected_aluno_matricula": a_info.get("matricula", "N/A"),
+                }
+                buf.append((',' if not first_f else '') + dump_val(f_item))
+                first_f = False
+                if len(buf) >= 500:
                     yield ''.join(buf)
                     buf.clear()
+            if buf:
+                yield ''.join(buf)
+                buf.clear()
         yield ']'
         del diario_ids
         gc.collect()
