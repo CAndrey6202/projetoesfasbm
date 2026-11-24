@@ -67,7 +67,9 @@ def mail_merge():
 @admin_or_programmer_required
 def backup_escola():
     """Gera e faz o download de um snapshot completo da edição atual da escola em formato JSON."""
+    import os
     import tempfile
+    from flask import after_this_request
     from ..models.database import db
 
     school_id = UserService.get_current_school_id()
@@ -75,10 +77,15 @@ def backup_escola():
         flash("Nenhuma escola selecionada.", "warning")
         return redirect(url_for('tools.index'))
 
+    temp_path = None
     try:
-        backup_data = AdminToolsService.generate_school_backup(school_id)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"backup_escola_{school_id}_edicao_{timestamp}.json"
+
+        fd, temp_path = tempfile.mkstemp(prefix=f"backup_escola_{school_id}_", suffix=".json")
+        os.close(fd)
+
+        AdminToolsService.generate_school_backup_to_file(school_id, temp_path)
 
         # --- ESPIÃO: BACKUP DA ESCOLA ---
         LogService.log(
@@ -88,25 +95,29 @@ def backup_escola():
         )
         # --------------------------------
 
-        # Grava diretamente em arquivo temporário (spooled em disco acima de 5MB)
-        # para não triplicar o consumo de RAM no container de 512MB do Render
-        spooled = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024, mode='w+b')
-        text_wrapper = io.TextIOWrapper(spooled, encoding='utf-8', write_through=True)
-        json.dump(backup_data, text_wrapper, ensure_ascii=False, separators=(',', ':'))
-        text_wrapper.flush()
-        text_wrapper.detach()
-
-        del backup_data
         db.session.expunge_all()
-        spooled.seek(0)
+
+        @after_this_request
+        def _cleanup_temp_backup(response):
+            try:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
+            return response
 
         return send_file(
-            spooled,
+            temp_path,
             as_attachment=True,
             download_name=filename,
             mimetype='application/json'
         )
     except Exception as e:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
         flash(f"Ocorreu um erro ao gerar o backup da escola: {str(e)}", "danger")
         return redirect(url_for('tools.index'))
 
@@ -257,8 +268,27 @@ def preview_backup():
             
         if file and file.filename.endswith('.json'):
             try:
-                file_content = file.read().decode('utf-8')
-                backup_data = json.loads(file_content)
+                import gc
+                text_stream = io.TextIOWrapper(file.stream, encoding='utf-8')
+                backup_data = json.load(text_stream)
+                # Otimização de memória para renderização HTML no container de 512MB:
+                # O leitor visual utiliza apenas os registros de falta (presente == False) e 1 amostra por aluno
+                freqs = backup_data.get('frequencias')
+                if isinstance(freqs, list) and len(freqs) > 5000:
+                    seen_alunos = set()
+                    compact_freqs = []
+                    for f in freqs:
+                        p = f.get('presente')
+                        is_falta = (p is False or p == 0 or p == "0" or p is None or f.get('status') == 'falta')
+                        aid = f.get('aluno_id')
+                        if is_falta:
+                            compact_freqs.append(f)
+                        elif aid not in seen_alunos:
+                            seen_alunos.add(aid)
+                            compact_freqs.append(f)
+                    backup_data['frequencias'] = compact_freqs
+                    del freqs
+                    gc.collect()
                 return render_template('ferramentas/preview_backup.html', data=backup_data, file_name=file.filename)
             except json.JSONDecodeError:
                 flash('O arquivo enviado não é um JSON válido ou está corrompido.', 'error')
