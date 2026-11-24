@@ -1,11 +1,10 @@
 # backend/controllers/admin_tools_controller.py
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file, jsonify, Response, stream_with_context
 from flask_login import login_required, current_user
 import io
 import json
 import uuid
-import pandas as pd
 from datetime import datetime, timedelta
 
 from utils.decorators import admin_or_programmer_required, admin_escola_required
@@ -67,25 +66,14 @@ def mail_merge():
 @admin_or_programmer_required
 def backup_escola():
     """Gera e faz o download de um snapshot completo da edição atual da escola em formato JSON."""
-    import os
-    import tempfile
-    from flask import after_this_request
-    from ..models.database import db
-
     school_id = UserService.get_current_school_id()
     if not school_id:
         flash("Nenhuma escola selecionada.", "warning")
         return redirect(url_for('tools.index'))
 
-    temp_path = None
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"backup_escola_{school_id}_edicao_{timestamp}.json"
-
-        fd, temp_path = tempfile.mkstemp(prefix=f"backup_escola_{school_id}_", suffix=".json")
-        os.close(fd)
-
-        AdminToolsService.generate_school_backup_to_file(school_id, temp_path)
 
         # --- ESPIÃO: BACKUP DA ESCOLA ---
         LogService.log(
@@ -95,29 +83,15 @@ def backup_escola():
         )
         # --------------------------------
 
-        db.session.expunge_all()
-
-        @after_this_request
-        def _cleanup_temp_backup(response):
-            try:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception:
-                pass
-            return response
-
-        return send_file(
-            temp_path,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/json'
+        return Response(
+            stream_with_context(AdminToolsService.generate_school_backup_stream(school_id)),
+            mimetype='application/json; charset=utf-8',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Cache-Control': 'no-store'
+            }
         )
     except Exception as e:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception:
-                pass
         flash(f"Ocorreu um erro ao gerar o backup da escola: {str(e)}", "danger")
         return redirect(url_for('tools.index'))
 

@@ -10,30 +10,29 @@
     </div>
 
     <div class="card" style="margin-bottom: 20px; padding: 20px;">
-        <form method="POST" enctype="multipart/form-data">
+        <form id="form-preview-backup" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="backup_file"><strong>Selecione o arquivo JSON do Sisgen:</strong></label>
                 <input type="file" name="backup_file" id="backup_file" accept=".json" class="form-control" required style="margin-top: 10px; margin-bottom: 15px; border: 1px solid #ccc; padding: 5px; width: 100%;">
             </div>
-            <button type="submit" class="btn btn-primary">Analisar Arquivo</button>
+            <button type="submit" id="btn-analisar-backup" class="btn btn-primary">Analisar Arquivo</button>
             <a href="{{ url_for('tools.index') }}" class="btn btn-secondary">Voltar</a>
         </form>
     </div>
 
-    {% if data %}
-    <div class="card" style="padding: 20px;">
-        <h2>Resumo da Edição: <span style="color: #666; font-size: 18px;">{{ file_name }}</span></h2>
-        <p><strong>🕒 Gerado em:</strong> {{ data.meta.generated_at[:19].replace('T', ' ') }}</p>
+    <div id="backup-preview-container" class="card" style="padding: 20px; {% if not data %}display: none;{% endif %}">
+        <h2>Resumo da Edição: <span id="summary-file-name" style="color: #666; font-size: 18px;">{{ file_name or '' }}</span></h2>
+        <p><strong>🕒 Gerado em:</strong> <span id="summary-generated-at">{{ data.meta.generated_at[:19].replace('T', ' ') if data and data.meta and data.meta.generated_at else '' }}</span></p>
         <hr style="margin: 20px 0;">
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
-            <div class="summary-box" style="border-left: 4px solid #4CAF50;"><h3>Turmas</h3><p>{{ data.turmas | length }}</p></div>
-            <div class="summary-box" style="border-left: 4px solid #2196F3;"><h3>Usuários</h3><p>{{ data.usuarios | length }}</p></div>
-            <div class="summary-box" style="border-left: 4px solid #9C27B0;"><h3>Disciplinas</h3><p>{{ data.disciplinas | length }}</p></div>
-            <div class="summary-box" style="border-left: 4px solid #FF9800;"><h3>Diários</h3><p>{{ data.diarios_classe | length }}</p></div>
+            <div class="summary-box" style="border-left: 4px solid #4CAF50;"><h3>Turmas</h3><p id="summary-turmas">{{ data.turmas | length if data and data.turmas else 0 }}</p></div>
+            <div class="summary-box" style="border-left: 4px solid #2196F3;"><h3>Usuários</h3><p id="summary-usuarios">{{ data.usuarios | length if data and data.usuarios else 0 }}</p></div>
+            <div class="summary-box" style="border-left: 4px solid #9C27B0;"><h3>Disciplinas</h3><p id="summary-disciplinas">{{ data.disciplinas | length if data and data.disciplinas else 0 }}</p></div>
+            <div class="summary-box" style="border-left: 4px solid #FF9800;"><h3>Diários</h3><p id="summary-diarios">{{ data.diarios_classe | length if data and data.diarios_classe else 0 }}</p></div>
             <div class="summary-box" style="border-left: 4px solid #F44336;"><h3>Faltas Reais</h3><p id="total-faltas-badge"><span style="font-size:14px;color:#999">calculando...</span></p></div>
-            <div class="summary-box" style="border-left: 4px solid #607D8B;"><h3>Processos</h3><p>{{ data.justica.processos | length }}</p></div>
+            <div class="summary-box" style="border-left: 4px solid #607D8B;"><h3>Processos</h3><p id="summary-processos">{{ data.justica.processos | length if data and data.justica and data.justica.processos else 0 }}</p></div>
         </div>
 
         <h3 style="margin-bottom: 15px;">Inspeção Relacional de Dados</h3>
@@ -103,7 +102,6 @@
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 
 <style>
@@ -145,24 +143,32 @@
     .badge-success { background-color: #4CAF50; }
 </style>
 
-{% if data %}
 <script>
-    const rawData = {{ data | tojson | safe }};
+    let rawData = {{ (data | tojson | safe) if data else 'null' }};
+    let currentFileName = {{ (file_name | tojson | safe) if file_name else '""' }};
+    let currentGeneratedAt = (rawData && rawData.meta && rawData.meta.generated_at) ? rawData.meta.generated_at.substring(0, 19).replace('T', ' ') : '';
     let currentPrintAlunoId = null;
-    
-    if(rawData.usuarios) {
-        rawData.usuarios.forEach(u => { delete u.password_hash; delete u.reset_token; });
-    }
 
-    const maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {}, alunosById: {}, alunoByUserId: {} };
-    (rawData.usuarios || []).forEach(u => maps.users[String(u.id)] = u);
-    (rawData.turmas || []).forEach(t => maps.turmas[String(t.id)] = t);
-    (rawData.disciplinas || []).forEach(d => maps.disciplinas[String(d.id)] = d);
-    (rawData.diarios_classe || []).forEach(d => maps.diarios[String(d.id)] = d);
-    (rawData.alunos || []).forEach(a => {
-        maps.alunosById[String(a.id)] = a;
-        if (a.user_id) maps.alunoByUserId[String(a.user_id)] = a;
-    });
+    let maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {}, alunosById: {}, alunoByUserId: {} };
+
+    function rebuildMaps(dataObj) {
+        maps = { users: {}, turmas: {}, disciplinas: {}, diarios: {}, alunosById: {}, alunoByUserId: {} };
+        if (!dataObj) return;
+        if (dataObj.usuarios) {
+            dataObj.usuarios.forEach(u => {
+                delete u.password_hash;
+                delete u.reset_token;
+                maps.users[String(u.id)] = u;
+            });
+        }
+        (dataObj.turmas || []).forEach(t => maps.turmas[String(t.id)] = t);
+        (dataObj.disciplinas || []).forEach(d => maps.disciplinas[String(d.id)] = d);
+        (dataObj.diarios_classe || []).forEach(d => maps.diarios[String(d.id)] = d);
+        (dataObj.alunos || []).forEach(a => {
+            maps.alunosById[String(a.id)] = a;
+            if (a.user_id) maps.alunoByUserId[String(a.user_id)] = a;
+        });
+    }
 
     const getRealAlunoId = (userIdOrAlunoId) => {
         const a = maps.alunoByUserId[String(userIdOrAlunoId)];
@@ -205,17 +211,70 @@
         return new Date(isoString).toLocaleDateString('pt-BR');
     };
 
-    document.addEventListener("DOMContentLoaded", () => {
+    function loadBackupIntoUI(dataObj, fileName) {
+        rawData = dataObj;
+        currentFileName = fileName || 'backup.json';
+        currentGeneratedAt = (rawData.meta && rawData.meta.generated_at) ? rawData.meta.generated_at.substring(0, 19).replace('T', ' ') : '-';
+
+        rebuildMaps(rawData);
+
+        document.getElementById('summary-file-name').innerText = currentFileName;
+        document.getElementById('summary-generated-at').innerText = currentGeneratedAt;
+        document.getElementById('summary-turmas').innerText = (rawData.turmas || []).length;
+        document.getElementById('summary-usuarios').innerText = (rawData.usuarios || []).length;
+        document.getElementById('summary-disciplinas').innerText = (rawData.disciplinas || []).length;
+        document.getElementById('summary-diarios').innerText = (rawData.diarios_classe || []).length;
+        document.getElementById('summary-processos').innerText = (rawData.justica && rawData.justica.processos) ? rawData.justica.processos.length : 0;
+
         const totalFaltasReais = (rawData.frequencias || []).filter(f => f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta').length;
         document.getElementById('total-faltas-badge').innerText = totalFaltasReais;
+
+        document.getElementById('backup-preview-container').style.display = 'block';
 
         initAlunos();
         initDiarios();
         initJustica();
         renderRawTable();
-        
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
         const today = new Date();
-        document.getElementById('print-local-data').value = `Montenegro/RS, ${today.toLocaleDateString('pt-BR')}`;
+        const localDataInput = document.getElementById('print-local-data');
+        if (localDataInput) {
+            localDataInput.value = `Montenegro/RS, ${today.toLocaleDateString('pt-BR')}`;
+        }
+
+        if (rawData) {
+            loadBackupIntoUI(rawData, currentFileName);
+        }
+
+        const form = document.getElementById('form-preview-backup');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const fileInput = document.getElementById('backup_file');
+                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                    alert('Selecione um arquivo .json válido.');
+                    return;
+                }
+                const file = fileInput.files[0];
+                const btn = document.getElementById('btn-analisar-backup');
+                const oldText = btn.innerText;
+                btn.disabled = true;
+                btn.innerText = 'Analisando arquivo...';
+                try {
+                    const text = await file.text();
+                    const parsed = JSON.parse(text);
+                    loadBackupIntoUI(parsed, file.name);
+                } catch (err) {
+                    console.error(err);
+                    alert('Erro ao ler o arquivo JSON: ' + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = oldText;
+                }
+            });
+        }
     });
 
     function openTab(evt, tabName) {
@@ -404,7 +463,7 @@
                 <p><strong>NOME COMPLETO:</strong> ${getName(currentPrintAlunoId)}</p>
                 <p><strong>MATRÍCULA / ID:</strong> ${getMatricula(currentPrintAlunoId)}</p>
                 <p><strong>TURMA DE FORMAÇÃO:</strong> ${turmaNome}</p>
-                <p style="font-size: 12px; color: #333; margin-top: 10px;"><strong>ARQUIVO DE AUDITORIA:</strong> ${"{{ file_name }}"} (Snapshot Data: ${"{{ data.meta.generated_at[:19].replace('T', ' ') }}"})</p>
+                <p style="font-size: 12px; color: #333; margin-top: 10px;"><strong>ARQUIVO DE AUDITORIA:</strong> ${currentFileName} (Snapshot Data: ${currentGeneratedAt})</p>
             </div>
         `;
 
@@ -689,5 +748,4 @@
         container.innerHTML = html + `</tbody></table>`;
     }
 </script>
-{% endif %}
 {% endblock %}
