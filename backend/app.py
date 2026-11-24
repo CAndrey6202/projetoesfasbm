@@ -262,17 +262,6 @@ def _run_in_process_background_worker(app):
     import time
     import gc
     time.sleep(5)
-    with app.app_context():
-        try:
-            from flask_migrate import upgrade as _db_upgrade
-            _db_upgrade()
-            app.logger.info("Migracoes verificadas com sucesso em background.")
-        except Exception as e:
-            app.logger.warning(f"Aviso ao verificar migracoes em background: {e}")
-        finally:
-            db.session.remove()
-            gc.collect()
-
     from worker import process_pdf_job, process_certificates_zip, cleanup_old_jobs
     last_cleanup = datetime.utcnow()
 

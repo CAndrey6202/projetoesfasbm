@@ -229,48 +229,9 @@ def logs_admin():
 @login_required
 @admin_or_programmer_required
 def preview_backup():
+    # A leitura e análise do arquivo JSON de backup agora é feita 100% localmente no navegador
+    # para nunca consumir a memória RAM de 512MB do servidor no Render.
+    # Se o navegador reenviar um POST antigo (ex: F5 na página), redireciona para GET sem ler o payload.
     if request.method == 'POST':
-        if 'backup_file' not in request.files:
-            flash('Nenhum arquivo enviado.', 'error')
-            return redirect(request.url)
-            
-        file = request.files['backup_file']
-        
-        if file.filename == '':
-            flash('Nenhum arquivo selecionado.', 'error')
-            return redirect(request.url)
-            
-        if file and file.filename.endswith('.json'):
-            try:
-                import gc
-                file.stream.seek(0)
-                backup_data = json.load(file.stream)
-                # Otimização de memória para renderização HTML no container de 512MB:
-                # O leitor visual utiliza apenas os registros de falta (presente == False) e 1 amostra por aluno
-                freqs = backup_data.get('frequencias')
-                if isinstance(freqs, list) and len(freqs) > 5000:
-                    seen_alunos = set()
-                    compact_freqs = []
-                    for f in freqs:
-                        p = f.get('presente')
-                        is_falta = (p is False or p == 0 or p == "0" or p is None or f.get('status') == 'falta')
-                        aid = f.get('aluno_id')
-                        if is_falta:
-                            compact_freqs.append(f)
-                        elif aid not in seen_alunos:
-                            seen_alunos.add(aid)
-                            compact_freqs.append(f)
-                    backup_data['frequencias'] = compact_freqs
-                    del freqs
-                    gc.collect()
-                return render_template('ferramentas/preview_backup.html', data=backup_data, file_name=file.filename)
-            except json.JSONDecodeError:
-                flash('O arquivo enviado não é um JSON válido ou está corrompido.', 'error')
-            except Exception as e:
-                flash(f'Ocorreu um erro ao processar o arquivo de backup: {str(e)}', 'error')
-        else:
-            flash('Por favor, envie um arquivo .json válido.', 'error')
-            
-        return redirect(request.url)
-        
+        return redirect(url_for('tools.preview_backup'))
     return render_template('ferramentas/preview_backup.html', data=None)

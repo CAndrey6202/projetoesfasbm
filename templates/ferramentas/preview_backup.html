@@ -10,15 +10,14 @@
     </div>
 
     <div class="card" style="margin-bottom: 20px; padding: 20px;">
-        <form id="form-preview-backup" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div id="form-preview-backup">
             <div class="form-group">
                 <label for="backup_file"><strong>Selecione o arquivo JSON do Sisgen:</strong></label>
                 <input type="file" name="backup_file" id="backup_file" accept=".json" class="form-control" required style="margin-top: 10px; margin-bottom: 15px; border: 1px solid #ccc; padding: 5px; width: 100%;">
             </div>
-            <button type="submit" id="btn-analisar-backup" class="btn btn-primary">Analisar Arquivo</button>
+            <button type="button" id="btn-analisar-backup" class="btn btn-primary" onclick="analisarArquivoLocal()">Analisar Arquivo</button>
             <a href="{{ url_for('tools.index') }}" class="btn btn-secondary">Voltar</a>
-        </form>
+        </div>
     </div>
 
     <div id="backup-preview-container" class="card" style="padding: 20px; {% if not data %}display: none;{% endif %}">
@@ -237,6 +236,42 @@
         renderRawTable();
     }
 
+    async function analisarArquivoLocal() {
+        const fileInput = document.getElementById('backup_file');
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            alert('Selecione um arquivo .json válido.');
+            return;
+        }
+        const file = fileInput.files[0];
+        const btn = document.getElementById('btn-analisar-backup');
+        const oldText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Analisando arquivo...';
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed.frequencias) && parsed.frequencias.length > 5000) {
+                const seenAlunos = new Set();
+                parsed.frequencias = parsed.frequencias.filter(f => {
+                    const isFalta = (f.presente === false || f.presente === 0 || f.presente === "0" || f.presente === null || f.status === 'falta');
+                    if (isFalta) return true;
+                    if (!seenAlunos.has(f.aluno_id)) {
+                        seenAlunos.add(f.aluno_id);
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            loadBackupIntoUI(parsed, file.name);
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao ler o arquivo JSON: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = oldText;
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         const today = new Date();
         const localDataInput = document.getElementById('print-local-data');
@@ -246,34 +281,6 @@
 
         if (rawData) {
             loadBackupIntoUI(rawData, currentFileName);
-        }
-
-        const form = document.getElementById('form-preview-backup');
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const fileInput = document.getElementById('backup_file');
-                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                    alert('Selecione um arquivo .json válido.');
-                    return;
-                }
-                const file = fileInput.files[0];
-                const btn = document.getElementById('btn-analisar-backup');
-                const oldText = btn.innerText;
-                btn.disabled = true;
-                btn.innerText = 'Analisando arquivo...';
-                try {
-                    const text = await file.text();
-                    const parsed = JSON.parse(text);
-                    loadBackupIntoUI(parsed, file.name);
-                } catch (err) {
-                    console.error(err);
-                    alert('Erro ao ler o arquivo JSON: ' + err.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = oldText;
-                }
-            });
         }
     });
 
