@@ -111,8 +111,8 @@ def index():
         
         return render_template('recursos/admin_dashboard.html', disciplinas=disciplinas)
     
-    # Se for instrutor, mostra apenas recursos vinculados a ele para parecer
-    if current_user.role == 'instrutor':
+    # Se for instrutor na escola ativa, mostra apenas recursos vinculados a ele para parecer
+    if current_user.is_instrutor_in_school(active_school_id) or current_user.role == 'instrutor':
         edicao_id = g.active_edicao.id if g.get('active_edicao') else None
         query = Recurso.query.join(ProvaRecurso).join(Disciplina).join(Turma).filter(
             Turma.school_id == active_school_id

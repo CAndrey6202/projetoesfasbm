@@ -46,6 +46,22 @@ def sort_roman(rule):
             int_val += rom_val.get(s[i], 0)
     return int_val
 
+def _is_aluno_in_current_school(school_id=None) -> bool:
+    """
+    Verifica se o usuário atua exclusivamente como ALUNO na escola ativa.
+    Garante que Comandantes (admin_escola), Chefe CAL, SENS e Instrutores cujo
+    campo legado global users.role ainda esteja como 'aluno' nunca caiam na visão de aluno.
+    """
+    if current_user.is_super_admin or getattr(current_user, 'is_coordenador_provas', False):
+        return False
+    sid = school_id or UserService.get_current_school_id()
+    if current_user.is_staff_in_school(sid) or current_user.is_instrutor_in_school(sid):
+        return False
+    local_role = current_user.get_role_in_school(sid)
+    if local_role:
+        return local_role == 'aluno'
+    return (str(current_user.role).lower().strip() == 'aluno') or (current_user.aluno_profile is not None and not current_user.is_staff)
+
 @justica_bp.route('/')
 @login_required
 def index():
@@ -65,7 +81,7 @@ def index():
     ).all()
     fatos_predefinidos.sort(key=sort_roman)
 
-    is_aluno_view = (str(current_user.role).lower().strip() == 'aluno') or (current_user.aluno_profile is not None and not current_user.is_staff)
+    is_aluno_view = _is_aluno_in_current_school(school_id)
     if is_aluno_view:
         if not current_user.aluno_profile or not current_user.aluno_profile.turma:
             flash("Perfil incompleto.", "danger")
@@ -455,8 +471,9 @@ def dar_ciente(processo_id):
         flash("Processo não encontrado.", "error")
         return redirect(url_for('justica.index'))
 
-    is_aluno_dono = ((str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)) and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
-    can_manage = (not (str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)))
+    is_aluno_ctx = _is_aluno_in_current_school()
+    is_aluno_dono = (is_aluno_ctx and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
+    can_manage = (not is_aluno_ctx)
 
     if not (is_aluno_dono or can_manage):
         flash("Permissão negada.", "error")
@@ -475,7 +492,7 @@ def dar_ciente(processo_id):
     
     # --- ESPIÃO: CIÊNCIA NO PROCESSO ---
     school_id = UserService.get_current_school_id()
-    if not school_id and (str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)):
+    if not school_id and is_aluno_ctx and current_user.aluno_profile and current_user.aluno_profile.turma:
         school_id = current_user.aluno_profile.turma.school_id
         
     LogService.log(
@@ -495,7 +512,7 @@ def enviar_defesa(processo_id):
         flash("Processo não encontrado.", "error")
         return redirect(url_for('justica.index'))
 
-    is_aluno_dono = ((str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)) and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
+    is_aluno_dono = (_is_aluno_in_current_school() and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
 
     if not is_aluno_dono:
         flash("Permissão negada. Apenas o aluno autuado pode enviar a defesa.", "error")
@@ -539,7 +556,7 @@ def enviar_defesa(processo_id):
 def enviar_recurso(pid):
     processo = db.session.get(ProcessoDisciplina, pid)
 
-    is_aluno_dono = ((str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)) and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
+    is_aluno_dono = (_is_aluno_in_current_school() and current_user.aluno_profile and current_user.aluno_profile.id == processo.aluno_id)
     if not is_aluno_dono:
         flash("Apenas o aluno pode interpor recurso.", "error"); return redirect(url_for('justica.index'))
 
@@ -880,7 +897,7 @@ def imprimir_lote():
 @login_required
 def fada_boletim():
     school_id = UserService.get_current_school_id()
-    if not school_id and (str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)):
+    if not school_id and _is_aluno_in_current_school() and current_user.aluno_profile and current_user.aluno_profile.turma:
         school_id = current_user.aluno_profile.turma.school_id
 
     if not school_id:
@@ -1333,7 +1350,7 @@ def assinar_fada_aluno(fada_id):
     
     # --- ESPIÃO: ALUNO AÇÃO FADA ---
     school_id = UserService.get_current_school_id()
-    if not school_id and (str(current_user.role).lower().strip() == 'aluno' or (current_user.aluno_profile is not None and not current_user.is_staff)):
+    if not school_id and _is_aluno_in_current_school() and current_user.aluno_profile and current_user.aluno_profile.turma:
         school_id = current_user.aluno_profile.turma.school_id
         
     LogService.log(

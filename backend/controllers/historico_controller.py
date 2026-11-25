@@ -170,7 +170,7 @@ def minhas_notas():
 @login_required
 @can_view_management_pages_required
 def ver_historico_aluno(aluno_id):
-    if current_user.role not in ['super_admin', 'admin_escola']:
+    if not (current_user.is_super_admin or current_user.is_admin_escola or current_user.is_staff):
         flash("Você não tem permissão para visualizar este histórico.", 'danger')
         return redirect(url_for('main.dashboard'))
 

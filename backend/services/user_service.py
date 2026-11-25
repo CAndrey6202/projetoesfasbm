@@ -367,6 +367,17 @@ class UserService:
             
             if new_role == 'aluno':
                 user.role = 'aluno'
+            elif user.role != 'super_admin' and new_role in ('admin_escola', 'admin_cal', 'admin_sens', 'instrutor'):
+                # Se o usuário não possui vínculo de aluno em nenhuma outra escola, atualiza o role global também
+                has_other_aluno_link = db.session.scalar(
+                    select(UserSchool.id).where(
+                        UserSchool.user_id == user_id,
+                        UserSchool.school_id != school_id,
+                        UserSchool.role == 'aluno'
+                    )
+                )
+                if not has_other_aluno_link:
+                    user.role = new_role
             if new_role == 'instrutor':
                 UserService._ensure_instrutor_profile(user_id, school_id)
             
