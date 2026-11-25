@@ -164,8 +164,14 @@
         (dataObj.disciplinas || []).forEach(d => maps.disciplinas[String(d.id)] = d);
         (dataObj.diarios_classe || []).forEach(d => maps.diarios[String(d.id)] = d);
         (dataObj.alunos || []).forEach(a => {
+            const belongsToSchoolTurma = a.turma_id && maps.turmas[String(a.turma_id)];
             maps.alunosById[String(a.id)] = a;
-            if (a.user_id) maps.alunoByUserId[String(a.user_id)] = a;
+            if (a.user_id) {
+                const existing = maps.alunoByUserId[String(a.user_id)];
+                if (!existing || belongsToSchoolTurma) {
+                    maps.alunoByUserId[String(a.user_id)] = a;
+                }
+            }
         });
     }
 
@@ -299,7 +305,33 @@
     // --- MÓDULO: ALUNOS (TELA) ---
     let alunosList = [];
     function initAlunos() {
-        alunosList = (rawData.usuarios || []).filter(u => u.role === 'aluno' || !u.role); 
+        const schoolTurmaIds = new Set((rawData.turmas || []).map(t => String(t.id)));
+        const schoolEdicaoIds = new Set((rawData.edicoes || []).map(e => String(e.id)));
+        const instrutorUserIds = new Set((rawData.instrutores || []).map(i => String(i.user_id)));
+        const userSchoolRoles = {};
+        (rawData.users_schools || []).forEach(us => {
+            if (us.user_id && us.role) userSchoolRoles[String(us.user_id)] = String(us.role).toLowerCase().trim();
+        });
+
+        const validAlunoUserIds = new Set();
+        (rawData.alunos || []).forEach(a => {
+            const uid = String(a.user_id);
+            if (a.turma_id !== null && a.turma_id !== undefined) {
+                if (schoolTurmaIds.has(String(a.turma_id))) validAlunoUserIds.add(uid);
+            } else if (a.edicao_id !== null && a.edicao_id !== undefined) {
+                if (schoolEdicaoIds.has(String(a.edicao_id))) validAlunoUserIds.add(uid);
+            } else {
+                if (userSchoolRoles[uid] === 'aluno' && !instrutorUserIds.has(uid)) {
+                    validAlunoUserIds.add(uid);
+                }
+            }
+        });
+
+        if (Array.isArray(rawData.alunos) && rawData.alunos.length > 0) {
+            alunosList = (rawData.usuarios || []).filter(u => validAlunoUserIds.has(String(u.id)));
+        } else {
+            alunosList = (rawData.usuarios || []).filter(u => (u.role === 'aluno' || !u.role) && !instrutorUserIds.has(String(u.id)));
+        }
         renderAlunosList(alunosList);
     }
 

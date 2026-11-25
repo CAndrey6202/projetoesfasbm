@@ -117,10 +117,15 @@ class AdminToolsService:
         yield ',"escola":' + dump_val(escola_rows[0] if escola_rows else {})
         del escola_rows
 
-        yield ',"edicoes":' + dump_val(fetch_rows(Edicao, Edicao.school_id == school_id))
+        edicoes_rows = fetch_rows(Edicao, Edicao.school_id == school_id)
+        edicao_ids = [e["id"] for e in edicoes_rows]
+        edicao_ids_set = set(edicao_ids)
+        yield ',"edicoes":' + dump_val(edicoes_rows)
+        del edicoes_rows
 
         turmas_rows = fetch_rows(Turma, Turma.school_id == school_id)
         turma_ids = [t["id"] for t in turmas_rows]
+        turma_ids_set = set(turma_ids)
         turmas_cache = {t["id"]: t.get("nome") or "Desconhecida" for t in turmas_rows}
         yield ',"turmas":' + dump_val(turmas_rows)
         del turmas_rows
@@ -159,26 +164,60 @@ class AdminToolsService:
 
         us_rows = fetch_rows(UserSchool, UserSchool.school_id == school_id)
         user_ids_set = {us["user_id"] for us in us_rows if us.get("user_id")}
+        user_school_roles = {us["user_id"]: us.get("role") for us in us_rows if us.get("user_id") and us.get("role")}
+        school_aluno_user_ids = {
+            us["user_id"] for us in us_rows
+            if us.get("user_id") and str(us.get("role") or "").lower().strip() == "aluno"
+        }
         yield ',"users_schools":' + dump_val(us_rows)
         del us_rows
 
         instrutores_rows = fetch_rows(Instrutor, Instrutor.school_id == school_id)
+        school_instrutor_user_ids = set()
         for inst in instrutores_rows:
             if inst.get("user_id"):
                 user_ids_set.add(inst["user_id"])
+                school_instrutor_user_ids.add(inst["user_id"])
         yield ',"instrutores":' + dump_val(instrutores_rows)
         del instrutores_rows
 
+        # Busca APENAS perfis de Aluno que pertencem de fato a esta escola:
+        # 1) Vinculados a uma Turma desta escola, OU
+        # 2) Sem turma mas vinculados a uma Edição desta escola, OU
+        # 3) Sem turma e sem edição, mas cujo vínculo UserSchool nesta escola é 'aluno' (e não é instrutor desta escola)
         conds_alunos = []
-        if user_ids_set:
-            conds_alunos.append(Aluno.user_id.in_(list(user_ids_set)))
         if turma_ids:
             conds_alunos.append(Aluno.turma_id.in_(turma_ids))
+        if edicao_ids:
+            conds_alunos.append(Aluno.edicao_id.in_(edicao_ids))
+        orphan_aluno_uids = list(school_aluno_user_ids - school_instrutor_user_ids)
+        if orphan_aluno_uids:
+            conds_alunos.append(Aluno.user_id.in_(orphan_aluno_uids))
 
-        alunos_rows = fetch_rows(Aluno, or_(*conds_alunos)) if conds_alunos else []
-        for a in alunos_rows:
-            if a.get("user_id"):
-                user_ids_set.add(a["user_id"])
+        raw_alunos_rows = fetch_rows(Aluno, or_(*conds_alunos)) if conds_alunos else []
+        alunos_rows = []
+        aluno_user_ids_in_school = set()
+        for a in raw_alunos_rows:
+            a_tid = a.get("turma_id")
+            a_eid = a.get("edicao_id")
+            a_uid = a.get("user_id")
+            # Se tem turma_id, a turma OBRIGATORIAMENTE deve ser desta escola
+            if a_tid is not None:
+                if a_tid not in turma_ids_set:
+                    continue
+            # Se não tem turma_id mas tem edicao_id, a edição OBRIGATORIAMENTE deve ser desta escola
+            elif a_eid is not None:
+                if a_eid not in edicao_ids_set:
+                    continue
+            # Se não tem nem turma_id nem edicao_id, só entra se for aluno desta escola e não instrutor
+            else:
+                if a_uid not in school_aluno_user_ids or a_uid in school_instrutor_user_ids:
+                    continue
+            alunos_rows.append(a)
+            if a_uid:
+                user_ids_set.add(a_uid)
+                aluno_user_ids_in_school.add(a_uid)
+        del raw_alunos_rows
         yield ',"alunos":' + dump_val(alunos_rows)
 
         users_cache = {}
@@ -186,7 +225,16 @@ class AdminToolsService:
         if user_ids:
             usuarios_rows = fetch_rows(User, User.id.in_(user_ids))
             for u in usuarios_rows:
-                users_cache[u["id"]] = {
+                uid = u["id"]
+                # Corrige o papel (role) contextual do usuário NESTA escola para não misturar
+                # instrutores desta escola que são alunos em outra escola (ex: CSPM/CTSP)
+                if uid in aluno_user_ids_in_school:
+                    u["role"] = "aluno"
+                elif uid in user_school_roles and str(user_school_roles[uid]).lower().strip() != "aluno":
+                    u["role"] = user_school_roles[uid]
+                elif uid in school_instrutor_user_ids:
+                    u["role"] = "instrutor"
+                users_cache[uid] = {
                     "nome": u.get("nome_completo") or u.get("nome_de_guerra") or u.get("username") or "Sem Nome",
                     "matricula": u.get("matricula") or "Nao informada"
                 }
