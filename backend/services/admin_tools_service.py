@@ -139,10 +139,23 @@ class AdminToolsService:
         else:
             yield ',"semanas":[]'
 
+        yield ',"horarios":['
         if semana_ids:
-            yield ',"horarios":' + dump_val(fetch_rows(Horario, Horario.semana_id.in_(semana_ids)))
-        else:
-            yield ',"horarios":[]'
+            first_h = True
+            for idx in range(0, len(semana_ids), 5):
+                batch_s_ids = semana_ids[idx:idx + 5]
+                stmt_h = select(Horario.__table__).where(Horario.semana_id.in_(batch_s_ids))
+                buf = []
+                for r in db.session.execute(stmt_h).mappings():
+                    buf.append((',' if not first_h else '') + dump_val(serialize_mapping(r)))
+                    first_h = False
+                    if len(buf) >= 150:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
+                    yield ''.join(buf)
+                    buf.clear()
+        yield ']'
 
         us_rows = fetch_rows(UserSchool, UserSchool.school_id == school_id)
         user_ids_set = {us["user_id"] for us in us_rows if us.get("user_id")}
@@ -210,70 +223,72 @@ class AdminToolsService:
         else:
             yield ',"vinculos_disciplinas":[]'
 
-        diario_ids = []
+        # 6. diarios_classe (streaming 1 turma por vez para nao acumular 26.000 linhas no buffer do PostgreSQL)
         yield ',"diarios_classe":['
         if turma_ids:
             first_d = True
-            buf = []
-            stmt_diarios = select(DiarioClasse.__table__).where(DiarioClasse.turma_id.in_(turma_ids))
-            for r in db.session.execute(stmt_diarios).mappings():
-                d_data = serialize_mapping(r)
-                d_data["injected_turma_nome"] = turmas_cache.get(d_data.get("turma_id"), "Desconhecida")
-                d_data["injected_disciplina_nome"] = disciplinas_cache.get(d_data.get("disciplina_id"), "Desconhecida")
-                diario_ids.append(d_data["id"])
-                buf.append((',' if not first_d else '') + dump_val(d_data))
-                first_d = False
-                if len(buf) >= 250:
+            for tid in turma_ids:
+                buf = []
+                stmt_diarios = select(DiarioClasse.__table__).where(DiarioClasse.turma_id == tid)
+                for r in db.session.execute(stmt_diarios).mappings():
+                    d_data = serialize_mapping(r)
+                    d_data["injected_turma_nome"] = turmas_cache.get(d_data.get("turma_id"), "Desconhecida")
+                    d_data["injected_disciplina_nome"] = disciplinas_cache.get(d_data.get("disciplina_id"), "Desconhecida")
+                    buf.append((',' if not first_d else '') + dump_val(d_data))
+                    first_d = False
+                    if len(buf) >= 100:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
                     yield ''.join(buf)
                     buf.clear()
-            if buf:
-                yield ''.join(buf)
-                buf.clear()
         yield ']'
+        gc.collect()
 
+        # 7. frequencias (streaming 1 turma por vez filtrando faltas/justificativas no SQL)
         yield ',"frequencias":['
-        if turma_ids and diario_ids:
+        if turma_ids:
             from sqlalchemy import and_
             first_f = True
-            stmt_freq = (
-                select(FrequenciaAluno.__table__)
-                .select_from(
-                    FrequenciaAluno.__table__.join(
-                        DiarioClasse.__table__,
-                        FrequenciaAluno.diario_id == DiarioClasse.id
+            for tid in turma_ids:
+                stmt_freq = (
+                    select(FrequenciaAluno.__table__)
+                    .select_from(
+                        FrequenciaAluno.__table__.join(
+                            DiarioClasse.__table__,
+                            FrequenciaAluno.diario_id == DiarioClasse.id
+                        )
+                    )
+                    .where(
+                        DiarioClasse.turma_id == tid,
+                        or_(
+                            FrequenciaAluno.presente == False,
+                            FrequenciaAluno.presente.is_(None),
+                            and_(FrequenciaAluno.justificativa.isnot(None), FrequenciaAluno.justificativa != '')
+                        )
                     )
                 )
-                .where(
-                    DiarioClasse.turma_id.in_(turma_ids),
-                    or_(
-                        FrequenciaAluno.presente == False,
-                        FrequenciaAluno.presente.is_(None),
-                        and_(FrequenciaAluno.justificativa.isnot(None), FrequenciaAluno.justificativa != '')
-                    )
-                )
-            )
-            buf = []
-            for f in db.session.execute(stmt_freq).mappings():
-                a_info = alunos_cache.get(f["aluno_id"], {})
-                f_item = {
-                    "id": f["id"],
-                    "diario_id": f["diario_id"],
-                    "aluno_id": f["aluno_id"],
-                    "presente": f["presente"],
-                    "justificativa": f["justificativa"],
-                    "injected_aluno_nome": a_info.get("nome", "Desconhecido"),
-                    "injected_aluno_matricula": a_info.get("matricula", "N/A"),
-                }
-                buf.append((',' if not first_f else '') + dump_val(f_item))
-                first_f = False
-                if len(buf) >= 500:
+                buf = []
+                for f in db.session.execute(stmt_freq).mappings():
+                    a_info = alunos_cache.get(f["aluno_id"], {})
+                    f_item = {
+                        "id": f["id"],
+                        "diario_id": f["diario_id"],
+                        "aluno_id": f["aluno_id"],
+                        "presente": f["presente"],
+                        "justificativa": f["justificativa"],
+                        "injected_aluno_nome": a_info.get("nome", "Desconhecido"),
+                        "injected_aluno_matricula": a_info.get("matricula", "N/A"),
+                    }
+                    buf.append((',' if not first_f else '') + dump_val(f_item))
+                    first_f = False
+                    if len(buf) >= 200:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
                     yield ''.join(buf)
                     buf.clear()
-            if buf:
-                yield ''.join(buf)
-                buf.clear()
         yield ']'
-        del diario_ids
         gc.collect()
 
         if aluno_ids:
@@ -326,7 +341,7 @@ class AdminToolsService:
         del q_rows, p_rows, op_rows, resp_rows
 
         try:
-            logs_rows = fetch_rows(AdminLog, AdminLog.school_id == school_id, limit_rows=2000, order_col=AdminLog.id.desc())
+            logs_rows = fetch_rows(AdminLog, AdminLog.school_id == school_id, limit_rows=500, order_col=AdminLog.id.desc())
         except Exception:
             db.session.rollback()
             logs_rows = []
@@ -349,34 +364,69 @@ class AdminToolsService:
         yield ',"cursos_video":' + dump_val(vid_rows)
         del vid_rows
 
-        processos_list = []
-        elogios_list = []
-        fadas_list = []
+        # 13. justica (streaming em lotes de 20 alunos por vez para nunca alocar 260MB de processos na RAM!)
+        yield ',"justica":{"processos":['
         if aluno_ids:
-            for p_data in fetch_rows(ProcessoDisciplina, ProcessoDisciplina.aluno_id.in_(aluno_ids)):
-                a_info = alunos_cache.get(p_data.get("aluno_id"), {})
-                p_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
-                p_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
-                p_data["injected_user_id"] = a_info.get("user_id")
-                rel_id = p_data.get("relator_id")
-                relator_info = users_cache.get(rel_id, {}) if rel_id else {}
-                p_data["injected_relator_nome"] = relator_info.get("nome", "N/A")
-                processos_list.append(p_data)
-
-            for e_data in fetch_rows(Elogio, Elogio.aluno_id.in_(aluno_ids)):
-                a_info = alunos_cache.get(e_data.get("aluno_id"), {})
-                e_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
-                e_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
-                e_data["injected_user_id"] = a_info.get("user_id")
-                elogios_list.append(e_data)
-
-            fadas_list = fetch_rows(FadaAvaliacao, FadaAvaliacao.aluno_id.in_(aluno_ids))
-
-        yield ',"justica":' + dump_val({
-            "processos": processos_list,
-            "elogios": elogios_list,
-            "fadas": fadas_list
-        })
+            first_p = True
+            for idx in range(0, len(aluno_ids), 20):
+                batch_a_ids = aluno_ids[idx:idx + 20]
+                stmt_p = select(ProcessoDisciplina.__table__).where(ProcessoDisciplina.aluno_id.in_(batch_a_ids))
+                buf = []
+                for r in db.session.execute(stmt_p).mappings():
+                    p_data = serialize_mapping(r)
+                    a_info = alunos_cache.get(p_data.get("aluno_id"), {})
+                    p_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
+                    p_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
+                    p_data["injected_user_id"] = a_info.get("user_id")
+                    rel_id = p_data.get("relator_id")
+                    relator_info = users_cache.get(rel_id, {}) if rel_id else {}
+                    p_data["injected_relator_nome"] = relator_info.get("nome", "N/A")
+                    buf.append((',' if not first_p else '') + dump_val(p_data))
+                    first_p = False
+                    if len(buf) >= 30:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
+                    yield ''.join(buf)
+                    buf.clear()
+        yield '],"elogios":['
+        if aluno_ids:
+            first_e = True
+            for idx in range(0, len(aluno_ids), 50):
+                batch_a_ids = aluno_ids[idx:idx + 50]
+                stmt_e = select(Elogio.__table__).where(Elogio.aluno_id.in_(batch_a_ids))
+                buf = []
+                for r in db.session.execute(stmt_e).mappings():
+                    e_data = serialize_mapping(r)
+                    a_info = alunos_cache.get(e_data.get("aluno_id"), {})
+                    e_data["injected_aluno_nome"] = a_info.get("nome", "Desconhecido")
+                    e_data["injected_aluno_matricula"] = a_info.get("matricula", "N/A")
+                    e_data["injected_user_id"] = a_info.get("user_id")
+                    buf.append((',' if not first_e else '') + dump_val(e_data))
+                    first_e = False
+                    if len(buf) >= 100:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
+                    yield ''.join(buf)
+                    buf.clear()
+        yield '],"fadas":['
+        if aluno_ids:
+            first_fa = True
+            for idx in range(0, len(aluno_ids), 50):
+                batch_a_ids = aluno_ids[idx:idx + 50]
+                stmt_fa = select(FadaAvaliacao.__table__).where(FadaAvaliacao.aluno_id.in_(batch_a_ids))
+                buf = []
+                for r in db.session.execute(stmt_fa).mappings():
+                    buf.append((',' if not first_fa else '') + dump_val(serialize_mapping(r)))
+                    first_fa = False
+                    if len(buf) >= 100:
+                        yield ''.join(buf)
+                        buf.clear()
+                if buf:
+                    yield ''.join(buf)
+                    buf.clear()
+        yield ']}'
         yield '}'
         db.session.expunge_all()
         gc.collect()

@@ -195,7 +195,7 @@ def create_app(config_class=Config):
             .options(
                 selectinload(User.user_schools).joinedload(UserSchool.school),
                 selectinload(User.alunos_profiles).joinedload(Aluno.turma),
-                joinedload(User.instrutor_profile),
+                # instrutor_profile carregado sob demanda (evita SAWarning para instrutor em multiplas escolas)
             )
             .get(int(user_id))
         )
